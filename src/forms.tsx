@@ -1,0 +1,9 @@
+// @ts-nocheck
+import { ReactNode } from 'react';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { colors } from './theme';
+
+export function Sheet({ visible, title, onClose, children }: { visible: boolean; title: string; onClose: () => void; children: ReactNode }) { return <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}><View style={s.backdrop}><View style={s.sheet}><View style={s.header}><Text style={s.title}>{title}</Text><Pressable onPress={onClose} hitSlop={12}><Text style={s.close}>Lukk</Text></Pressable></View><ScrollView showsVerticalScrollIndicator={false}>{children}</ScrollView></View></View></Modal>; }
+export function Field({ value, onChangeText, placeholder, multiline = false }: { value: string; onChangeText: (value: string) => void; placeholder: string; multiline?: boolean }) { return <TextInput value={value} onChangeText={onChangeText} placeholder={placeholder} placeholderTextColor={colors.muted} multiline={multiline} style={[s.field, multiline && s.multiline]}/>; }
+export const formStyles = s;
+const s = StyleSheet.create({ backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(16,36,44,.34)' }, sheet: { maxHeight: '86%', backgroundColor: colors.background, borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 20, paddingBottom: 34 }, header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }, title: { color: colors.navy, fontSize: 21, fontWeight: '800' }, close: { color: colors.teal, fontSize: 15, fontWeight: '800' }, field: { minHeight: 52, borderWidth: 1, borderColor: colors.border, borderRadius: 16, backgroundColor: colors.surface, color: colors.text, fontSize: 16, paddingHorizontal: 14, marginBottom: 10 }, multiline: { minHeight: 92, paddingTop: 13, textAlignVertical: 'top' } });
