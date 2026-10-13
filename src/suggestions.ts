@@ -1,0 +1,9 @@
+export type Suggestion = { label: string; value: string; detail?: string };
+
+export const destinationSuggestions: Suggestion[] = [
+  ['Phuket', 'Thailand'], ['Bangkok', 'Thailand'], ['Koh Samui', 'Thailand'], ['Bali', 'Indonesia'], ['Tokyo', 'Japan'], ['New York', 'USA'], ['Miami', 'USA'], ['Alicante', 'Spania'], ['Barcelona', 'Spania'], ['Madrid', 'Spania'], ['Mallorca', 'Spania'], ['Malaga', 'Spania'], ['Paris', 'Frankrike'], ['Nice', 'Frankrike'], ['Roma', 'Italia'], ['Amalfi', 'Italia'], ['Milano', 'Italia'], ['Lisboa', 'Portugal'], ['Madeira', 'Portugal'], ['London', 'Storbritannia'], ['Amsterdam', 'Nederland'], ['København', 'Danmark'], ['Stockholm', 'Sverige'], ['Reykjavik', 'Island'], ['Dubai', 'De forente arabiske emirater'], ['Cape Town', 'Sør-Afrika'], ['Sydney', 'Australia'], ['Split', 'Kroatia'], ['Santorini', 'Hellas'], ['Kreta', 'Hellas'], ['Berlin', 'Tyskland'], ['Marrakech', 'Marokko'],
+].map(([city, country]) => ({ label: `${city}, ${country}`, value: city, detail: country }));
+
+export const packingSuggestions: Suggestion[] = ['Solbriller', 'Solkrem', 'Solhatt', 'Solskjerm', 'Solkrem til ansiktet', 'Pass', 'Lader', 'Ladekabel', 'Powerbank', 'Badetøy', 'Håndkle', 'Toalettmappe', 'Tannbørste', 'Tannkrem', 'Medisiner', 'Reiseforsikring', 'Bankkort', 'Kontanter', 'Hodetelefoner', 'Adapter', 'Vannflaske', 'Jakke', 'Regnjakke', 'Joggesko', 'Sandaler', 'Undertøy'].map((value) => ({ label: value, value }));
+export const activitySuggestions: Suggestion[] = ['Frokost', 'Lunsj', 'Middag', 'Dykking', 'Stranddag', 'Byvandring', 'Museum', 'Vinsmaking', 'Fjelltur', 'Båttur', 'Spa', 'Shopping', 'Solnedgang'].map((value) => ({ label: value, value }));
+export const wishSuggestions: Suggestion[] = ['Lokal restaurant', 'Strand', 'Utsiktspunkt', 'Matmarked', 'Dykking', 'Båttur', 'Museum', 'Vandring', 'Kafé', 'Solnedgang'].map((value) => ({ label: value, value }));
