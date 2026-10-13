@@ -1,10 +1,37 @@
-import { useLocalSearchParams, router } from 'expo-router';
-import { useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Field } from '@/src/forms';
-import { PrimaryButton } from '@/src/ui';
-import { colors } from '@/src/theme';
-import { useTravel } from '@/src/store';
+import { readInvite } from '@/src/invites';
 import { ensureGuestIdentity } from '@/src/lib/supabase';
-export default function JoinTrip() { const { tripId } = useLocalSearchParams<{ tripId: string }>(); const { trips, addMember, setSelectedTripId } = useTravel(); const [name, setName] = useState(''); const trip = trips.find((item) => item.id === tripId); const join = async () => { if (!trip || !name.trim()) return; await ensureGuestIdentity().catch(() => null); addMember(trip.id, name.trim()); setSelectedTripId(trip.id); router.replace('/trip'); }; return <View style={s.page}><Text style={s.eyebrow}>Reisefølge</Text><Text style={s.title}>{trip ? `Join ${trip.title}` : 'This invite is no longer available'}</Text>{trip && <><Text style={s.copy}>Enter your name to join this trip. You can create an account later.</Text><Field value={name} onChangeText={setName} placeholder="Your display name"/><PrimaryButton title="Join trip" icon="person-add-outline" onPress={join}/></>}</View>; }
+import { colors } from '@/src/theme';
+import { PrimaryButton } from '@/src/ui';
+import { useTravel } from '@/src/store';
+
+export default function JoinTrip() {
+  const { tripId, invite: rawInvite } = useLocalSearchParams<{ tripId: string; invite?: string }>();
+  const { trips, addMember, createTrip, setSelectedTripId } = useTravel();
+  const [name, setName] = useState('');
+  const localTrip = trips.find((item) => item.id === tripId);
+  const sharedTrip = useMemo(() => readInvite(rawInvite), [rawInvite]);
+  const trip = localTrip ?? sharedTrip;
+  const join = async () => {
+    if (!trip || !name.trim()) return;
+    await ensureGuestIdentity().catch(() => null);
+    if (localTrip) {
+      addMember(localTrip.id, name.trim());
+      setSelectedTripId(localTrip.id);
+    } else {
+      const id = createTrip({ ...sharedTrip!, members: [...sharedTrip!.members, name.trim()] });
+      setSelectedTripId(id);
+    }
+    router.replace('/trip');
+  };
+  return <View style={s.page}>
+    <Text style={s.eyebrow}>Reisefølge</Text>
+    <Text style={s.title}>{trip ? `Bli med på ${trip.title}` : 'Denne invitasjonen er ikke tilgjengelig'}</Text>
+    {trip && <><Text style={s.copy}>{trip.city}, {trip.country} · {trip.startDate} – {trip.endDate}</Text><Text style={s.copy}>Skriv navnet ditt for å bli med på turen.</Text><Field value={name} onChangeText={setName} placeholder="Ditt navn"/><PrimaryButton title="Bli med på turen" icon="person-add-outline" onPress={join}/></>}
+  </View>;
+}
+
 const s = StyleSheet.create({ page: { flex: 1, backgroundColor: colors.background, padding: 24, paddingTop: 96, gap: 17 }, eyebrow: { color: colors.teal, fontSize: 12, fontWeight: '800', letterSpacing: .8, textTransform: 'uppercase' }, title: { color: colors.navy, fontSize: 34, fontWeight: '800', letterSpacing: -1.1, lineHeight: 40 }, copy: { color: colors.muted, fontSize: 16, lineHeight: 25, marginBottom: 8 } });

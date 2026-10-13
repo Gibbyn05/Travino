@@ -10,8 +10,27 @@ import { useTravel } from '@/src/store';
 import { fetchWeather, Weather } from '@/src/weather';
 import { activitySuggestions, packingCategorySuggestions, packingSuggestions, suggestedPackingCategory, wishSuggestions } from '@/src/suggestions';
 import { stockCoverForCountry } from '@/src/country-images';
+import { inviteUrl } from '@/src/invites';
 const tabs = ['Oversikt', 'Plan', 'Pakkeliste', 'Ønskeliste', 'Minner'];
-export default function TripScreen() { const { selectedTrip } = useTravel(); const { tab: requestedTab } = useLocalSearchParams<{ tab?: string }>(); const [tab, setTab] = useState('Oversikt'); useEffect(() => { if (requestedTab && tabs.includes(requestedTab)) setTab(requestedTab); }, [requestedTab]); if (!selectedTrip) return <Empty/>; const invite = () => { const base = process.env.EXPO_PUBLIC_APP_URL || 'https://travino-git-main-gibbyn05s-projects.vercel.app'; return Share.share({ message: `Join ${selectedTrip.title} in Reisefølge: ${base}/join/${selectedTrip.id}` }); }; return <ScrollView style={s.page} contentContainerStyle={s.content}><PageTitle eyebrow={`${selectedTrip.city}, ${selectedTrip.country}`}>{selectedTrip.title}</PageTitle><ImageBackground source={{ uri: selectedTrip.coverImage || stockCoverForCountry(selectedTrip.country) }} style={s.hero} imageStyle={s.heroImage}><View style={s.heroShade}><Text style={s.date}>{selectedTrip.startDate} – {selectedTrip.endDate}</Text><Text style={s.heroCopy}>{selectedTrip.members.length ? `${selectedTrip.members.join(', ')} reiser sammen` : 'Ingen er lagt til ennå.'}</Text></View></ImageBackground><View style={{ marginTop: 12 }}><PrimaryButton title="Invite members" icon="person-add-outline" onPress={invite}/></View><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.tabs}>{tabs.map((item) => <Pressable key={item} onPress={() => setTab(item)} style={[s.tab, tab === item && s.activeTab]}><Text style={[s.tabText, tab === item && s.activeText]}>{item}</Text></Pressable>)}</ScrollView>{tab === 'Oversikt' && <Overview/>}{tab === 'Plan' && <Plan/>}{tab === 'Pakkeliste' && <Packing/>}{tab === 'Ønskeliste' && <Wishes/>}{tab === 'Minner' && <Memories/>}</ScrollView>; }
+export default function TripScreen() {
+  const { selectedTrip } = useTravel();
+  const { tab: requestedTab } = useLocalSearchParams<{ tab?: string }>();
+  const [tab, setTab] = useState('Oversikt');
+  useEffect(() => { if (requestedTab && tabs.includes(requestedTab)) setTab(requestedTab); }, [requestedTab]);
+  if (!selectedTrip) return <Empty/>;
+  const invite = () => {
+    const base = process.env.EXPO_PUBLIC_APP_URL || 'https://travino-git-main-gibbyn05s-projects.vercel.app';
+    const link = inviteUrl(selectedTrip, base);
+    return Share.share({ message: `Bli med på ${selectedTrip.title} i Reisefølge:\n${link}` });
+  };
+  return <ScrollView style={s.page} contentContainerStyle={s.content}>
+    <PageTitle eyebrow={`${selectedTrip.city}, ${selectedTrip.country}`}>{selectedTrip.title}</PageTitle>
+    <ImageBackground source={{ uri: selectedTrip.coverImage || stockCoverForCountry(selectedTrip.country) }} style={s.hero} imageStyle={s.heroImage}><View style={s.heroShade}><Text style={s.date}>{selectedTrip.startDate} – {selectedTrip.endDate}</Text><Text style={s.heroCopy}>{selectedTrip.members.length ? `${selectedTrip.members.join(', ')} reiser sammen` : 'Ingen er lagt til ennå.'}</Text></View></ImageBackground>
+    <View style={{ marginTop: 12 }}><PrimaryButton title="Invite members" icon="person-add-outline" onPress={invite}/></View>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.tabs}>{tabs.map((item) => <Pressable key={item} onPress={() => setTab(item)} style={[s.tab, tab === item && s.activeTab]}><Text style={[s.tabText, tab === item && s.activeText]}>{item}</Text></Pressable>)}</ScrollView>
+    {tab === 'Oversikt' && <Overview/>}{tab === 'Plan' && <Plan/>}{tab === 'Pakkeliste' && <Packing/>}{tab === 'Ønskeliste' && <Wishes/>}{tab === 'Minner' && <Memories/>}
+  </ScrollView>;
+}
 function Empty() { return <View style={s.empty}><Ionicons name="airplane-outline" size={38} color={colors.teal}/><Text style={s.emptyText}>Velg eller opprett en tur først.</Text></View>; }
 function useWeather(city: string, country: string) { const [weather, setWeather] = useState<Weather | null>(null); const [error, setError] = useState(false); const [loading, setLoading] = useState(true); useEffect(() => { const controller = new AbortController(); setLoading(true); setError(false); fetchWeather(city, country, controller.signal).then((value) => { setWeather(value); setLoading(false); }).catch((reason) => { if (reason.name !== 'AbortError') { setError(true); setLoading(false); } }); return () => controller.abort(); }, [city, country]); return { weather, error, loading }; }
 function readableCountdown(value: string) { const parts = value.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/); const start = parts ? new Date(Number(parts[3]), Number(parts[2]) - 1, Number(parts[1])) : new Date(value); if (Number.isNaN(start.getTime())) return null; const today = new Date(); today.setHours(0, 0, 0, 0); start.setHours(0, 0, 0, 0); const days = Math.round((start.getTime() - today.getTime()) / 86400000); return days < 0 ? 'Turen er avsluttet' : days === 0 ? 'Avreise i dag' : `${days} ${days === 1 ? 'dag' : 'dager'} igjen`; }
