@@ -1,45 +1,73 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { WebView } from 'react-native-webview';
+import { buildGlobeHtml, GlobePlace } from '@/src/globe-html';
 import { Card, PageTitle, Section } from '@/src/ui';
 import { colors } from '@/src/theme';
 import { Trip, useTravel } from '@/src/store';
 
-const globeSize = 316;
-const landMasses = [
-  [32, 62, 45, 26, -18], [64, 84, 72, 42, 12], [105, 125, 33, 67, 20], [150, 69, 32, 18, -10], [171, 84, 69, 32, 8], [225, 113, 31, 74, -12], [264, 81, 58, 34, 8], [315, 64, 73, 42, -12], [360, 95, 92, 49, 7], [428, 135, 43, 87, 11], [488, 92, 81, 44, -10], [548, 140, 45, 29, 14], [580, 208, 57, 34, -4],
-  [696, 62, 45, 26, -18], [728, 84, 72, 42, 12], [769, 125, 33, 67, 20], [814, 69, 32, 18, -10], [835, 84, 69, 32, 8], [889, 113, 31, 74, -12], [928, 81, 58, 34, 8], [979, 64, 73, 42, -12], [1024, 95, 92, 49, 7], [1092, 135, 43, 87, 11], [1152, 92, 81, 44, -10], [1212, 140, 45, 29, 14], [1244, 208, 57, 34, -4],
-];
-const countryStrokes = [94, 123, 204, 242, 288, 342, 394, 435, 528, 557, 758, 787, 868, 906, 952, 1006, 1058, 1099, 1192, 1221];
-const locations: Record<string, { lat: number; lon: number }> = {
-  alicante: { lat: 38.35, lon: -0.48 }, oslo: { lat: 59.91, lon: 10.75 }, bergen: { lat: 60.39, lon: 5.32 },
-  london: { lat: 51.51, lon: -0.13 }, paris: { lat: 48.86, lon: 2.35 }, rome: { lat: 41.9, lon: 12.5 },
-  barcelona: { lat: 41.39, lon: 2.17 }, madrid: { lat: 40.42, lon: -3.7 }, lisbon: { lat: 38.72, lon: -9.14 },
-  copenhagen: { lat: 55.68, lon: 12.57 }, stockholm: { lat: 59.33, lon: 18.07 }, amsterdam: { lat: 52.37, lon: 4.9 },
-  'new york': { lat: 40.71, lon: -74.01 }, tokyo: { lat: 35.68, lon: 139.69 }, bangkok: { lat: 13.76, lon: 100.5 },
-  sydney: { lat: -33.87, lon: 151.21 }, 'cape town': { lat: -33.92, lon: 18.42 }, reykjavik: { lat: 64.15, lon: -21.94 },
+type MappedTrip = GlobePlace & { trip: Trip };
+const fallbackCoordinates: Record<string, { lat: number; lon: number }> = {
+  'alicante,spain': { lat: 38.35, lon: -0.48 }, 'oslo,norway': { lat: 59.91, lon: 10.75 }, 'molde,norway': { lat: 62.74, lon: 7.16 },
+  'phuket,thailand': { lat: 7.88, lon: 98.39 }, 'bangkok,thailand': { lat: 13.76, lon: 100.5 }, 'barcelona,spain': { lat: 41.39, lon: 2.17 },
 };
 const normalise = (value: string) => value.trim().toLocaleLowerCase('nb-NO');
+const placeKey = (trip: Trip) => `${normalise(trip.city)},${normalise(trip.country)}`;
 const dateValue = (value: string) => { const parsed = Date.parse(value); return Number.isNaN(parsed) ? null : parsed; };
 const hasVisited = (trip: Trip) => { const end = dateValue(trip.endDate); return end !== null && end < new Date().setHours(0, 0, 0, 0); };
-const pointFor = (trip: Trip) => locations[normalise(trip.city)] ?? null;
-const wrapLongitude = (longitude: number) => ((longitude + 180) % 360 + 360) % 360 - 180;
+
+async function locateTrip(trip: Trip): Promise<MappedTrip | null> {
+  const fallback = fallbackCoordinates[placeKey(trip)];
+  try {
+    const response = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(trip.city)}&count=12&language=no&format=json`);
+    const data = response.ok ? await response.json() : null;
+    const results = data?.results ?? [];
+    const result = results.find((item: { country?: string }) => normalise(item.country ?? '') === normalise(trip.country)) ?? results[0];
+    if (result) return { id: trip.id, city: trip.city, country: trip.country, lat: result.latitude, lon: result.longitude, trip };
+  } catch { /* The stored fallback still makes common locations available offline. */ }
+  return fallback ? { id: trip.id, city: trip.city, country: trip.country, ...fallback, trip } : null;
+}
 
 export default function MapScreen() {
   const { trips, setSelectedTripId } = useTravel();
-  const visited = useMemo(() => trips.filter(hasVisited).map((trip) => ({ trip, point: pointFor(trip) })).filter((item): item is { trip: Trip; point: { lat: number; lon: number } } => item.point !== null), [trips]);
-  const [rotation, setRotation] = useState(-14); const [selectedId, setSelectedId] = useState<string | undefined>(visited[0]?.trip.id);
-  const dragStart = useRef(0); const rotationStart = useRef(0);
-  useEffect(() => { const timer = setInterval(() => setRotation((current) => wrapLongitude(current + 0.22)), 48); return () => clearInterval(timer); }, []);
-  useEffect(() => { if (!visited.some((item) => item.trip.id === selectedId)) setSelectedId(visited[0]?.trip.id); }, [visited, selectedId]);
-  const pan = useMemo(() => PanResponder.create({ onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dx) > 3, onMoveShouldSetPanResponderCapture: (_, gesture) => Math.abs(gesture.dx) > 3, onPanResponderGrant: (_, gesture) => { dragStart.current = gesture.x0; rotationStart.current = rotation; }, onPanResponderMove: (_, gesture) => setRotation(wrapLongitude(rotationStart.current + (gesture.moveX - dragStart.current) * 0.8)), onPanResponderTerminationRequest: () => false }), [rotation]);
-  const selected = visited.find((item) => item.trip.id === selectedId)?.trip;
+  const visitedTrips = useMemo(() => trips.filter(hasVisited), [trips]);
+  const [places, setPlaces] = useState<MappedTrip[]>([]);
+  const [selectedId, setSelectedId] = useState<string>();
+
+  useEffect(() => {
+    let active = true;
+    Promise.all(visitedTrips.map(locateTrip)).then((resolved) => {
+      if (!active) return;
+      const mapped = resolved.filter((item): item is MappedTrip => item !== null);
+      setPlaces(mapped);
+      setSelectedId((current) => mapped.some((item) => item.id === current) ? current : mapped[0]?.id);
+    });
+    return () => { active = false; };
+  }, [visitedTrips]);
+
+  const selected = places.find((item) => item.id === selectedId)?.trip;
+  const globeHtml = useMemo(() => buildGlobeHtml(places, selectedId), [places, selectedId]);
   const openAlbum = () => { if (!selected) return; setSelectedTripId(selected.id); router.push('/trip?tab=Minner'); };
-  const textureOffset = ((rotation + 180) / 360) * globeSize * 2;
-  return <View style={s.page}><View style={s.content}><PageTitle eyebrow="Reisehistorien din">Kart</PageTitle><Text style={s.intro}>Snurr kloden og se stedene dere faktisk har vært.</Text><View style={s.globeArea} {...pan.panHandlers}><View style={s.globe}><View style={[s.textureTrack, { transform: [{ translateX: -textureOffset }] }]}>{landMasses.map(([left, top, width, height, turn], index) => <View key={index} style={[s.land, { left, top, width, height, transform: [{ rotate: `${turn}deg` }] }]}/>) }{countryStrokes.map((left) => <View key={left} style={[s.countryStroke, { left }]}/>)}</View><View style={s.latitudeOne}/><View style={s.latitudeTwo}/><View style={s.meridian}/><View style={s.glow} />{visited.map(({ trip, point }) => { const longitude = wrapLongitude(point.lon + rotation); const horizon = Math.cos(longitude * Math.PI / 180); const latitude = point.lat * Math.PI / 180; const x = globeSize / 2 + Math.sin(longitude * Math.PI / 180) * globeSize * 0.39; const y = globeSize / 2 - Math.sin(latitude) * globeSize * 0.39; if (horizon < -0.13) return null; const active = selectedId === trip.id; return <Pressable key={trip.id} onPress={() => setSelectedId(trip.id)} accessibilityRole="button" accessibilityLabel={`Åpne ${trip.city}`} style={[s.markerWrap, { left: x - 17, top: y - 50, opacity: 0.34 + Math.max(horizon, 0) * 0.66, transform: [{ scale: 0.74 + Math.max(horizon, 0) * 0.26 }] }]}><View style={[s.markerLabel, active && s.markerLabelActive]}><Text numberOfLines={1} style={[s.markerText, active && s.markerTextActive]}>{trip.city}</Text></View><View style={[s.pin, active && s.pinActive]}><Ionicons name="location" size={14} color="#fff" /></View></Pressable>; })}</View></View><View style={s.hint}><Ionicons name="swap-horizontal" size={18} color={colors.teal}/><Text style={s.hintText}>Dra sidelengs for å snurre</Text></View>{selected ? <Section title="Et reiseøyeblikk"><Pressable onPress={openAlbum} style={s.albumCard}><View style={s.albumIcon}><Ionicons name="images-outline" size={22} color={colors.teal}/></View><View style={{ flex: 1 }}><Text style={s.albumTitle}>{selected.city}, {selected.country}</Text><Text style={s.copy}>{selected.startDate} – {selected.endDate}</Text></View><Ionicons name="chevron-forward" size={21} color={colors.muted}/></Pressable></Section> : <Card style={s.empty}><Ionicons name="earth-outline" size={34} color={colors.teal}/><Text style={s.emptyTitle}>Kloden fylles etter turen</Text><Text style={s.copy}>Et sted dukker opp her når turens sluttdato har passert.</Text></Card>}</View></View>;
+  const selectFromGlobe = (event: { nativeEvent: { data: string } }) => {
+    try {
+      const message = JSON.parse(event.nativeEvent.data);
+      if (message.type === 'select' && typeof message.id === 'string') setSelectedId(message.id);
+    } catch { /* Ignore messages outside the globe bridge. */ }
+  };
+
+  return <View style={s.page}><View style={s.content}>
+    <PageTitle eyebrow="Reisehistorien din">Kart</PageTitle>
+    <Text style={s.intro}>Snurr kloden og se stedene dere faktisk har vært.</Text>
+    <View style={s.globeShell}>
+      <WebView source={{ html: globeHtml }} onMessage={selectFromGlobe} javaScriptEnabled domStorageEnabled scrollEnabled={false} bounces={false} originWhitelist={['*']} style={s.globe} containerStyle={s.globe} />
+    </View>
+    <View style={s.hint}><Ionicons name="hand-left-outline" size={18} color={colors.teal}/><Text style={s.hintText}>Dra for å snurre · trykk på en markør</Text></View>
+    {selected ? <Section title="Et reiseøyeblikk"><Pressable onPress={openAlbum} style={s.albumCard}><View style={s.albumIcon}><Ionicons name="images-outline" size={22} color={colors.teal}/></View><View style={{ flex: 1 }}><Text style={s.albumTitle}>{selected.city}, {selected.country}</Text><Text style={s.copy}>{selected.startDate} – {selected.endDate}</Text></View><Ionicons name="chevron-forward" size={21} color={colors.muted}/></Pressable></Section> : <Card style={s.empty}><Ionicons name="earth-outline" size={34} color={colors.teal}/><Text style={s.emptyTitle}>Kloden fylles etter turen</Text><Text style={s.copy}>Et sted dukker opp her når turens sluttdato har passert.</Text></Card>}
+  </View></View>;
 }
 
 const s = StyleSheet.create({
-  page: { flex: 1, backgroundColor: colors.background }, content: { flex: 1, padding: 24, paddingTop: 68, paddingBottom: 32 }, intro: { color: colors.muted, fontSize: 15, lineHeight: 22, marginTop: -10 }, globeArea: { alignItems: 'center', height: 365, justifyContent: 'center', marginTop: 13 }, globe: { width: globeSize, height: globeSize, borderRadius: globeSize / 2, backgroundColor: '#194D5D', overflow: 'hidden', borderWidth: 5, borderColor: colors.surface, shadowColor: colors.navy, shadowOpacity: 0.13, shadowRadius: 23, shadowOffset: { width: 0, height: 12 }, elevation: 5 }, textureTrack: { position: 'absolute', width: globeSize * 4, height: globeSize, top: 0, left: 0 }, land: { position: 'absolute', backgroundColor: '#86B58A', borderColor: '#B8D9B7', borderWidth: 1, borderRadius: 12, opacity: .96 }, countryStroke: { position: 'absolute', top: 72, height: 170, width: 1, backgroundColor: 'rgba(222,243,218,.55)' }, latitudeOne: { position: 'absolute', width: globeSize * .92, height: globeSize * .3, borderRadius: globeSize, borderWidth: 1, borderColor: 'rgba(255,255,255,.24)', left: globeSize * .04, top: globeSize * .2 }, latitudeTwo: { position: 'absolute', width: globeSize * .92, height: globeSize * .3, borderRadius: globeSize, borderWidth: 1, borderColor: 'rgba(255,255,255,.2)', left: globeSize * .04, bottom: globeSize * .2 }, meridian: { position: 'absolute', width: globeSize * .42, height: globeSize * .93, borderRadius: globeSize, borderWidth: 1, borderColor: 'rgba(255,255,255,.18)', left: globeSize * .29, top: globeSize * .035 }, glow: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: globeSize / 2, borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)' }, markerWrap: { position: 'absolute', alignItems: 'center', width: 100 }, markerLabel: { maxWidth: 105, backgroundColor: 'rgba(255,253,249,.93)', borderRadius: 11, paddingHorizontal: 9, paddingVertical: 6, marginBottom: 5 }, markerLabelActive: { backgroundColor: colors.sand }, markerText: { color: colors.navy, fontSize: 11, fontWeight: '800' }, markerTextActive: { color: colors.navy }, pin: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.coral, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.surface }, pinActive: { backgroundColor: colors.teal, transform: [{ scale: 1.13 }] }, hint: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: -4 }, hintText: { color: colors.teal, fontSize: 13, fontWeight: '800' }, albumCard: { flexDirection: 'row', alignItems: 'center', gap: 13, borderRadius: 22, padding: 17, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, shadowColor: colors.navy, shadowOpacity: .04, shadowRadius: 12, shadowOffset: { width: 0, height: 5 } }, albumIcon: { backgroundColor: colors.mist, height: 46, width: 46, borderRadius: 16, alignItems: 'center', justifyContent: 'center' }, albumTitle: { color: colors.navy, fontWeight: '800', fontSize: 17 }, copy: { color: colors.muted, fontSize: 13, lineHeight: 20, marginTop: 4 }, empty: { alignItems: 'center', gap: 9, paddingVertical: 32, marginTop: 32, backgroundColor: colors.mist, borderColor: 'transparent' }, emptyTitle: { color: colors.navy, fontSize: 17, fontWeight: '800' },
+  page: { flex: 1, backgroundColor: colors.background }, content: { flex: 1, padding: 24, paddingTop: 68, paddingBottom: 32 }, intro: { color: colors.muted, fontSize: 15, lineHeight: 22, marginTop: -10 }, globeShell: { height: 360, marginTop: 14, overflow: 'hidden', borderRadius: 30, backgroundColor: '#163F4C', borderWidth: 1, borderColor: 'rgba(255,255,255,.65)', shadowColor: colors.navy, shadowOpacity: .13, shadowRadius: 23, shadowOffset: { width: 0, height: 12 }, elevation: 5 }, globe: { flex: 1, backgroundColor: 'transparent' }, hint: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 15 }, hintText: { color: colors.teal, fontSize: 13, fontWeight: '800' }, albumCard: { flexDirection: 'row', alignItems: 'center', gap: 13, borderRadius: 22, padding: 17, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, shadowColor: colors.navy, shadowOpacity: .04, shadowRadius: 12, shadowOffset: { width: 0, height: 5 } }, albumIcon: { backgroundColor: colors.mist, height: 46, width: 46, borderRadius: 16, alignItems: 'center', justifyContent: 'center' }, albumTitle: { color: colors.navy, fontWeight: '800', fontSize: 17 }, copy: { color: colors.muted, fontSize: 13, lineHeight: 20, marginTop: 4 }, empty: { alignItems: 'center', gap: 9, paddingVertical: 32, marginTop: 32, backgroundColor: colors.mist, borderColor: 'transparent' }, emptyTitle: { color: colors.navy, fontSize: 17, fontWeight: '800' },
 });
