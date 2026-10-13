@@ -1,0 +1,20 @@
+// @ts-nocheck
+import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
+import { ImageBackground, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Card, Chip, PageTitle, PrimaryButton, Section } from '@/src/ui';
+import { colors } from '@/src/theme';
+import { useTravel } from '@/src/store';
+
+export default function HomeScreen() {
+  const { packing, activities } = useTravel(); const remaining = packing.filter((item) => !item.done).length;
+  return <ScrollView style={s.page} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+    <PageTitle eyebrow="Reisefølge">Hei, Fredrik</PageTitle>
+    <Pressable onPress={() => router.push('/trip')} style={s.hero}><ImageBackground source={{ uri: 'https://images.unsplash.com/photo-1539037116277-4db20889f2d4?auto=format&fit=crop&w=1200&q=85' }} style={s.heroImage} imageStyle={s.heroImageStyle}><View style={s.heroShade}/><View style={s.heroText}><Chip label="14 dager igjen" warm/><Text style={s.destination}>Spania 2026</Text><Text style={s.dates}>Alicante · 28. mai – 6. juni</Text></View></ImageBackground></Pressable>
+    <Section title="I dag på turen"><Card style={s.next}><View style={s.iconCircle}><Ionicons name="fish-outline" color={colors.teal} size={23}/></View><View style={{ flex: 1 }}><Text style={s.smallLabel}>NESTE AKTIVITET</Text><Text style={s.activity}>{activities[0]?.title ?? 'Ingen aktiviteter'}</Text><Text style={s.detail}>{activities[0]?.duration} · {activities[0]?.location}</Text></View><Ionicons name="chevron-forward" color={colors.muted} size={20}/></Card></Section>
+    <Section title="Dette gjenstår" action="Se pakkeliste"><Card><View style={s.taskRow}><View style={s.taskDot}/><View style={{ flex: 1 }}><Text style={s.taskText}>{remaining} åpne oppgaver før avreise</Text><Text style={s.detail}>Lader, solkrem og mer</Text></View><Text style={s.count}>{remaining}</Text></View></Card></Section>
+    <Section title="Tidligere turer" action="Se alle"><View style={s.pastRow}><Card style={s.pastCard}><Text style={s.pastEmoji}>🇮🇹</Text><Text style={s.pastTitle}>Italia 2025</Text><Text style={s.detail}>Roma · 7 dager</Text></Card><Card style={s.pastCard}><Text style={s.pastEmoji}>🇳🇴</Text><Text style={s.pastTitle}>Lofoten</Text><Text style={s.detail}>2024 · 4 dager</Text></Card></View></Section>
+    <PrimaryButton title="Opprett ny tur" onPress={() => router.push('/trip')} />
+  </ScrollView>;
+}
+const s = StyleSheet.create({ page: { flex: 1, backgroundColor: colors.background }, content: { padding: 20, paddingTop: 68, paddingBottom: 32 }, hero: { height: 266, borderRadius: 24, overflow: 'hidden' }, heroImage: { flex: 1, justifyContent: 'flex-end' }, heroImageStyle: { borderRadius: 24 }, heroShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(12,38,47,.38)' }, heroText: { padding: 21, gap: 7 }, destination: { color: '#fff', fontSize: 31, fontWeight: '800', letterSpacing: -.8, marginTop: 4 }, dates: { color: 'rgba(255,255,255,.92)', fontSize: 15, fontWeight: '600' }, next: { flexDirection: 'row', alignItems: 'center', gap: 13 }, iconCircle: { height: 45, width: 45, borderRadius: 15, backgroundColor: colors.mist, alignItems: 'center', justifyContent: 'center' }, smallLabel: { color: colors.muted, fontSize: 10, fontWeight: '800', letterSpacing: .7 }, activity: { color: colors.navy, fontSize: 17, fontWeight: '800', marginTop: 2 }, detail: { color: colors.muted, fontSize: 13, marginTop: 3 }, taskRow: { flexDirection: 'row', alignItems: 'center', gap: 11 }, taskDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: colors.coral }, taskText: { color: colors.text, fontSize: 15, fontWeight: '700' }, count: { color: colors.teal, backgroundColor: colors.mist, borderRadius: 14, overflow: 'hidden', paddingHorizontal: 10, paddingVertical: 5, fontWeight: '800' }, pastRow: { flexDirection: 'row', gap: 12 }, pastCard: { flex: 1, minHeight: 120, gap: 4 }, pastEmoji: { fontSize: 25, marginBottom: 4 }, pastTitle: { color: colors.navy, fontSize: 15, fontWeight: '800' } });
