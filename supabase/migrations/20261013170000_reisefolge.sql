@@ -87,5 +87,5 @@ create policy "members vote" on public.wishlist_votes for all to authenticated u
 
 -- Create a private "trip-media" Storage bucket, then apply these policies.
 create policy "trip members read media" on storage.objects for select to authenticated using (bucket_id = 'trip-media' and public.is_trip_member((storage.foldername(name))[1]::uuid));
-create policy "trip members upload media" on storage.objects for insert to authenticated with check (bucket_id = 'trip-media' and owner_id = auth.uid() and public.is_trip_member((storage.foldername(name))[1]::uuid));
-create policy "owners manage their media" on storage.objects for delete to authenticated using (bucket_id = 'trip-media' and owner_id = auth.uid() and public.is_trip_member((storage.foldername(name))[1]::uuid));
+create policy "trip members upload media" on storage.objects for insert to authenticated with check (bucket_id = 'trip-media' and owner_id = auth.uid()::text and public.is_trip_member((storage.foldername(name))[1]::uuid));
+create policy "owners manage their media" on storage.objects for delete to authenticated using (bucket_id = 'trip-media' and owner_id = auth.uid()::text and public.is_trip_member((storage.foldername(name))[1]::uuid));
