@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { createContext, ReactNode, useContext, useEffect, useMemo, useState } from 'react';
+import { stockCoverForCountry } from './country-images';
 
 export type Activity = { id: string; title: string; date: string; startTime: string; endTime?: string; location?: string; note?: string; participants?: string[] };
 export type PackingItem = { id: string; title: string; person?: string; category: string; done: boolean };
@@ -24,7 +25,7 @@ export function TravelProvider({ children }: { children: ReactNode }) {
   const selectedTrip = state.trips.find((trip) => trip.id === state.selectedTripId) ?? state.trips[0];
   const value = useMemo<Store>(() => ({ ...state, ready, selectedTrip,
     setSelectedTripId: (id) => change((s) => ({ ...s, selectedTripId: id })), saveProfile: (profileName) => change((s) => ({ ...s, profileName })), setPremium: (premium) => change((s) => ({ ...s, premium })), markOnboarded: () => change((s) => ({ ...s, onboarded: true })),
-    createTrip: (draft) => change((s) => { const id = uid(); const trip: Trip = { ...draft, id, members: draft.members.filter(Boolean), activities: [], packing: [], wishes: [], memories: [] }; return { ...s, trips: [trip, ...s.trips], selectedTripId: id }; }),
+    createTrip: (draft) => change((s) => { const id = uid(); const trip: Trip = { ...draft, id, coverImage: stockCoverForCountry(draft.country), members: draft.members.filter(Boolean), activities: [], packing: [], wishes: [], memories: [] }; return { ...s, trips: [trip, ...s.trips], selectedTripId: id }; }),
     updateTrip, deleteTrip: (id) => change((s) => { const trips = s.trips.filter((trip) => trip.id !== id); return { ...s, trips, selectedTripId: s.selectedTripId === id ? trips[0]?.id : s.selectedTripId }; }), addMember: (tripId, name) => { const trip = state.trips.find((item) => item.id === tripId); if (trip && name.trim() && !trip.members.includes(name.trim())) updateTrip(tripId, { members: [...trip.members, name.trim()] }); },
     addActivity: (tripId, item) => updateTrip(tripId, { activities: [...(state.trips.find((trip) => trip.id === tripId)?.activities ?? []), { ...item, id: uid() }].sort((a, b) => `${a.date} ${a.startTime}`.localeCompare(`${b.date} ${b.startTime}`)) }), updateActivity: (tripId, activityId, patch) => updateTrip(tripId, { activities: (state.trips.find((trip) => trip.id === tripId)?.activities ?? []).map((item) => item.id === activityId ? { ...item, ...patch } : item) }), removeActivity: (tripId, activityId) => updateTrip(tripId, { activities: (state.trips.find((trip) => trip.id === tripId)?.activities ?? []).filter((item) => item.id !== activityId) }),
     addPacking: (tripId, item) => updateTrip(tripId, { packing: [...(state.trips.find((trip) => trip.id === tripId)?.packing ?? []), { ...item, id: uid(), done: false }] }), togglePacking: (tripId, itemId) => updateTrip(tripId, { packing: (state.trips.find((trip) => trip.id === tripId)?.packing ?? []).map((item) => item.id === itemId ? { ...item, done: !item.done } : item) }), removePacking: (tripId, itemId) => updateTrip(tripId, { packing: (state.trips.find((trip) => trip.id === tripId)?.packing ?? []).filter((item) => item.id !== itemId) }),
