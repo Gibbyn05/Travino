@@ -1,5 +1,6 @@
 {
   "installCommand": "npm ci",
   "buildCommand": "EXPO_NO_TELEMETRY=1 npx expo export --platform web",
-  "outputDirectory": "dist"
+  "outputDirectory": "dist",
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }
