@@ -6,13 +6,13 @@ import { Appearance, StyleSheet } from 'react-native';
 const dark = Appearance.getColorScheme() === 'dark';
 
 export const colors = dark ? {
-  navy: '#F4F8F7', teal: '#55AEA7', mist: '#23434A', sand: '#6D5730', coral: '#F09B7D',
-  background: '#10242C', surface: '#18323B', text: '#F4F8F7', muted: '#B6CAC5', border: '#2D4B52',
-  darkBackground: '#10242C', darkSurface: '#18323B',
+  navy: '#F6F1E8', teal: '#71B9AA', mist: '#254543', sand: '#73583C', coral: '#E59B7F',
+  background: '#182D2F', surface: '#213B3D', text: '#F6F1E8', muted: '#C4D0C8', border: '#355354',
+  darkBackground: '#182D2F', darkSurface: '#213B3D',
 } : {
-  navy: '#193B47', teal: '#2C8C88', mist: '#E8F2EF', sand: '#FFE3B0', coral: '#EE8A68',
-  background: '#F8FBFA', surface: '#FFFFFF', text: '#1A2931', muted: '#667976', border: '#E3ECE9',
-  darkBackground: '#10242C', darkSurface: '#18323B',
+  navy: '#29484A', teal: '#398C82', mist: '#E6F0E9', sand: '#F4D7A4', coral: '#D98268',
+  background: '#FCF8F2', surface: '#FFFDF9', text: '#344346', muted: '#71807A', border: '#E9E1D8',
+  darkBackground: '#182D2F', darkSurface: '#213B3D',
 };
 
-export const radius = { card: 22, pill: 999, small: 14 };
+export const radius = { card: 24, pill: 999, small: 16 };
