@@ -8,6 +8,8 @@
     "userInterfaceStyle": "automatic",
     "plugins": [
       "expo-router",
+      "expo-dev-client",
+      "expo-notifications",
       ["expo-image-picker", { "photosPermission": "Reisefølge bruker bilder du velger til minnene dine." }]
     ],
     "ios": { "supportsTablet": true, "bundleIdentifier": "no.reisefolge.app" },

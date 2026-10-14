@@ -2,7 +2,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import { useLocalSearchParams } from 'expo-router';
-import { Image, ImageBackground, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, ImageBackground, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { AutocompleteField, DateField, Field, Sheet } from '@/src/forms';
 import { Avatar, Card, PageTitle, PrimaryButton, Section } from '@/src/ui';
 import { colors } from '@/src/theme';
@@ -11,11 +11,14 @@ import { fetchWeather, Weather } from '@/src/weather';
 import { activitySuggestionsForDestination, packingCategorySuggestions, packingSuggestions, suggestedPackingCategory, wishSuggestions } from '@/src/suggestions';
 import { stockCoverForCountry } from '@/src/country-images';
 import { inviteUrl } from '@/src/invites';
+import { ensureGuestIdentity, supabase } from '@/src/lib/supabase';
+import { sendTripNotification } from '@/src/notifications';
 const tabs = ['Overview', 'Plan', 'Packing', 'Wishlist', 'Memories'];
 export default function TripScreen() {
   const { selectedTrip } = useTravel();
   const { tab: requestedTab } = useLocalSearchParams<{ tab?: string }>();
   const [tab, setTab] = useState('Overview');
+  const [addFriendOpen, setAddFriendOpen] = useState(false);
   useEffect(() => { if (requestedTab && tabs.includes(requestedTab)) setTab(requestedTab); }, [requestedTab]);
   if (!selectedTrip) return <Empty/>;
   const invite = () => {
@@ -28,8 +31,58 @@ export default function TripScreen() {
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.tabs}>{tabs.map((item) => <Pressable key={item} onPress={() => setTab(item)} style={[s.tab, tab === item && s.activeTab]}><Text style={[s.tabText, tab === item && s.activeText]}>{item}</Text></Pressable>)}</ScrollView>
     <View style={s.heroCard}><ImageBackground source={{ uri: selectedTrip.coverImage || stockCoverForCountry(selectedTrip.country) }} style={s.hero} imageStyle={s.heroImage}/><View style={s.heroDetails}><View style={{ flex: 1 }}><Text style={s.date}>{selectedTrip.startDate} – {selectedTrip.endDate}</Text><Text style={s.heroCopy}>{selectedTrip.members.length ? `${selectedTrip.members.join(', ')} are travelling together` : 'No one has been added yet.'}</Text></View><Ionicons name="arrow-forward" size={19} color={colors.blue}/></View></View>
     <View style={{ marginTop: 12 }}><PrimaryButton title="Invite members" icon="person-add-outline" onPress={invite}/></View>
+    <Pressable accessibilityRole="button" onPress={() => setAddFriendOpen(true)} style={s.addFriendLink}><Ionicons name="people-outline" size={18} color={colors.blue}/><Text style={s.addFriendText}>Add an accepted friend to this trip</Text><Ionicons name="chevron-forward" size={17} color={colors.muted}/></Pressable>
     {tab === 'Overview' && <Overview/>}{tab === 'Plan' && <Plan/>}{tab === 'Packing' && <Packing/>}{tab === 'Wishlist' && <Wishes/>}{tab === 'Memories' && <Memories/>}
+    <AddTripFriendSheet visible={addFriendOpen} onClose={() => setAddFriendOpen(false)} tripId={selectedTrip.id} tripTitle={selectedTrip.title} existingNames={selectedTrip.members}/>
   </ScrollView>;
+}
+
+type TripFriend = { profile_id: string; display_name: string; status: string };
+function AddTripFriendSheet({ visible, onClose, tripId, tripTitle, existingNames }: { visible: boolean; onClose: () => void; tripId: string; tripTitle: string; existingNames: string[] }) {
+  const { addMember } = useTravel();
+  const [friends, setFriends] = useState<TripFriend[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [addingId, setAddingId] = useState('');
+  useEffect(() => {
+    if (!visible) return;
+    let alive = true;
+    setLoading(true);
+    (async () => {
+      if (!supabase) throw new Error('Connect Reisefølge to Supabase to add friends to a trip.');
+      const user = await ensureGuestIdentity();
+      if (!user) throw new Error('Sign in before adding a travel companion.');
+      const { data, error } = await supabase.rpc('my_friendships');
+      if (error) throw error;
+      const accepted = ((data || []) as any[]).filter((friend) => friend.status === 'accepted').map((friend) => ({ profile_id: friend.profile_id, display_name: friend.display_name, status: friend.status }));
+      if (alive) setFriends(accepted);
+    })().catch((error: any) => {
+      if (alive) Alert.alert('Friends could not be loaded', error?.message || 'Try again when you are online.');
+    }).finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, [visible]);
+
+  const add = async (friend: TripFriend) => {
+    setAddingId(friend.profile_id);
+    try {
+      const result = await sendTripNotification({ event: 'member_added', tripId, tripTitle, recipientId: friend.profile_id });
+      addMember(tripId, friend.display_name, friend.profile_id);
+      onClose();
+      Alert.alert(
+        'Added to the trip',
+        result.pushSent ? `${friend.display_name} has been added and notified.` : `${friend.display_name} has been added. They may need to enable push notifications on their phone.`,
+      );
+    } catch (error: any) {
+      Alert.alert('Could not add this friend', error?.message || 'Check that the latest Supabase setup is installed, then try again.');
+    } finally { setAddingId(''); }
+  };
+
+  const available = friends.filter((friend) => !existingNames.includes(friend.display_name));
+  return <Sheet visible={visible} title="Add a friend" onClose={onClose}>
+    <Text style={s.copy}>Choose someone you have connected with using a friend code. They will get a notification about this trip.</Text>
+    {loading ? <ActivityIndicator color={colors.blue} style={{ padding: 24 }}/> : available.length ? available.map((friend) => <Pressable key={friend.profile_id} disabled={!!addingId} onPress={() => add(friend)} style={s.friendOption}>
+      <Avatar name={friend.display_name}/><Text style={[s.itemTitle, { flex: 1 }]}>{friend.display_name}</Text>{addingId === friend.profile_id ? <ActivityIndicator color={colors.blue}/> : <Ionicons name="add-circle-outline" size={24} color={colors.blue}/>}
+    </Pressable>) : <Text style={s.copy}>No new friends to add yet. Connect first from Profile → Friends.</Text>}
+  </Sheet>;
 }
 function Empty() { return <View style={s.empty}><Ionicons name="airplane-outline" size={38} color={colors.teal}/><Text style={s.emptyText}>Choose or create a trip first.</Text></View>; }
 function useWeather(city: string, country: string) { const [weather, setWeather] = useState<Weather | null>(null); const [error, setError] = useState(false); const [loading, setLoading] = useState(true); useEffect(() => { const controller = new AbortController(); setLoading(true); setError(false); fetchWeather(city, country, controller.signal).then((value) => { setWeather(value); setLoading(false); }).catch((reason) => { if (reason.name !== 'AbortError') { setError(true); setLoading(false); } }); return () => controller.abort(); }, [city, country]); return { weather, error, loading }; }
@@ -101,9 +154,14 @@ function Packing() {
   });
   const save = () => {
     if (!title.trim()) return;
-    addPacking(selectedTrip.id, { title: title.trim(), category: category.trim() || suggestedPackingCategory(title) || 'Other', person: person.trim() });
+    const cleanTitle = title.trim();
+    const recipientId = selectedTrip.memberAccountIds?.[person.trim()];
+    addPacking(selectedTrip.id, { title: cleanTitle, category: category.trim() || suggestedPackingCategory(title) || 'Other', person: person.trim() });
     setOpen(false);
     setTitle(''); setCategory(''); setPerson('');
+    if (recipientId) sendTripNotification({ event: 'packing_assigned', tripId: selectedTrip.id, tripTitle: selectedTrip.title, recipientId, itemTitle: cleanTitle }).then((result) => {
+      if (!result.pushSent) Alert.alert('Packing item saved', 'The item was assigned, but your travel companion may need to enable push notifications.');
+    }).catch((error: any) => Alert.alert('Packing item saved', `The assignment was saved, but the notification could not be sent. ${error?.message || ''}`));
   };
   return <Section title="Packing list">
     <View style={s.stack}>{orderedGroups.map(([group, items]) => <View key={group} style={s.packGroup}>
@@ -153,4 +211,7 @@ Object.assign(s, StyleSheet.create({
   countdownText: { color: colors.purple, fontSize: 13, fontWeight: '600' },
   summaryNumber: { color: colors.text, fontSize: 28, fontWeight: '700', marginTop: 5 },
   memberName: { color: colors.text, fontSize: 12, fontWeight: '600' },
+  addFriendLink: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 7, marginBottom: 8, paddingHorizontal: 5 },
+  addFriendText: { color: colors.blue, fontSize: 14, fontWeight: '600', flex: 1 },
+  friendOption: { minHeight: 62, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 18, paddingHorizontal: 12, marginTop: 9 },
 }));
