@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Field, Sheet } from '@/src/forms';
@@ -10,12 +11,18 @@ export default function ProfileScreen() {
   const { profileName, saveProfile, trips, selectedTrip, deleteTrip } = useTravel();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(profileName);
+  const memoryCount = trips.reduce((total, trip) => total + trip.memories.length, 0);
   return <ScrollView style={s.page} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
     <PageTitle eyebrow="Account">Profile</PageTitle>
     <Card style={s.profile}>
       <View style={s.avatar}><Text style={s.initial}>{(profileName || '?').slice(0, 1).toUpperCase()}</Text></View>
       <View style={{ flex: 1 }}><Text style={s.name}>{profileName || 'Your name'}</Text><Text style={s.copy}>Trips are saved on this device.</Text></View>
     </Card>
+    <Pressable onPress={() => router.push('/memory-book' as any)} style={({ pressed }) => [s.memoryBookRow, pressed && s.pressed]}>
+      <View style={s.memoryBookIcon}><Ionicons name="book-outline" size={21} color={colors.purple}/></View>
+      <View style={{ flex: 1 }}><Text style={s.editText}>Memory book</Text><Text style={s.copy}>{memoryCount ? `${memoryCount} ${memoryCount === 1 ? 'photo' : 'photos'} from your trips` : 'A place for your favourite travel moments'}</Text></View>
+      <Ionicons name="chevron-forward" size={18} color={colors.muted}/>
+    </Pressable>
     <Pressable onPress={() => setOpen(true)} style={({ pressed }) => [s.editRow, pressed && s.pressed]}><View style={s.editIcon}><Ionicons name="pencil-outline" size={20} color={colors.blue}/></View><Text style={s.editText}>Edit profile</Text><Ionicons name="chevron-forward" size={18} color={colors.muted}/></Pressable>
     <Section title="Data">
       <Card style={s.detailCard}><View style={s.detailIcon}><Ionicons name="airplane-outline" size={23} color={colors.blue}/></View><View style={{ flex: 1 }}><Text style={s.detailTitle}>{trips.length} {trips.length === 1 ? 'trip' : 'trips'} saved</Text><Text style={s.copy}>Add Supabase when you want to sync with others.</Text></View></Card>
@@ -34,6 +41,8 @@ const s = StyleSheet.create({
   copy: { color: colors.muted, fontSize: 13, lineHeight: 20, marginTop: 5 },
   editRow: { marginTop: 12, minHeight: 62, paddingHorizontal: 17, borderRadius: 20, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', gap: 13 },
   editIcon: { height: 37, width: 37, borderRadius: 14, backgroundColor: colors.blueSoft, alignItems: 'center', justifyContent: 'center' },
+  memoryBookRow: { marginTop: 12, minHeight: 76, paddingHorizontal: 17, paddingVertical: 12, borderRadius: 20, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', gap: 13 },
+  memoryBookIcon: { height: 42, width: 42, borderRadius: 15, backgroundColor: colors.purpleSoft, alignItems: 'center', justifyContent: 'center' },
   editText: { flex: 1, color: colors.text, fontSize: 15, fontWeight: '600' }, pressed: { opacity: .7 },
   detailCard: { flexDirection: 'row', gap: 13, alignItems: 'flex-start' },
   detailIcon: { height: 42, width: 42, borderRadius: 15, backgroundColor: colors.blueSoft, alignItems: 'center', justifyContent: 'center' },
