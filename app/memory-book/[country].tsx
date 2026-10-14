@@ -77,7 +77,7 @@ function JourneyChapter({ trip, index, onAddPhotos }: { trip: Trip; index: numbe
         <View style={s.featuredCaption}>
           <Text style={s.photoDate}>{journalDate(featured.date)}</Text>
           <Text style={s.photoLocation}>{featured.location || trip.city}</Text>
-          {featured.text ? <Text style={s.photoNote}>{featured.text}</Text> : <Text style={s.photoNote}>A moment from {trip.city}.</Text>}
+          {featured.text ? <Text style={s.photoNote}>{featured.text}</Text> : null}
         </View>
       </View>
       {!!rest.length && <View style={s.smallMoments}>{rest.map((memory, photoIndex) => <Polaroid key={memory.id} memory={memory} city={trip.city} tilt={photoIndex % 2 === 0 ? -1.2 : 1.2}/>)}</View>}
