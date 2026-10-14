@@ -8,66 +8,76 @@ import { Card, PageTitle, Section } from '@/src/ui';
 import { colors } from '@/src/theme';
 import { Trip, useTravel } from '@/src/store';
 
-type MappedTrip = GlobePlace & { trip: Trip };
-const fallbackCoordinates: Record<string, { lat: number; lon: number }> = {
-  'alicante,spain': { lat: 38.35, lon: -0.48 }, 'oslo,norway': { lat: 59.91, lon: 10.75 }, 'molde,norway': { lat: 62.74, lon: 7.16 },
-  'phuket,thailand': { lat: 7.88, lon: 98.39 }, 'bangkok,thailand': { lat: 13.76, lon: 100.5 }, 'barcelona,spain': { lat: 41.39, lon: 2.17 },
-};
-const normalise = (value: string) => value.trim().toLocaleLowerCase('nb-NO');
-const placeKey = (trip: Trip) => `${normalise(trip.city)},${normalise(trip.country)}`;
+type VisitedCountry = GlobePlace & { trips: Trip[]; cities: string[] };
+const normalise = (value: string) => value.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('en-US').replace(/[^a-z0-9]+/g, ' ').trim();
 const dateValue = (value: string) => { const parsed = Date.parse(value); return Number.isNaN(parsed) ? null : parsed; };
 const hasVisited = (trip: Trip) => { const end = dateValue(trip.endDate); return end !== null && end < new Date().setHours(0, 0, 0, 0); };
 
-async function locateTrip(trip: Trip): Promise<MappedTrip | null> {
-  const fallback = fallbackCoordinates[placeKey(trip)];
-  try {
-    const response = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(trip.city)}&count=12&language=no&format=json`);
-    const data = response.ok ? await response.json() : null;
-    const results = data?.results ?? [];
-    const result = results.find((item: { country?: string }) => normalise(item.country ?? '') === normalise(trip.country)) ?? results[0];
-    if (result) return { id: trip.id, city: trip.city, country: trip.country, lat: result.latitude, lon: result.longitude, trip };
-  } catch { /* The stored fallback still makes common locations available offline. */ }
-  return fallback ? { id: trip.id, city: trip.city, country: trip.country, ...fallback, trip } : null;
-}
-
 export default function MapScreen() {
-  const { trips, setSelectedTripId } = useTravel();
-  const visitedTrips = useMemo(() => trips.filter(hasVisited), [trips]);
-  const [places, setPlaces] = useState<MappedTrip[]>([]);
-  const [selectedId, setSelectedId] = useState<string>();
-
-  useEffect(() => {
-    let active = true;
-    Promise.all(visitedTrips.map(locateTrip)).then((resolved) => {
-      if (!active) return;
-      const mapped = resolved.filter((item): item is MappedTrip => item !== null);
-      setPlaces(mapped);
-      setSelectedId((current) => mapped.some((item) => item.id === current) ? current : mapped[0]?.id);
+  const { trips } = useTravel();
+  const visitedCountries = useMemo(() => {
+    const grouped = new Map<string, VisitedCountry>();
+    trips.filter(hasVisited).forEach((trip) => {
+      const country = trip.country.trim();
+      if (!country) return;
+      const id = normalise(country);
+      const current = grouped.get(id) ?? { id, country, cities: [], trips: [] };
+      current.trips.push(trip);
+      if (trip.city && !current.cities.includes(trip.city)) current.cities.push(trip.city);
+      grouped.set(id, current);
     });
-    return () => { active = false; };
-  }, [visitedTrips]);
+    return [...grouped.values()].sort((a, b) => a.country.localeCompare(b.country));
+  }, [trips]);
+  const [selectedId, setSelectedId] = useState<string>();
+  useEffect(() => {
+    setSelectedId((current) => visitedCountries.some((place) => place.id === current) ? current : visitedCountries[0]?.id);
+  }, [visitedCountries]);
 
-  const selected = places.find((item) => item.id === selectedId)?.trip;
-  const globeHtml = useMemo(() => buildGlobeHtml(places, selectedId), [places, selectedId]);
-  const openAlbum = () => { if (!selected) return; setSelectedTripId(selected.id); router.push('/trip?tab=Memories'); };
-  const selectFromGlobe = (event: { nativeEvent: { data: string } }) => {
+  const selected = visitedCountries.find((place) => place.id === selectedId);
+  const mapHtml = useMemo(() => buildGlobeHtml(visitedCountries), [visitedCountries]);
+  const openMemoryBook = () => {
+    if (!selected) return;
+    router.push({ pathname: '/memory-book/[country]', params: { country: selected.country } } as any);
+  };
+  const onMapMessage = (event: { nativeEvent: { data: string } }) => {
     try {
       const message = JSON.parse(event.nativeEvent.data);
       if (message.type === 'select' && typeof message.id === 'string') setSelectedId(message.id);
-    } catch { /* Ignore messages outside the globe bridge. */ }
+    } catch { /* Ignore messages outside the map bridge. */ }
   };
 
-  return <View style={s.page}><View style={[s.content, { paddingHorizontal: 16 }]}>
+  return <View style={s.page}><View style={s.content}>
     <PageTitle eyebrow="Your travel history">Map</PageTitle>
-    <Text style={s.intro}>Spin the globe and see the places you have actually visited.</Text>
-    <View style={s.globeShell}>
-      <WebView source={{ html: globeHtml }} onMessage={selectFromGlobe} javaScriptEnabled domStorageEnabled scrollEnabled={false} bounces={false} originWhitelist={['*']} style={s.globe} containerStyle={s.globe} />
+    <Text style={s.intro}>A little colour for every country you’ve explored. Zoom in to find a place.</Text>
+    <View style={s.mapShell}>
+      <WebView source={{ html: mapHtml }} onMessage={onMapMessage} javaScriptEnabled domStorageEnabled scrollEnabled={false} bounces={false} originWhitelist={['*']} style={s.map} containerStyle={s.map}/>
     </View>
-    <View style={s.hint}><Ionicons name="hand-left-outline" size={18} color={colors.teal}/><Text style={s.hintText}>Drag to spin · tap a marker</Text></View>
-    {selected ? <Section title="A travel moment"><Pressable onPress={openAlbum} style={s.albumCard}><View style={s.albumIcon}><Ionicons name="images-outline" size={22} color={colors.teal}/></View><View style={{ flex: 1 }}><Text style={s.albumTitle}>{selected.city}, {selected.country}</Text><Text style={s.copy}>{selected.startDate} – {selected.endDate}</Text></View><Ionicons name="chevron-forward" size={21} color={colors.muted}/></Pressable></Section> : <Card style={s.empty}><Ionicons name="earth-outline" size={34} color={colors.teal}/><Text style={s.emptyTitle}>The globe fills after your trip</Text><Text style={s.copy}>A place appears here when the trip end date has passed.</Text></Card>}
+    <View style={s.hint}><Ionicons name="hand-left-outline" size={17} color={colors.blue}/><Text style={s.hintText}>Drag to explore · tap a coloured country · + / − to zoom</Text></View>
+    {selected ? <Section title="Your journeys here"><Pressable onPress={openMemoryBook} style={({ pressed }) => [s.albumCard, pressed && s.pressed]}>
+      <View style={s.albumIcon}><Ionicons name="images-outline" size={22} color={colors.purple}/></View>
+      <View style={{ flex: 1 }}><Text style={s.albumTitle}>{selected.country}</Text><Text style={s.copy}>{selected.cities.join(' · ')}</Text><Text style={s.copy}>{selected.trips.length} {selected.trips.length === 1 ? 'trip' : 'trips'} · Open memory book</Text></View>
+      <Ionicons name="chevron-forward" size={21} color={colors.muted}/>
+    </Pressable></Section> : <Card style={s.empty}>
+      <Ionicons name="earth-outline" size={33} color={colors.blue}/>
+      <Text style={s.emptyTitle}>{visitedCountries.length ? 'Choose a coloured country' : 'Your map is ready for memories'}</Text>
+      <Text style={s.copy}>{visitedCountries.length ? 'Tap a visited country to open its travel album.' : 'A country gets its own colour after a trip has ended.'}</Text>
+    </Card>}
   </View></View>;
 }
 
 const s = StyleSheet.create({
-  page: { flex: 1, backgroundColor: colors.background }, content: { flex: 1, padding: 24, paddingTop: 72, paddingBottom: 36 }, intro: { color: colors.muted, fontSize: 14, lineHeight: 22, marginTop: -8 }, globeShell: { height: 360, marginTop: 22, overflow: 'hidden', borderRadius: 24, backgroundColor: colors.blueSoft, borderWidth: 1, borderColor: '#D9EAFF', shadowColor: colors.text, shadowOpacity: .035, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 1 }, globe: { flex: 1, backgroundColor: 'transparent' }, hint: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 16 }, hintText: { color: colors.blue, fontSize: 13, fontWeight: '600' }, albumCard: { flexDirection: 'row', alignItems: 'center', gap: 13, borderRadius: 22, padding: 17, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }, albumIcon: { backgroundColor: colors.purpleSoft, height: 46, width: 46, borderRadius: 16, alignItems: 'center', justifyContent: 'center' }, albumTitle: { color: colors.text, fontWeight: '700', fontSize: 16, letterSpacing: -.3 }, copy: { color: colors.muted, fontSize: 13, lineHeight: 20, marginTop: 4 }, empty: { alignItems: 'center', gap: 9, paddingVertical: 34, marginTop: 34, backgroundColor: colors.blueSoft, borderColor: '#D9EAFF' }, emptyTitle: { color: colors.text, fontSize: 17, fontWeight: '700' },
+  page: { flex: 1, backgroundColor: colors.background },
+  content: { flex: 1, paddingHorizontal: 16, paddingTop: 72, paddingBottom: 28 },
+  intro: { color: colors.muted, fontSize: 14, lineHeight: 22, marginTop: -8 },
+  mapShell: { height: 365, marginTop: 18, overflow: 'hidden', borderRadius: 24, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, shadowColor: colors.text, shadowOpacity: .035, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 1 },
+  map: { flex: 1, backgroundColor: '#FFFFFF' },
+  hint: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, marginTop: 12 },
+  hintText: { color: colors.blue, fontSize: 12, fontWeight: '600' },
+  albumCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 20, padding: 15, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  albumIcon: { backgroundColor: colors.purpleSoft, height: 44, width: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  albumTitle: { color: colors.text, fontWeight: '700', fontSize: 16, letterSpacing: -.3 },
+  copy: { color: colors.muted, fontSize: 12, lineHeight: 18, marginTop: 3 },
+  pressed: { opacity: .78 },
+  empty: { alignItems: 'center', gap: 8, paddingVertical: 25, marginTop: 24, backgroundColor: colors.blueSoft, borderColor: '#D9EAFF' },
+  emptyTitle: { color: colors.text, fontSize: 16, fontWeight: '700', textAlign: 'center' },
 });
