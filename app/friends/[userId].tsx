@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Card } from '@/src/ui';
+import { Card, PageTitle } from '@/src/ui';
 import { colors } from '@/src/theme';
 import { supabase } from '@/src/lib/supabase';
 
@@ -51,8 +51,7 @@ export default function FriendMemoryBook() {
   return <ScrollView style={s.page} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
     <Pressable onPress={() => router.back()} style={s.back}><Ionicons name="arrow-back" size={21} color={colors.text}/><Text style={s.backText}>Friends</Text></Pressable>
     {loading ? <ActivityIndicator color={colors.blue} style={{ marginTop: 80 }}/> : unavailable ? <Card style={s.locked}><View style={s.lockIcon}><Ionicons name="lock-closed-outline" size={25} color={colors.blue}/></View><Text style={s.title}>This memory book isn’t available</Text><Text style={s.copy}>Only accepted friends can view a book, and its owner must choose to share it.</Text></Card> : profile ? <>
-      <Text style={s.eyebrow}>A FRIEND’S TRAVEL JOURNAL</Text>
-      <Text style={s.title}>{profile.display_name}’s memory book</Text>
+      <PageTitle eyebrow="A friend’s travel journal">{`${profile.display_name}’s memory book`}</PageTitle>
       {profile.bio ? <Text style={s.copy}>{profile.bio}</Text> : null}
       {!profile.memory_book_public ? <Card style={s.locked}><View style={s.lockIcon}><Ionicons name="lock-closed-outline" size={23} color={colors.muted}/></View><Text style={s.lockedTitle}>This book is private</Text><Text style={s.copy}>Your friend hasn’t shared their memories yet.</Text></Card> : memories.length ? <>
         <Text style={s.subheading}>{memories.length} {memories.length === 1 ? 'memory' : 'memories'}{countries.length ? ` · ${countries.join(', ')}` : ''}</Text>

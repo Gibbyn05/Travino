@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { Field, Sheet } from '@/src/forms';
-import { Card, PageTitle, PrimaryButton } from '@/src/ui';
+import { AccentText, Card, PageTitle, PrimaryButton } from '@/src/ui';
 import { colors } from '@/src/theme';
 import { ensureGuestIdentity, supabase } from '@/src/lib/supabase';
 import { useTravel } from '@/src/store';
@@ -85,9 +85,9 @@ export default function FriendsScreen() {
     </Card>
 
     {loading && <ActivityIndicator color={colors.blue} style={{ marginTop: 24 }}/>}
-    {!loading && incoming.length > 0 && <View style={s.section}><Text style={s.sectionTitle}>Friend requests</Text>{incoming.map((friend) => <FriendRow key={friend.friendship_id} friend={friend} busy={busyId === friend.friendship_id} onAccept={() => respond(friend.friendship_id, true)} onReject={() => respond(friend.friendship_id, false)}/>)}</View>}
-    {!loading && outgoing.length > 0 && <View style={s.section}><Text style={s.sectionTitle}>Sent requests</Text>{outgoing.map((friend) => <View key={friend.friendship_id} style={s.row}><Avatar name={friend.display_name}/><View style={{ flex: 1 }}><Text style={s.friendName}>{friend.display_name}</Text><Text style={s.friendDetail}>Waiting for a reply</Text></View><Ionicons name="time-outline" size={19} color={colors.muted}/></View>)}</View>}
-    {!loading && <View style={s.section}><Text style={s.sectionTitle}>Your friends</Text>{accepted.length ? accepted.map((friend) => <FriendRow key={friend.friendship_id} friend={friend} onOpen={() => router.push({ pathname: '/friends/[userId]', params: { userId: friend.profile_id } } as any)} onRemove={() => removeFriend(friend)}/>) : <Card style={s.empty}><View style={s.emptyIcon}><Ionicons name="people-outline" size={24} color={colors.purple}/></View><Text style={s.emptyTitle}>Your travel circle starts here</Text><Text style={s.cardCopy}>Add a friend with their code. When both of you are connected, you can share your memory books.</Text></Card>}</View>}
+    {!loading && incoming.length > 0 && <View style={s.section}><AccentText text="Friend requests" style={s.sectionTitle}/>{incoming.map((friend) => <FriendRow key={friend.friendship_id} friend={friend} busy={busyId === friend.friendship_id} onAccept={() => respond(friend.friendship_id, true)} onReject={() => respond(friend.friendship_id, false)}/>)}</View>}
+    {!loading && outgoing.length > 0 && <View style={s.section}><AccentText text="Sent requests" style={s.sectionTitle}/>{outgoing.map((friend) => <View key={friend.friendship_id} style={s.row}><Avatar name={friend.display_name}/><View style={{ flex: 1 }}><Text style={s.friendName}>{friend.display_name}</Text><Text style={s.friendDetail}>Waiting for a reply</Text></View><Ionicons name="time-outline" size={19} color={colors.muted}/></View>)}</View>}
+    {!loading && <View style={s.section}><AccentText text="Your friends" style={s.sectionTitle}/>{accepted.length ? accepted.map((friend) => <FriendRow key={friend.friendship_id} friend={friend} onOpen={() => router.push({ pathname: '/friends/[userId]', params: { userId: friend.profile_id } } as any)} onRemove={() => removeFriend(friend)}/>) : <Card style={s.empty}><View style={s.emptyIcon}><Ionicons name="people-outline" size={24} color={colors.purple}/></View><Text style={s.emptyTitle}>Your travel circle starts here</Text><Text style={s.cardCopy}>Add a friend with their code. When both of you are connected, you can share your memory books.</Text></Card>}</View>}
     <Text style={s.privacyNote}><Ionicons name="lock-closed-outline" size={13} color={colors.muted}/> Memory books are private by default. Even public books are visible only to accepted friends.</Text>
     <Sheet visible={open} title="Add a friend" onClose={() => setOpen(false)}><Text style={s.sheetCopy}>Enter their Reisefølge friend code. You can find it on their Friends page.</Text><Field value={inputCode} onChangeText={setInputCode} placeholder="Friend code"/><PrimaryButton title={busyId === 'add' ? 'Sending…' : 'Send request'} icon="paper-plane-outline" onPress={addFriend}/></Sheet>
   </ScrollView>;

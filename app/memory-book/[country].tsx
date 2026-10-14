@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Image, ImageBackground, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Card, PrimaryButton } from '@/src/ui';
+import { AccentText, Card, PrimaryButton } from '@/src/ui';
 import { colors } from '@/src/theme';
 import { Memory, Trip, useTravel } from '@/src/store';
 import { stockCoverForCountry } from '@/src/country-images';
@@ -33,7 +33,7 @@ export default function CountryMemoryBook() {
           <Text style={s.coverCount}>{photos.length} {photos.length === 1 ? 'moment' : 'moments'} collected</Text>
         </View>
       </ImageBackground>
-      <View style={s.journalHeading}><Text style={s.sectionTitle}>Little moments, kept close</Text><Text style={s.sectionCopy}>From {countryTrips.length} {countryTrips.length === 1 ? 'journey' : 'journeys'}</Text></View>
+      <View style={s.journalHeading}><AccentText text="Little moments, kept close" style={s.sectionTitle}/><Text style={s.sectionCopy}>From {countryTrips.length} {countryTrips.length === 1 ? 'journey' : 'journeys'}</Text></View>
       {photos.length ? <View style={s.gallery}>{photos.map(({ memory, trip }, index) => <View key={`${trip.id}-${memory.id}`} style={[s.photoCard, index % 3 === 1 && s.photoCardTall]}>
         <Image source={{ uri: memory.image }} style={s.photo}/>
         <View style={s.photoCaption}>
@@ -47,7 +47,7 @@ export default function CountryMemoryBook() {
         <Text style={s.sectionCopy}>Add photos to a trip and they’ll gather here in your {countryTrips[0].country} book.</Text>
       </Card>}
       <View style={s.tripsSection}>
-        <Text style={s.sectionTitle}>Journeys in {countryTrips[0].country}</Text>
+        <AccentText text={`Journeys in ${countryTrips[0].country}`} style={s.sectionTitle}/>
         {countryTrips.map((trip) => <Pressable key={trip.id} onPress={() => addPhotosTo(trip)} style={({ pressed }) => [s.tripRow, pressed && s.pressed]}>
           <View style={s.tripIcon}><Ionicons name="airplane-outline" size={19} color={colors.blue}/></View>
           <View style={{ flex: 1 }}><Text style={s.tripTitle}>{trip.title}</Text><Text style={s.sectionCopy}>{trip.city} · {trip.startDate} – {trip.endDate}</Text></View>

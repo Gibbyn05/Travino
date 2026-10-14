@@ -5,7 +5,7 @@ import { Field } from '@/src/forms';
 import { readInvite } from '@/src/invites';
 import { ensureGuestIdentity } from '@/src/lib/supabase';
 import { colors } from '@/src/theme';
-import { PrimaryButton } from '@/src/ui';
+import { AccentText, PrimaryButton } from '@/src/ui';
 import { useTravel } from '@/src/store';
 
 export default function JoinTrip() {
@@ -29,7 +29,7 @@ export default function JoinTrip() {
   };
   return <View style={s.page}>
     <Text style={s.eyebrow}>Reisefølge</Text>
-    <Text style={s.title}>{trip ? `Join ${trip.title}` : 'This invite is unavailable'}</Text>
+    <AccentText text={trip ? `Join ${trip.title}` : 'This invite is unavailable'} style={s.title}/>
     {trip && <><Text style={s.copy}>{trip.city}, {trip.country} · {trip.startDate} – {trip.endDate}</Text><Text style={s.copy}>Enter your name to join the trip.</Text><Field value={name} onChangeText={setName} placeholder="Your name"/><PrimaryButton title="Join trip" icon="person-add-outline" onPress={join}/></>}
   </View>;
 }

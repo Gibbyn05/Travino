@@ -6,7 +6,7 @@ import { ImageBackground, Pressable, ScrollView, StyleSheet, Text, View } from '
 import { AutocompleteField, DateField, Field, Sheet } from '@/src/forms';
 import { destinationSuggestions } from '@/src/suggestions';
 import { stockCoverForCountry } from '@/src/country-images';
-import { PrimaryButton } from '@/src/ui';
+import { AccentText, PrimaryButton } from '@/src/ui';
 import { colors } from '@/src/theme';
 import { useTravel } from '@/src/store';
 
@@ -38,7 +38,7 @@ export default function HomeScreen() {
       </View>
       <View style={s.createButton}><PrimaryButton title="Start a new trip" icon="add" onPress={() => setOpen(true)}/></View>
     </LinearGradient>
-    <View style={s.sectionHead}><Text style={s.sectionTitle}>{trips.length ? 'Your trips' : 'Your next adventure'}</Text>{trips.length > 0 && <Ionicons name="arrow-forward" size={18} color={colors.text}/>}</View>
+    <View style={s.sectionHead}><AccentText text={trips.length ? 'Your trips' : 'Your next adventure'} style={s.sectionTitle}/>{trips.length > 0 && <Ionicons name="arrow-forward" size={18} color={colors.text}/>}</View>
     {trips.length === 0 ? <View style={s.empty}><View style={s.emptyIcon}><Ionicons name="airplane-outline" size={28} color={colors.blue}/></View><Text style={s.emptyTitle}>Where to next?</Text><Text style={s.emptyCopy}>Create a trip to keep all your plans together.</Text></View> : <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.list}>{trips.map((trip) => <Pressable key={trip.id} onPress={() => { setSelectedTripId(trip.id); router.push('/trip'); }} style={({ pressed }) => [s.tripCard, pressed && { opacity: .85 }]}>
       <ImageBackground source={{ uri: trip.coverImage || stockCoverForCountry(trip.country) }} style={s.tripImage} imageStyle={s.tripImageRadius}/>
       <View style={s.tripMeta}><View style={{ flex: 1 }}><Text style={s.tripTitle}>{trip.title}</Text><Text style={s.tripLocation}>{trip.city}, {trip.country}</Text><Text style={s.tripDate}>{trip.startDate} – {trip.endDate}</Text></View><View style={s.tripArrow}><Ionicons name="arrow-forward" size={19} color={colors.blue}/></View></View>

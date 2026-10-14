@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useLocalSearchParams } from 'expo-router';
 import { Image, ImageBackground, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { AutocompleteField, DateField, Field, Sheet } from '@/src/forms';
-import { Avatar, Card, PrimaryButton, Section } from '@/src/ui';
+import { Avatar, Card, PageTitle, PrimaryButton, Section } from '@/src/ui';
 import { colors } from '@/src/theme';
 import { useTravel } from '@/src/store';
 import { fetchWeather, Weather } from '@/src/weather';
@@ -24,7 +24,7 @@ export default function TripScreen() {
     return Share.share({ message: `Join ${selectedTrip.title} in Reisefølge:\n${link}` });
   };
   return <ScrollView style={s.page} contentContainerStyle={s.content}>
-    <View style={s.tripHeading}><Text style={s.tripEyebrow}>{selectedTrip.city}, {selectedTrip.country}</Text><Text style={s.tripHeadingName}>{selectedTrip.title}</Text><Text style={s.tripHeadingAccent}><Text style={{ color: colors.blue }}>Trip</Text><Text style={{ color: colors.purple }}> Plan</Text></Text></View>
+    <PageTitle eyebrow={`${selectedTrip.city}, ${selectedTrip.country}`} accent="Trip Plan">{selectedTrip.title}</PageTitle>
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.tabs}>{tabs.map((item) => <Pressable key={item} onPress={() => setTab(item)} style={[s.tab, tab === item && s.activeTab]}><Text style={[s.tabText, tab === item && s.activeText]}>{item}</Text></Pressable>)}</ScrollView>
     <View style={s.heroCard}><ImageBackground source={{ uri: selectedTrip.coverImage || stockCoverForCountry(selectedTrip.country) }} style={s.hero} imageStyle={s.heroImage}/><View style={s.heroDetails}><View style={{ flex: 1 }}><Text style={s.date}>{selectedTrip.startDate} – {selectedTrip.endDate}</Text><Text style={s.heroCopy}>{selectedTrip.members.length ? `${selectedTrip.members.join(', ')} are travelling together` : 'No one has been added yet.'}</Text></View><Ionicons name="arrow-forward" size={19} color={colors.blue}/></View></View>
     <View style={{ marginTop: 12 }}><PrimaryButton title="Invite members" icon="person-add-outline" onPress={invite}/></View>
@@ -88,10 +88,6 @@ const s = StyleSheet.create({ page: { flex: 1, backgroundColor: colors.backgroun
 // The trip's sections share the same quiet white / blue / lilac language as Home.
 Object.assign(s, StyleSheet.create({
   content: { padding: 16, paddingTop: 72, paddingBottom: 42 },
-  tripHeading: { marginBottom: 3 },
-  tripEyebrow: { color: colors.muted, fontSize: 14, lineHeight: 21 },
-  tripHeadingName: { color: colors.text, fontSize: 32, fontWeight: '700', letterSpacing: -1.3, lineHeight: 37 },
-  tripHeadingAccent: { fontSize: 32, fontWeight: '700', letterSpacing: -1.3, lineHeight: 38 },
   heroCard: { borderRadius: 24, padding: 7, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, shadowColor: colors.text, shadowOpacity: .04, shadowRadius: 14, shadowOffset: { width: 0, height: 5 } },
   hero: { height: 220, borderRadius: 17, overflow: 'hidden', backgroundColor: colors.blueSoft },
   heroImage: { borderRadius: 17 },
