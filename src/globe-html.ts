@@ -37,8 +37,8 @@ export function buildGlobeHtml(places: GlobePlace[], selectedId?: string) {
         .pointLng('lon')
         .pointAltitude(point => point.id === selectedId ? .11 : .065)
         .pointRadius(point => point.id === selectedId ? .42 : .31)
-        .pointColor(point => point.id === selectedId ? '#62b7b3' : '#fb8b78')
-        .pointLabel(point => '<div style="padding:8px 10px;border-radius:12px;background:#ffffff;color:#263154;font:800 13px -apple-system,BlinkMacSystemFont,sans-serif;box-shadow:0 6px 18px rgba(38,49,84,.14)">' + point.city + ', ' + point.country + '</div>')
+        .pointColor(point => point.id === selectedId ? '#1670ef' : '#f53d88')
+        .pointLabel(point => '<div style="padding:8px 10px;border-radius:12px;background:#ffffff;color:#1d1d28;font:700 13px -apple-system,BlinkMacSystemFont,sans-serif;box-shadow:0 6px 18px rgba(29,29,40,.12)">' + point.city + ', ' + point.country + '</div>')
         .onPointClick(point => post({ type: 'select', id: point.id }));
       const resize = () => globe.width(window.innerWidth).height(window.innerHeight);
       resize();

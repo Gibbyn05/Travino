@@ -3,14 +3,15 @@ import { StyleSheet } from 'react-native';
 // Keep the familiar alias available to the shared overlays.
 (StyleSheet as typeof StyleSheet & { absoluteFillObject?: typeof StyleSheet.absoluteFill }).absoluteFillObject = StyleSheet.absoluteFill;
 
-// Light, optimistic travel colours: a clean white canvas, powdery pastels,
-// and one cheerful coral action colour. Existing semantic names keep this
-// presentation-only.
+// DAYO-inspired light palette. Existing semantic names keep presentation-only
+// changes compatible with all existing screens and interactions.
 export const colors = {
-  navy: '#263154', teal: '#62B7B3', mist: '#E8F8F5', sand: '#FFE6AE', coral: '#FB8B78',
-  background: '#FFFFFF', surface: '#FFFFFF', text: '#263154', muted: '#7C8498', border: '#EEF0F5',
-  ink: '#263154', paper: '#FFFFFF', sun: '#FFE6AE', orange: '#FB8B78', lime: '#E2F4BF',
-  darkBackground: '#263154', darkSurface: '#37436B',
+  blue: '#1670EF', blueBright: '#2E90FA', blueSoft: '#EFF8FF',
+  purple: '#9363EF', purpleSoft: '#F3EDFF', pink: '#F53D88', pinkSoft: '#FFF0F6',
+  navy: '#1D1D28', teal: '#1670EF', mist: '#EFF8FF', sand: '#FFF5E8', coral: '#F53D88',
+  background: '#FDFDFD', surface: '#FFFFFF', text: '#1D1D28', muted: '#717680', border: '#E9EAEB',
+  ink: '#1D1D28', paper: '#FFFFFF', sun: '#FFF3D6', orange: '#1670EF', lime: '#EDE5FF',
+  darkBackground: '#1D1D28', darkSurface: '#353448',
 };
 
-export const radius = { card: 28, pill: 999, small: 18, hero: 32 };
+export const radius = { card: 24, pill: 999, small: 16, hero: 28 };
