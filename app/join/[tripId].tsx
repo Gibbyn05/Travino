@@ -29,8 +29,8 @@ export default function JoinTrip() {
   };
   return <View style={s.page}>
     <Text style={s.eyebrow}>Reisefølge</Text>
-    <Text style={s.title}>{trip ? `Bli med på ${trip.title}` : 'Denne invitasjonen er ikke tilgjengelig'}</Text>
-    {trip && <><Text style={s.copy}>{trip.city}, {trip.country} · {trip.startDate} – {trip.endDate}</Text><Text style={s.copy}>Skriv navnet ditt for å bli med på turen.</Text><Field value={name} onChangeText={setName} placeholder="Ditt navn"/><PrimaryButton title="Bli med på turen" icon="person-add-outline" onPress={join}/></>}
+    <Text style={s.title}>{trip ? `Join ${trip.title}` : 'This invite is unavailable'}</Text>
+    {trip && <><Text style={s.copy}>{trip.city}, {trip.country} · {trip.startDate} – {trip.endDate}</Text><Text style={s.copy}>Enter your name to join the trip.</Text><Field value={name} onChangeText={setName} placeholder="Your name"/><PrimaryButton title="Join trip" icon="person-add-outline" onPress={join}/></>}
   </View>;
 }
 

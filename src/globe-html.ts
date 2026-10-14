@@ -4,7 +4,7 @@ export function buildGlobeHtml(places: GlobePlace[], selectedId?: string) {
   const data = JSON.stringify(places).replace(/</g, '\\u003c');
   const selected = JSON.stringify(selectedId ?? '');
   return `<!doctype html>
-<html lang="nb">
+<html lang="en">
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <style>
@@ -17,7 +17,7 @@ export function buildGlobeHtml(places: GlobePlace[], selectedId?: string) {
 </head>
 <body>
   <div id="globe"></div>
-  <div id="loading">Laster kloden …</div>
+  <div id="loading">Loading globe …</div>
   <script>
     const places = ${data};
     const selectedId = ${selected};
@@ -52,7 +52,7 @@ export function buildGlobeHtml(places: GlobePlace[], selectedId?: string) {
       globe.pointOfView({ lat: 20, lng: 8, altitude: 2.15 }, 0);
       loading.remove();
     } catch (error) {
-      loading.textContent = 'Kloden kunne ikke lastes.';
+      loading.textContent = 'The globe could not load.';
       post({ type: 'error' });
     }
   </script>

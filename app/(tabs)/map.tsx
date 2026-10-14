@@ -49,7 +49,7 @@ export default function MapScreen() {
 
   const selected = places.find((item) => item.id === selectedId)?.trip;
   const globeHtml = useMemo(() => buildGlobeHtml(places, selectedId), [places, selectedId]);
-  const openAlbum = () => { if (!selected) return; setSelectedTripId(selected.id); router.push('/trip?tab=Minner'); };
+  const openAlbum = () => { if (!selected) return; setSelectedTripId(selected.id); router.push('/trip?tab=Memories'); };
   const selectFromGlobe = (event: { nativeEvent: { data: string } }) => {
     try {
       const message = JSON.parse(event.nativeEvent.data);
@@ -58,13 +58,13 @@ export default function MapScreen() {
   };
 
   return <View style={s.page}><View style={s.content}>
-    <PageTitle eyebrow="Reisehistorien din">Kart</PageTitle>
-    <Text style={s.intro}>Snurr kloden og se stedene dere faktisk har vært.</Text>
+    <PageTitle eyebrow="Your travel history">Map</PageTitle>
+    <Text style={s.intro}>Spin the globe and see the places you have actually visited.</Text>
     <View style={s.globeShell}>
       <WebView source={{ html: globeHtml }} onMessage={selectFromGlobe} javaScriptEnabled domStorageEnabled scrollEnabled={false} bounces={false} originWhitelist={['*']} style={s.globe} containerStyle={s.globe} />
     </View>
-    <View style={s.hint}><Ionicons name="hand-left-outline" size={18} color={colors.teal}/><Text style={s.hintText}>Dra for å snurre · trykk på en markør</Text></View>
-    {selected ? <Section title="Et reiseøyeblikk"><Pressable onPress={openAlbum} style={s.albumCard}><View style={s.albumIcon}><Ionicons name="images-outline" size={22} color={colors.teal}/></View><View style={{ flex: 1 }}><Text style={s.albumTitle}>{selected.city}, {selected.country}</Text><Text style={s.copy}>{selected.startDate} – {selected.endDate}</Text></View><Ionicons name="chevron-forward" size={21} color={colors.muted}/></Pressable></Section> : <Card style={s.empty}><Ionicons name="earth-outline" size={34} color={colors.teal}/><Text style={s.emptyTitle}>Kloden fylles etter turen</Text><Text style={s.copy}>Et sted dukker opp her når turens sluttdato har passert.</Text></Card>}
+    <View style={s.hint}><Ionicons name="hand-left-outline" size={18} color={colors.teal}/><Text style={s.hintText}>Drag to spin · tap a marker</Text></View>
+    {selected ? <Section title="A travel moment"><Pressable onPress={openAlbum} style={s.albumCard}><View style={s.albumIcon}><Ionicons name="images-outline" size={22} color={colors.teal}/></View><View style={{ flex: 1 }}><Text style={s.albumTitle}>{selected.city}, {selected.country}</Text><Text style={s.copy}>{selected.startDate} – {selected.endDate}</Text></View><Ionicons name="chevron-forward" size={21} color={colors.muted}/></Pressable></Section> : <Card style={s.empty}><Ionicons name="earth-outline" size={34} color={colors.teal}/><Text style={s.emptyTitle}>The globe fills after your trip</Text><Text style={s.copy}>A place appears here when the trip end date has passed.</Text></Card>}
   </View></View>;
 }
 
