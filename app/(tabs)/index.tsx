@@ -47,8 +47,8 @@ export default function HomeScreen() {
       <Field value={title} onChangeText={setTitle} placeholder="Trip name"/>
       <AutocompleteField value={city} onChangeText={setCity} placeholder="City or destination" suggestions={destinationSuggestions} onPick={(suggestion) => setCountry(suggestion.detail ?? country)}/>
       <Field value={country} onChangeText={setCountry} placeholder="Country"/>
-      <DateField value={start} onChangeText={setStart} placeholder="Start date"/>
-      <DateField value={end} onChangeText={setEnd} placeholder="End date"/>
+      <DateField value={start} onChangeText={(date) => { setStart(date); if (end && end <= date) setEnd(''); }} placeholder="Start date"/>
+      <DateField value={end} onChangeText={setEnd} placeholder="End date" minDate={start}/>
       <PrimaryButton title="Save trip" icon="checkmark" onPress={save}/>
     </Sheet>
   </ScrollView>;

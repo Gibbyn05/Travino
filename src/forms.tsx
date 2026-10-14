@@ -46,10 +46,50 @@ export function AutocompleteField({ value, onChangeText, placeholder, suggestion
 
   return <View style={s.autocomplete}>
     <TextInput value={value} onChangeText={onChangeText} onFocus={() => setFocused(true)} onBlur={() => setTimeout(() => setFocused(false), 500)} placeholder={placeholder} placeholderTextColor={colors.muted} autoCorrect={false} style={s.field}/>
-    {focused && matches.length > 0 && <View style={s.suggestions}>{matches.map((suggestion) => <Pressable key={suggestion.label} onTouchStart={() => pick(suggestion)} style={s.suggestion}><View style={{ flex: 1 }}><Text style={s.suggestionTitle}>{suggestion.value}</Text>{suggestion.detail && <Text style={s.suggestionDetail}>{suggestion.detail}</Text>}</View><Text style={s.suggestionUse}>Choose</Text></Pressable>)}</View>}
+    {focused && matches.length > 0 && <View style={s.suggestions}><ScrollView style={s.suggestionList} contentContainerStyle={s.suggestionsContent} nestedScrollEnabled keyboardShouldPersistTaps="always" showsVerticalScrollIndicator bounces={false} overScrollMode="never">{matches.map((suggestion) => <Pressable key={suggestion.label} onPress={() => pick(suggestion)} style={s.suggestion}><View style={{ flex: 1 }}><Text style={s.suggestionTitle}>{suggestion.value}</Text>{suggestion.detail && <Text style={s.suggestionDetail}>{suggestion.detail}</Text>}</View><Text style={s.suggestionUse}>Choose</Text></Pressable>)}</ScrollView></View>}
   </View>;
 }
-export function DateField({ value, onChangeText, placeholder }: { value: string; onChangeText: (value: string) => void; placeholder: string }) { const initial = dateParts(value); const [open, setOpen] = useState(false); const [day, setDay] = useState(initial.day); const [month, setMonth] = useState(initial.month); const [year, setYear] = useState(initial.year); const show = () => { const current = dateParts(value); setDay(current.day); setMonth(current.month); setYear(current.year); setOpen(true); }; const save = () => { const safeDay = Math.min(day, new Date(year, month + 1, 0).getDate()); onChangeText(`${year}-${String(month + 1).padStart(2, '0')}-${String(safeDay).padStart(2, '0')}`); setOpen(false); }; return <><Pressable onPress={show} style={s.dateField}><View style={{ flex: 1 }}><Text style={[s.dateValue, !value && s.datePlaceholder]}>{value ? formatDate(value) : placeholder}</Text></View><Ionicons name="calendar-outline" size={20} color={colors.teal}/></Pressable><Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}><View style={s.dateBackdrop}><View style={s.dateSheet}><View style={s.dateHeader}><Text style={s.dateTitle}>{placeholder}</Text><Pressable onPress={() => setOpen(false)} hitSlop={12}><Text style={s.close}>Close</Text></Pressable></View><View style={s.wheels}><DateColumn values={Array.from({ length: 31 }, (_, index) => ({ label: String(index + 1), value: index + 1 }))} selected={day} onPick={setDay}/><DateColumn values={months.map((label, value) => ({ label, value }))} selected={month} onPick={setMonth}/><DateColumn values={Array.from({ length: 13 }, (_, index) => ({ label: String(new Date().getFullYear() - 2 + index), value: new Date().getFullYear() - 2 + index }))} selected={year} onPick={setYear}/></View><Pressable onPress={save} style={s.dateConfirm}><Text style={s.dateConfirmText}>Choose date</Text></Pressable></View></View></Modal></>; }
+export function DateField({ value, onChangeText, placeholder, minDate }: { value: string; onChangeText: (value: string) => void; placeholder: string; minDate?: string }) {
+  const [open, setOpen] = useState(false);
+  const current = dateParts(value);
+  const minimum = minDate ? nextDayParts(minDate) : null;
+  const [day, setDay] = useState(current.day);
+  const [month, setMonth] = useState(current.month);
+  const [year, setYear] = useState(current.year);
+  const show = () => {
+    const selected = dateParts(value);
+    const clamped = minimum && compareParts(selected, minimum) < 0 ? minimum : selected;
+    setDay(clamped.day); setMonth(clamped.month); setYear(clamped.year); setOpen(true);
+  };
+  const lastDay = new Date(year, month + 1, 0).getDate();
+  const dayMinimum = minimum && year === minimum.year && month === minimum.month ? minimum.day : 1;
+  const monthOptions = months.map((label, value) => ({ label, value })).filter((item) => !minimum || year > minimum.year || (year === minimum.year && item.value >= minimum.month));
+  const now = new Date().getFullYear();
+  const firstYear = minimum ? Math.min(now - 2, minimum.year) : now - 2;
+  const lastYear = minimum ? Math.max(now + 10, minimum.year + 10) : now + 10;
+  const yearOptions = Array.from({ length: lastYear - firstYear + 1 }, (_, index) => firstYear + index).filter((item) => !minimum || item >= minimum.year).map((item) => ({ label: String(item), value: item }));
+  const chooseYear = (nextYear: number) => {
+    setYear(nextYear);
+    const nextMonth = minimum && nextYear === minimum.year && month < minimum.month ? minimum.month : month;
+    if (nextMonth !== month) setMonth(nextMonth);
+    const firstDay = minimum && nextYear === minimum.year && nextMonth === minimum.month ? minimum.day : 1;
+    setDay((selectedDay) => Math.max(firstDay, Math.min(selectedDay, new Date(nextYear, nextMonth + 1, 0).getDate())));
+  };
+  const chooseMonth = (nextMonth: number) => {
+    setMonth(nextMonth);
+    if (minimum && year === minimum.year && nextMonth === minimum.month && day < minimum.day) setDay(minimum.day);
+    setDay((selectedDay) => Math.min(selectedDay, new Date(year, nextMonth + 1, 0).getDate()));
+  };
+  const save = () => {
+    const safeDay = Math.max(dayMinimum, Math.min(day, lastDay));
+    const iso = `${year}-${String(month + 1).padStart(2, '0')}-${String(safeDay).padStart(2, '0')}`;
+    if (minDate && iso <= minDate) return;
+    onChangeText(iso); setOpen(false);
+  };
+  return <><Pressable onPress={show} style={s.dateField}><View style={{ flex: 1 }}><Text style={[s.dateValue, !value && s.datePlaceholder]}>{value ? formatDate(value) : placeholder}</Text></View><Ionicons name="calendar-outline" size={20} color={colors.teal}/></Pressable><Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}><View style={s.dateBackdrop}><View style={s.dateSheet}><View style={s.dateHeader}><Text style={s.dateTitle}>{placeholder}</Text><Pressable onPress={() => setOpen(false)} hitSlop={12}><Text style={s.close}>Close</Text></Pressable></View><View style={s.wheels}><DateColumn values={Array.from({ length: lastDay - dayMinimum + 1 }, (_, index) => ({ label: String(dayMinimum + index), value: dayMinimum + index }))} selected={day} onPick={setDay}/><DateColumn values={monthOptions} selected={month} onPick={chooseMonth}/><DateColumn values={yearOptions} selected={year} onPick={chooseYear}/></View><Pressable onPress={save} style={s.dateConfirm}><Text style={s.dateConfirmText}>Choose date</Text></Pressable></View></View></Modal></>;
+}
+function nextDayParts(value: string) { const parts = dateParts(value); const next = new Date(parts.year, parts.month, parts.day + 1); return { year: next.getFullYear(), month: next.getMonth(), day: next.getDate() }; }
+function compareParts(left: { year: number; month: number; day: number }, right: { year: number; month: number; day: number }) { return left.year - right.year || left.month - right.month || left.day - right.day; }
 function DateColumn({ values, selected, onPick }: { values: { label: string; value: number }[]; selected: number; onPick: (value: number) => void }) { return <ScrollView style={s.dateColumn} contentContainerStyle={s.dateColumnContent} showsVerticalScrollIndicator={false}>{values.map((item) => <Pressable key={item.value} onPress={() => onPick(item.value)} style={[s.dateOption, selected === item.value && s.dateOptionActive]}><Text style={[s.dateOptionText, selected === item.value && s.dateOptionTextActive]}>{item.label}</Text></Pressable>)}</ScrollView>; }
 const normalise = (value: string) => value.toLocaleLowerCase('en-US').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -72,6 +112,7 @@ Object.assign(s, StyleSheet.create({
   field: { minHeight: 56, borderWidth: 1, borderColor: colors.border, borderRadius: 16, backgroundColor: colors.surface, color: colors.text, fontSize: 16, fontWeight: '400', paddingHorizontal: 16, marginBottom: 13 },
   multiline: { minHeight: 108, paddingTop: 16, textAlignVertical: 'top' },
   suggestions: { marginTop: -3, marginBottom: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 16, overflow: 'hidden', shadowColor: colors.text, shadowOpacity: .07, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 3 },
+  suggestionList: { maxHeight: 280, flexGrow: 0 },
   suggestionTitle: { color: colors.text, fontSize: 15, fontWeight: '600' },
   suggestionUse: { color: colors.blue, fontSize: 12, fontWeight: '600' },
   dateField: { minHeight: 56, borderWidth: 1, borderColor: colors.border, borderRadius: 16, backgroundColor: colors.surface, paddingHorizontal: 16, marginBottom: 13, flexDirection: 'row', alignItems: 'center', gap: 12 },
