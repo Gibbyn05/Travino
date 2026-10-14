@@ -5,7 +5,7 @@ import { Image, ImageSourcePropType, Pressable, StyleSheet, Text, View } from 'r
 import { colors, radius } from './theme';
 
 export function PageTitle({ children, eyebrow }: { children: string; eyebrow?: string }) {
-  return <View style={styles.titleWrap}>{eyebrow && <Text style={styles.eyebrow}>{eyebrow}</Text>}<Text style={styles.title}>{children}</Text></View>;
+  return <View style={styles.titleWrap}>{eyebrow && <View style={styles.eyebrowRow}><View style={styles.eyebrowDot}/><Text style={styles.eyebrow}>{eyebrow}</Text></View>}<Text style={styles.title}>{children}</Text></View>;
 }
 export function Card({ children, style }: { children: ReactNode; style?: object }) { return <View style={[styles.card, style]}>{children}</View>; }
 export function Section({ title, action, children }: { title: string; action?: string; children: ReactNode }) {
@@ -20,12 +20,12 @@ export function Avatar({ name, image }: { name: string; image?: ImageSourcePropT
 export function Chip({ label, warm = false }: { label: string; warm?: boolean }) { return <View style={[styles.chip, warm && styles.warmChip]}><Text style={[styles.chipText, warm && { color: colors.navy }]}>{label}</Text></View>; }
 
 export const styles = StyleSheet.create({
-  titleWrap: { gap: 5, marginBottom: 25 }, eyebrow: { color: colors.teal, fontSize: 12, fontWeight: '800', letterSpacing: .8, textTransform: 'uppercase' },
-  title: { color: colors.navy, fontSize: 34, fontWeight: '800', letterSpacing: -1.15, lineHeight: 40 },
-  card: { backgroundColor: colors.surface, borderRadius: radius.card, padding: 19, borderWidth: 1, borderColor: colors.border, shadowColor: colors.navy, shadowOpacity: .045, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 1 },
-  section: { gap: 13, marginTop: 32 }, sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', paddingHorizontal: 2 },
-  sectionTitle: { color: colors.navy, fontSize: 20, fontWeight: '800', letterSpacing: -.45 }, action: { color: colors.teal, fontSize: 14, fontWeight: '800' },
-  primary: { minHeight: 56, paddingHorizontal: 20, borderRadius: 19, backgroundColor: colors.teal, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 9, shadowColor: colors.teal, shadowOpacity: .16, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, elevation: 2 }, primaryPressed: { opacity: .9, transform: [{ scale: .985 }], shadowOpacity: .06 },
-  primaryText: { color: '#fff', fontSize: 16, fontWeight: '800', letterSpacing: -.15 }, avatar: { height: 34, width: 34, borderRadius: 17, backgroundColor: colors.sand, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.surface }, avatarText: { color: colors.navy, fontWeight: '800' },
-  chip: { backgroundColor: colors.mist, alignSelf: 'flex-start', borderRadius: radius.pill, paddingHorizontal: 11, paddingVertical: 7 }, warmChip: { backgroundColor: colors.sand }, chipText: { color: colors.teal, fontSize: 12, fontWeight: '800' },
+  titleWrap: { gap: 7, marginBottom: 30 }, eyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: 7 }, eyebrowDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.orange }, eyebrow: { color: colors.teal, fontSize: 11, fontWeight: '900', letterSpacing: 1.4, textTransform: 'uppercase' },
+  title: { color: colors.navy, fontSize: 42, fontWeight: '900', letterSpacing: -1.8, lineHeight: 46 },
+  card: { backgroundColor: colors.surface, borderRadius: radius.card, padding: 20, borderWidth: 1, borderColor: 'rgba(229,221,209,.72)', shadowColor: colors.ink, shadowOpacity: .065, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 2 },
+  section: { gap: 14, marginTop: 36 }, sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', paddingHorizontal: 3 },
+  sectionTitle: { color: colors.navy, fontSize: 22, fontWeight: '900', letterSpacing: -.7 }, action: { color: colors.orange, fontSize: 13, fontWeight: '900', letterSpacing: .1 },
+  primary: { minHeight: 58, paddingHorizontal: 22, borderRadius: 20, backgroundColor: colors.orange, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 10, shadowColor: colors.orange, shadowOpacity: .24, shadowRadius: 15, shadowOffset: { width: 0, height: 8 }, elevation: 3 }, primaryPressed: { opacity: .9, transform: [{ scale: .98 }], shadowOpacity: .1 },
+  primaryText: { color: '#FFFDF8', fontSize: 16, fontWeight: '900', letterSpacing: -.25 }, avatar: { height: 36, width: 36, borderRadius: 18, backgroundColor: colors.lime, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.surface }, avatarText: { color: colors.ink, fontWeight: '900' },
+  chip: { backgroundColor: colors.mist, alignSelf: 'flex-start', borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 8 }, warmChip: { backgroundColor: colors.sun }, chipText: { color: colors.teal, fontSize: 12, fontWeight: '900' },
 });

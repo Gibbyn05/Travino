@@ -9,9 +9,9 @@ export function buildGlobeHtml(places: GlobePlace[], selectedId?: string) {
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <style>
     * { box-sizing: border-box; }
-    html, body, #globe { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #163f4c; }
+    html, body, #globe { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #eaf5fb; }
     canvas { display: block; }
-    #loading { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; color: #d9ebe7; font: 600 14px -apple-system, BlinkMacSystemFont, sans-serif; letter-spacing: .02em; pointer-events: none; }
+    #loading { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; color: #627f91; font: 700 14px -apple-system, BlinkMacSystemFont, sans-serif; letter-spacing: .02em; pointer-events: none; }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/globe.gl@2.46.2/dist/globe.gl.min.js"></script>
 </head>
@@ -26,19 +26,19 @@ export function buildGlobeHtml(places: GlobePlace[], selectedId?: string) {
     const post = (message) => window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify(message));
     try {
       const globe = Globe()(root)
-        .backgroundColor('#163f4c')
+        .backgroundColor('#eaf5fb')
         .globeImageUrl('https://cdn.jsdelivr.net/gh/vasturiano/three-globe/example/img/earth-blue-marble.jpg')
         .bumpImageUrl('https://cdn.jsdelivr.net/gh/vasturiano/three-globe/example/img/earth-topology.png')
         .showAtmosphere(true)
-        .atmosphereColor('#9ac8c2')
+        .atmosphereColor('#9fcfe4')
         .atmosphereAltitude(.16)
         .pointsData(places)
         .pointLat('lat')
         .pointLng('lon')
         .pointAltitude(point => point.id === selectedId ? .11 : .065)
         .pointRadius(point => point.id === selectedId ? .42 : .31)
-        .pointColor(point => point.id === selectedId ? '#2c8c88' : '#ee8a68')
-        .pointLabel(point => '<div style="padding:7px 9px;border-radius:10px;background:#fffdf9;color:#193b47;font:700 13px -apple-system,BlinkMacSystemFont,sans-serif">' + point.city + ', ' + point.country + '</div>')
+        .pointColor(point => point.id === selectedId ? '#62b7b3' : '#fb8b78')
+        .pointLabel(point => '<div style="padding:8px 10px;border-radius:12px;background:#ffffff;color:#263154;font:800 13px -apple-system,BlinkMacSystemFont,sans-serif;box-shadow:0 6px 18px rgba(38,49,84,.14)">' + point.city + ', ' + point.country + '</div>')
         .onPointClick(point => post({ type: 'select', id: point.id }));
       const resize = () => globe.width(window.innerWidth).height(window.innerHeight);
       resize();

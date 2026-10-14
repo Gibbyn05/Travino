@@ -34,4 +34,4 @@ export default function JoinTrip() {
   </View>;
 }
 
-const s = StyleSheet.create({ page: { flex: 1, backgroundColor: colors.background, padding: 24, paddingTop: 96, gap: 17 }, eyebrow: { color: colors.teal, fontSize: 12, fontWeight: '800', letterSpacing: .8, textTransform: 'uppercase' }, title: { color: colors.navy, fontSize: 34, fontWeight: '800', letterSpacing: -1.1, lineHeight: 40 }, copy: { color: colors.muted, fontSize: 16, lineHeight: 25, marginBottom: 8 } });
+const s = StyleSheet.create({ page: { flex: 1, backgroundColor: colors.background, padding: 24, paddingTop: 96, gap: 18 }, eyebrow: { color: colors.teal, fontSize: 11, fontWeight: '900', letterSpacing: 1.3, textTransform: 'uppercase' }, title: { color: colors.navy, fontSize: 40, fontWeight: '900', letterSpacing: -1.6, lineHeight: 45 }, copy: { color: colors.muted, fontSize: 16, lineHeight: 25, marginBottom: 8 } });

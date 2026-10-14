@@ -1,18 +1,16 @@
-import { Appearance, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 
-// React Native 0.86 exposes `absoluteFill`; keep this familiar alias for shared overlays.
+// Keep the familiar alias available to the shared overlays.
 (StyleSheet as typeof StyleSheet & { absoluteFillObject?: typeof StyleSheet.absoluteFill }).absoluteFillObject = StyleSheet.absoluteFill;
 
-const dark = Appearance.getColorScheme() === 'dark';
-
-export const colors = dark ? {
-  navy: '#F6F1E8', teal: '#71B9AA', mist: '#254543', sand: '#73583C', coral: '#E59B7F',
-  background: '#182D2F', surface: '#213B3D', text: '#F6F1E8', muted: '#C4D0C8', border: '#355354',
-  darkBackground: '#182D2F', darkSurface: '#213B3D',
-} : {
-  navy: '#29484A', teal: '#398C82', mist: '#E6F0E9', sand: '#F4D7A4', coral: '#D98268',
-  background: '#FCF8F2', surface: '#FFFDF9', text: '#344346', muted: '#71807A', border: '#E9E1D8',
-  darkBackground: '#182D2F', darkSurface: '#213B3D',
+// Light, optimistic travel colours: a clean white canvas, powdery pastels,
+// and one cheerful coral action colour. Existing semantic names keep this
+// presentation-only.
+export const colors = {
+  navy: '#263154', teal: '#62B7B3', mist: '#E8F8F5', sand: '#FFE6AE', coral: '#FB8B78',
+  background: '#FFFFFF', surface: '#FFFFFF', text: '#263154', muted: '#7C8498', border: '#EEF0F5',
+  ink: '#263154', paper: '#FFFFFF', sun: '#FFE6AE', orange: '#FB8B78', lime: '#E2F4BF',
+  darkBackground: '#263154', darkSurface: '#37436B',
 };
 
-export const radius = { card: 24, pill: 999, small: 16 };
+export const radius = { card: 28, pill: 999, small: 18, hero: 32 };
