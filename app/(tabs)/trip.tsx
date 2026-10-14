@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ActivityIndicator, Alert, Image, ImageBackground, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { AutocompleteField, DateField, Field, Sheet } from '@/src/forms';
 import { Avatar, Card, PageTitle, PrimaryButton, Section } from '@/src/ui';
@@ -13,8 +13,9 @@ import { stockCoverForCountry } from '@/src/country-images';
 import { inviteUrl } from '@/src/invites';
 import { ensureGuestIdentity, supabase } from '@/src/lib/supabase';
 import { sendTripNotification } from '@/src/notifications';
-const tabs = ['Overview', 'Plan', 'Packing', 'Wishlist', 'Memories'];
+const tabs = ['Overview', 'Plan', 'Activities', 'Packing', 'Wishlist', 'Memories'];
 export default function TripScreen() {
+  const router = useRouter();
   const { selectedTrip } = useTravel();
   const { tab: requestedTab } = useLocalSearchParams<{ tab?: string }>();
   const [tab, setTab] = useState('Overview');
@@ -32,7 +33,7 @@ export default function TripScreen() {
     <View style={s.heroCard}><ImageBackground source={{ uri: selectedTrip.coverImage || stockCoverForCountry(selectedTrip.country) }} style={s.hero} imageStyle={s.heroImage}/><View style={s.heroDetails}><View style={{ flex: 1 }}><Text style={s.date}>{selectedTrip.startDate} – {selectedTrip.endDate}</Text><Text style={s.heroCopy}>{selectedTrip.members.length ? `${selectedTrip.members.join(', ')} are travelling together` : 'No one has been added yet.'}</Text></View><Ionicons name="arrow-forward" size={19} color={colors.blue}/></View></View>
     <View style={{ marginTop: 12 }}><PrimaryButton title="Invite members" icon="person-add-outline" onPress={invite}/></View>
     <Pressable accessibilityRole="button" onPress={() => setAddFriendOpen(true)} style={s.addFriendLink}><Ionicons name="people-outline" size={18} color={colors.blue}/><Text style={s.addFriendText}>Add an accepted friend to this trip</Text><Ionicons name="chevron-forward" size={17} color={colors.muted}/></Pressable>
-    {tab === 'Overview' && <Overview/>}{tab === 'Plan' && <Plan/>}{tab === 'Packing' && <Packing/>}{tab === 'Wishlist' && <Wishes/>}{tab === 'Memories' && <Memories/>}
+    {tab === 'Overview' && <Overview/>}{tab === 'Plan' && <Plan/>}{tab === 'Activities' && <ThingsToDo onOpen={(activity) => router.push({ pathname: '/activity-browser', params: { activity, city: selectedTrip.city, country: selectedTrip.country } })} />}{tab === 'Packing' && <Packing/>}{tab === 'Wishlist' && <Wishes/>}{tab === 'Memories' && <Memories/>}
     <AddTripFriendSheet visible={addFriendOpen} onClose={() => setAddFriendOpen(false)} tripId={selectedTrip.id} tripTitle={selectedTrip.title} existingNames={selectedTrip.members}/>
   </ScrollView>;
 }
@@ -133,6 +134,26 @@ function Plan() {
     </Sheet>
   </Section>;
 }
+function ThingsToDo({ onOpen }: { onOpen: (activity: string) => void }) {
+  const { selectedTrip } = useTravel();
+  if (!selectedTrip) return null;
+  const ideas = activitySuggestionsForDestination(selectedTrip.city, selectedTrip.country);
+  return <Section title={`Things to do near ${selectedTrip.city}`}>
+    <Text style={s.copy}>Explore local ideas on GetYourGuide. Choose one to see available experiences.</Text>
+    <View style={s.stack}>
+      {ideas.map((idea, index) => <Pressable key={idea.value} accessibilityRole="button" onPress={() => onOpen(idea.value)} style={s.activityIdea}>
+        <View style={[s.activityIcon, index % 3 === 1 && s.activityIconWarm, index % 3 === 2 && s.activityIconPurple]}>
+          <Ionicons name={index % 3 === 0 ? 'compass-outline' : index % 3 === 1 ? 'sparkles-outline' : 'camera-outline'} size={21} color={index % 3 === 1 ? colors.coral : colors.blue}/>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={s.itemTitle}>{idea.value}</Text>
+          <Text style={s.copy}>{idea.detail || selectedTrip.city} · GetYourGuide</Text>
+        </View>
+        <Ionicons name="open-outline" size={18} color={colors.blue}/>
+      </Pressable>)}
+    </View>
+  </Section>;
+}
 function Packing() {
   const { selectedTrip, addPacking, togglePacking, removePacking } = useTravel();
   const [open, setOpen] = useState(false);
@@ -214,4 +235,8 @@ Object.assign(s, StyleSheet.create({
   addFriendLink: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 7, marginBottom: 8, paddingHorizontal: 5 },
   addFriendText: { color: colors.blue, fontSize: 14, fontWeight: '600', flex: 1 },
   friendOption: { minHeight: 62, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 18, paddingHorizontal: 12, marginTop: 9 },
+  activityIdea: { minHeight: 78, flexDirection: 'row', alignItems: 'center', gap: 13, backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: 20, padding: 13 },
+  activityIcon: { width: 46, height: 46, borderRadius: 16, backgroundColor: colors.blueSoft, alignItems: 'center', justifyContent: 'center' },
+  activityIconWarm: { backgroundColor: colors.sand },
+  activityIconPurple: { backgroundColor: colors.purpleSoft },
 }));

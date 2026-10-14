@@ -11,5 +11,5 @@ export default function RootLayout() {
 function AppNavigator() {
   const { ready } = useTravel();
   if (!ready) return <View style={{ flex: 1, backgroundColor: colors.background }}/>;
-  return <Stack initialRouteName="onboarding" screenOptions={{ headerShown: false, animation: 'fade' }}><Stack.Screen name="onboarding"/><Stack.Screen name="(tabs)"/><Stack.Screen name="premium" options={{ presentation: 'modal' }}/></Stack>;
+  return <Stack initialRouteName="onboarding" screenOptions={{ headerShown: false, animation: 'fade' }}><Stack.Screen name="onboarding"/><Stack.Screen name="(tabs)"/><Stack.Screen name="premium" options={{ presentation: 'modal' }}/><Stack.Screen name="activity-browser" options={{ animation: 'slide_from_right' }}/></Stack>;
 }
