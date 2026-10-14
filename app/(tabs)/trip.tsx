@@ -44,7 +44,7 @@ const s = StyleSheet.create({ page: { flex: 1, backgroundColor: colors.backgroun
 
 // The trip's sections share the same quiet white / blue / lilac language as Home.
 Object.assign(s, StyleSheet.create({
-  content: { padding: 24, paddingTop: 72, paddingBottom: 42 },
+  content: { padding: 16, paddingTop: 72, paddingBottom: 42 },
   heroCard: { borderRadius: 24, padding: 7, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, shadowColor: colors.text, shadowOpacity: .04, shadowRadius: 14, shadowOffset: { width: 0, height: 5 } },
   hero: { height: 220, borderRadius: 17, overflow: 'hidden', backgroundColor: colors.blueSoft },
   heroImage: { borderRadius: 17 },

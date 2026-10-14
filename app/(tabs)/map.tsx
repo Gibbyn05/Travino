@@ -57,7 +57,7 @@ export default function MapScreen() {
     } catch { /* Ignore messages outside the globe bridge. */ }
   };
 
-  return <View style={s.page}><View style={s.content}>
+  return <View style={s.page}><View style={[s.content, { paddingHorizontal: 16 }]}>
     <PageTitle eyebrow="Your travel history">Map</PageTitle>
     <Text style={s.intro}>Spin the globe and see the places you have actually visited.</Text>
     <View style={s.globeShell}>

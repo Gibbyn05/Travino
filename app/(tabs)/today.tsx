@@ -24,7 +24,7 @@ export default function TodayScreen() {
 }
 
 const s = StyleSheet.create({
-  page: { flex: 1, backgroundColor: colors.background }, content: { padding: 24, paddingTop: 72, paddingBottom: 42 },
+  page: { flex: 1, backgroundColor: colors.background }, content: { padding: 16, paddingTop: 72, paddingBottom: 42 },
   top: { borderRadius: 24, borderWidth: 1, borderColor: '#E8E9FB', minHeight: 166, padding: 22, justifyContent: 'flex-end' },
   sunIcon: { position: 'absolute', right: 20, top: 20, width: 46, height: 46, borderRadius: 23, backgroundColor: '#FFFFFFBB', alignItems: 'center', justifyContent: 'center' },
   date: { color: colors.text, fontSize: 24, fontWeight: '700', letterSpacing: -.8 }, topCopy: { color: colors.muted, fontSize: 14, marginTop: 6 },
