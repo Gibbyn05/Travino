@@ -1,10 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import AsyncStorage from 'expo-sqlite/kv-store';
 
 const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const key = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
-// Sessions must use AsyncStorage in React Native so the anonymous identity survives an app restart.
+// Expo's SQLite-backed key-value store works inside Expo Go and keeps the
+// anonymous session when the app is restarted.
 export const supabase = url && key ? createClient(url, key, { auth: { storage: AsyncStorage, persistSession: true, autoRefreshToken: true, detectSessionInUrl: false } }) : null;
 
 /** Creates a scoped anonymous Supabase identity for a guest who joins by invite link. */
