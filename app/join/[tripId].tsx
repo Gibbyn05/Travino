@@ -3,26 +3,28 @@ import { useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Field } from '@/src/forms';
 import { readInvite } from '@/src/invites';
-import { ensureGuestIdentity } from '@/src/lib/supabase';
+import { ensureGuestIdentity, supabase } from '@/src/lib/supabase';
 import { colors } from '@/src/theme';
 import { AccentText, PrimaryButton } from '@/src/ui';
 import { useTravel } from '@/src/store';
 
 export default function JoinTrip() {
   const { tripId, invite: rawInvite } = useLocalSearchParams<{ tripId: string; invite?: string }>();
-  const { trips, addMember, createTrip, setSelectedTripId } = useTravel();
+  const { trips, addMember, createTrip, setSelectedTripId, saveProfile } = useTravel();
   const [name, setName] = useState('');
   const localTrip = trips.find((item) => item.id === tripId);
   const sharedTrip = useMemo(() => readInvite(rawInvite), [rawInvite]);
   const trip = localTrip ?? sharedTrip;
   const join = async () => {
     if (!trip || !name.trim()) return;
-    await ensureGuestIdentity().catch(() => null);
+    const user = await ensureGuestIdentity().catch(() => null);
+    saveProfile(name.trim());
+    if (supabase && user) { try { await supabase.rpc('ensure_my_profile', { p_display_name: name.trim() }); } catch { /* Joining remains possible if profile sync is temporarily unavailable. */ } }
     if (localTrip) {
-      addMember(localTrip.id, name.trim());
+      addMember(localTrip.id, name.trim(), user?.id);
       setSelectedTripId(localTrip.id);
     } else {
-      const id = createTrip({ ...sharedTrip!, members: [...sharedTrip!.members, name.trim()] });
+      const id = createTrip({ ...sharedTrip!, sharedTripId: tripId, members: [...sharedTrip!.members, name.trim()] });
       setSelectedTripId(id);
     }
     router.replace('/trip');

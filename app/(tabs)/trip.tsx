@@ -6,7 +6,7 @@ import { ActivityIndicator, Alert, Image, ImageBackground, Pressable, ScrollView
 import { AutocompleteField, DateField, Field, Sheet } from '@/src/forms';
 import { Avatar, Card, PageTitle, PrimaryButton, Section } from '@/src/ui';
 import { colors } from '@/src/theme';
-import { useTravel } from '@/src/store';
+import { useTravel, WishReaction } from '@/src/store';
 import { fetchWeather, Weather } from '@/src/weather';
 import { activitySuggestionsForDestination, packingCategorySuggestions, packingSuggestions, suggestedPackingCategory, wishSuggestions } from '@/src/suggestions';
 import { stockCoverForCountry } from '@/src/country-images';
@@ -212,7 +212,113 @@ function Packing() {
     </Sheet>
   </Section>;
 }
-function Wishes() { const { selectedTrip, addWish, toggleWish, removeWish } = useTravel(); const [open, setOpen] = useState(false); const [name, setName] = useState(''); const [category, setCategory] = useState('Activity'); const [location, setLocation] = useState(''); if (!selectedTrip) return null; const save = () => { if (!name) return; addWish(selectedTrip.id, { name, category: category || 'Other', location }); setOpen(false); setName(''); setLocation(''); }; return <Section title="Wishlist"><View style={s.stack}>{selectedTrip.wishes.map((item) => <Card key={item.id} style={s.row}><Pressable onPress={() => toggleWish(selectedTrip.id, item.id)}><Ionicons name={item.voted ? 'heart' : 'heart-outline'} size={23} color={colors.coral}/></Pressable><View style={{ flex: 1 }}><Text style={s.itemTitle}>{item.name}</Text><Text style={s.copy}>{item.category}{item.location ? ` · ${item.location}` : ''}</Text></View><Pressable onPress={() => removeWish(selectedTrip.id, item.id)}><Ionicons name="trash-outline" size={19} color={colors.muted}/></Pressable></Card>)}</View>{!selectedTrip.wishes.length && <Text style={s.copy}>Save places and experiences you are considering.</Text>}<PrimaryButton title="Add wish" onPress={() => setOpen(true)}/><Sheet visible={open} title="New wish" onClose={() => setOpen(false)}><AutocompleteField value={name} onChangeText={setName} placeholder="Name" suggestions={wishSuggestions}/><Field value={category} onChangeText={setCategory} placeholder="Category"/><Field value={location} onChangeText={setLocation} placeholder="Location (optional)"/><PrimaryButton title="Save wish" icon="checkmark" onPress={save}/></Sheet></Section>; }
+const reactionChoices: { value: WishReaction; label: string; icon: string; color: string; tint: string }[] = [
+  { value: 'like', label: 'Like', icon: 'thumbs-up-outline', color: '#25885C', tint: '#EAF7F0' },
+  { value: 'meh', label: 'Meh', icon: 'remove-circle-outline', color: '#B17B18', tint: '#FFF6E3' },
+  { value: 'dislike', label: 'Dislike', icon: 'thumbs-down-outline', color: '#D76570', tint: '#FFF0F1' },
+];
+type ReactionVote = { displayName: string; reaction: WishReaction };
+function Wishes() {
+  const { selectedTrip, profileName, addWish, removeWish, setWishReaction } = useTravel();
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState('');
+  const [category, setCategory] = useState('Activity');
+  const [location, setLocation] = useState('');
+  const [voterId, setVoterId] = useState('');
+  const [cloudVotes, setCloudVotes] = useState<Record<string, Record<string, ReactionVote>>>({});
+  const [syncUnavailable, setSyncUnavailable] = useState(false);
+  const tripId = selectedTrip?.sharedTripId || selectedTrip?.id || '';
+  const wishIdsKey = selectedTrip?.wishes.map((wish) => wish.id).join(',') || '';
+
+  useEffect(() => {
+    if (!supabase || !wishIdsKey) return;
+    let alive = true;
+    let interval: ReturnType<typeof setInterval> | undefined;
+    const refresh = async () => {
+      const ids = wishIdsKey.split(',').filter(Boolean);
+      if (!ids.length) return;
+      try {
+        const user = await ensureGuestIdentity();
+        if (!user) return;
+        if (alive) setVoterId(user.id);
+        const { data, error } = await supabase.from('travel_wishlist_reactions').select('wish_id,user_id,display_name,reaction').eq('trip_id', tripId).in('wish_id', ids);
+        if (error) throw error;
+        const votes: Record<string, Record<string, ReactionVote>> = {};
+        for (const vote of data || []) {
+          votes[vote.wish_id] ??= {};
+          votes[vote.wish_id][vote.user_id] = { displayName: vote.display_name, reaction: vote.reaction };
+        }
+        if (alive) { setCloudVotes(votes); setSyncUnavailable(false); }
+      } catch {
+        if (alive) setSyncUnavailable(true);
+      }
+    };
+    void refresh();
+    interval = setInterval(() => { void refresh(); }, 12000);
+    return () => { alive = false; if (interval) clearInterval(interval); };
+  }, [tripId, wishIdsKey]);
+
+  if (!selectedTrip) return null;
+
+  const vote = async (wishId: string, reaction: WishReaction) => {
+    let activeVoterId = voterId;
+    if (supabase && !activeVoterId) {
+      const user = await ensureGuestIdentity().catch(() => null);
+      activeVoterId = user?.id || '';
+      if (activeVoterId) setVoterId(activeVoterId);
+    }
+    const current = cloudVotes[wishId]?.[activeVoterId]?.reaction || selectedTrip.wishes.find((wish) => wish.id === wishId)?.reactions?.[activeVoterId || profileName]?.reaction;
+    const next = current === reaction ? undefined : reaction;
+    const key = activeVoterId || profileName || 'You';
+    setWishReaction(selectedTrip.id, wishId, key, profileName || 'You', next);
+    if (!supabase || !activeVoterId) return;
+    try {
+      const request = supabase.from('travel_wishlist_reactions');
+      const result = next
+        ? await request.upsert({ trip_id: tripId, wish_id: wishId, user_id: activeVoterId, display_name: profileName || 'Traveller', reaction: next, updated_at: new Date().toISOString() }, { onConflict: 'trip_id,wish_id,user_id' })
+        : await request.delete().eq('trip_id', tripId).eq('wish_id', wishId).eq('user_id', activeVoterId);
+      if (result.error) throw result.error;
+      setCloudVotes((currentVotes) => {
+        const votes = { ...currentVotes, [wishId]: { ...(currentVotes[wishId] || {}) } };
+        if (next) votes[wishId][activeVoterId] = { displayName: profileName || 'Traveller', reaction: next };
+        else delete votes[wishId][activeVoterId];
+        return votes;
+      });
+      setSyncUnavailable(false);
+    } catch {
+      setSyncUnavailable(true);
+      Alert.alert('Saved on this device', 'This reaction could not sync with the group. Check the latest Supabase migration and your trip invitation, then try again.');
+    }
+  };
+
+  const save = () => { if (!name.trim()) return; addWish(selectedTrip.id, { name: name.trim(), category: category || 'Activity', location }); setOpen(false); setName(''); setLocation(''); };
+  return <Section title="Wishlist">
+    <Text style={s.copy}>React to ideas together and see what the group is excited about.</Text>
+    {syncUnavailable && !!supabase && <Text style={s.syncHint}>Group voting needs the latest Supabase setup and a trip invitation.</Text>}
+    <View style={s.stack}>{selectedTrip.wishes.map((item) => {
+      const votes: Record<string, ReactionVote> = { ...(item.reactions || {}), ...(cloudVotes[item.id] || {}) };
+      const myVote = votes[voterId || profileName]?.reaction;
+      const voters = Object.values(votes);
+      return <Card key={item.id} style={s.wishCard}>
+        <View style={s.wishHeading}>
+          <View style={{ flex: 1 }}><Text style={s.itemTitle}>{item.name}</Text><Text style={s.copy}>{item.category}{item.location ? ` · ${item.location}` : ''}</Text></View>
+          <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${item.name}`} onPress={() => removeWish(selectedTrip.id, item.id)}><Ionicons name="trash-outline" size={19} color={colors.muted}/></Pressable>
+        </View>
+        <View style={s.reactionRow}>{reactionChoices.map((choice) => {
+          const count = voters.filter((voteItem) => voteItem.reaction === choice.value).length;
+          const selected = myVote === choice.value;
+          return <Pressable key={choice.value} accessibilityRole="button" accessibilityLabel={`${choice.label}, ${count} votes`} accessibilityState={{ selected }} onPress={() => vote(item.id, choice.value)} style={[s.reactionButton, selected && { backgroundColor: choice.tint, borderColor: choice.color }]}>
+            <Ionicons name={choice.icon as any} size={16} color={selected ? choice.color : colors.muted}/><Text style={[s.reactionLabel, selected && { color: choice.color }]}>{choice.label}</Text><Text style={[s.reactionCount, selected && { color: choice.color }]}>{count}</Text>
+          </Pressable>;
+        })}</View>
+        {voters.length ? <Text style={s.voterNames}>{voters.map((voter) => `${voter.displayName}: ${voter.reaction}`).join('  ·  ')}</Text> : <Text style={s.voterNames}>No reactions yet</Text>}
+      </Card>;
+    })}</View>
+    {!selectedTrip.wishes.length && <Text style={s.copy}>Save places and experiences you are considering.</Text>}
+    <PrimaryButton title="Add wish" onPress={() => setOpen(true)}/>
+    <Sheet visible={open} title="New wish" onClose={() => setOpen(false)}><AutocompleteField value={name} onChangeText={setName} placeholder="Name" suggestions={wishSuggestions}/><Field value={category} onChangeText={setCategory} placeholder="Category"/><Field value={location} onChangeText={setLocation} placeholder="Location (optional)"/><PrimaryButton title="Save wish" icon="checkmark" onPress={save}/></Sheet>
+  </Section>;
+}
 function Memories() { const { selectedTrip, addPhoto } = useTravel(); if (!selectedTrip) return null; return <Section title="Memories"><View style={s.gallery}>{selectedTrip.memories.map((item) => <View key={item.id} style={s.memory}><Image source={{ uri: item.image }} style={s.image}/><Text style={s.copy}>{item.date}</Text></View>)}</View>{!selectedTrip.memories.length && <Text style={s.copy}>Choose photos you want to keep from this trip.</Text>}<PrimaryButton title="Choose photo" icon="image-outline" onPress={() => addPhoto(selectedTrip.id)}/></Section>; }
 const s = StyleSheet.create({ page: { flex: 1, backgroundColor: colors.background }, content: { padding: 24, paddingTop: 72, paddingBottom: 42 }, hero: { height: 224, borderRadius: 32, overflow: 'hidden', backgroundColor: colors.mist, shadowColor: colors.navy, shadowOpacity: .12, shadowRadius: 22, shadowOffset: { width: 0, height: 10 }, elevation: 4 }, heroImage: { borderRadius: 32 }, heroShade: { flex: 1, justifyContent: 'flex-end', padding: 22, backgroundColor: 'rgba(38,49,84,.27)' }, date: { color: colors.sun, fontWeight: '900', fontSize: 14, letterSpacing: .2 }, heroCopy: { color: '#FFFFFF', fontSize: 14, lineHeight: 21, marginTop: 6, fontWeight: '700' }, copy: { color: colors.muted, fontSize: 14, lineHeight: 21, marginTop: 5 }, tabs: { gap: 8, paddingVertical: 24 }, tab: { paddingHorizontal: 17, paddingVertical: 11, borderRadius: 18, backgroundColor: '#F7F8FC' }, activeTab: { backgroundColor: colors.mist }, tabText: { color: colors.muted, fontWeight: '800', fontSize: 13 }, activeText: { color: colors.teal }, stack: { gap: 14, marginBottom: 16 }, row: { flexDirection: 'row', alignItems: 'center', gap: 13 }, itemTitle: { color: colors.navy, fontSize: 17, fontWeight: '900', letterSpacing: -.35 }, packGroup: { gap: 8, marginBottom: 9 }, packGroupTitle: { color: colors.coral, fontSize: 11, fontWeight: '900', letterSpacing: 1, textTransform: 'uppercase', paddingHorizontal: 4, marginTop: 5 }, pack: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 21, backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, padding: 16, shadowColor: colors.navy, shadowOpacity: .035, shadowRadius: 10, shadowOffset: { width: 0, height: 5 } }, done: { textDecorationLine: 'line-through', opacity: .5 }, gallery: { flexDirection: 'row', flexWrap: 'wrap', gap: 13, marginBottom: 16 }, memory: { width: '47%' }, image: { height: 146, borderRadius: 21, backgroundColor: colors.mist }, empty: { flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center', gap: 13, padding: 28 }, emptyText: { color: colors.navy, fontWeight: '800', fontSize: 16 }, weather: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: colors.sand, borderColor: 'transparent', marginTop: 2, paddingVertical: 21 }, weatherTitle: { color: colors.navy, fontSize: 17, fontWeight: '900' }, temperature: { alignItems: 'flex-end' }, temperatureValue: { color: colors.navy, fontSize: 34, fontWeight: '900', letterSpacing: -1.4 }, weatherRange: { color: colors.muted, fontSize: 11, fontWeight: '800' }, tripFacts: { gap: 14, paddingVertical: 21 }, factLabel: { color: colors.muted, fontSize: 12, fontWeight: '800' }, factText: { color: colors.navy, fontSize: 16, fontWeight: '900', marginTop: 4 }, factDivider: { height: 1, backgroundColor: colors.border }, countdown: { alignSelf: 'flex-start', backgroundColor: colors.lime, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 9 }, countdownText: { color: colors.ink, fontSize: 13, fontWeight: '900' }, note: { color: colors.navy, fontSize: 13, lineHeight: 20, marginTop: 12 }, summaryRow: { flexDirection: 'row', gap: 13 }, summaryCard: { flex: 1, gap: 4, padding: 17 }, summaryNumber: { color: colors.navy, fontSize: 28, fontWeight: '900', marginTop: 5 }, members: { flexDirection: 'row', flexWrap: 'wrap', gap: 17, paddingVertical: 17 }, member: { alignItems: 'center', gap: 6, minWidth: 50 }, memberName: { color: colors.navy, fontSize: 12, fontWeight: '800' } });
 
@@ -250,4 +356,12 @@ Object.assign(s, StyleSheet.create({
   activityIconPurple: { backgroundColor: colors.purpleSoft },
   tripDateRow: { minHeight: 54, flexDirection: 'row', alignItems: 'center', gap: 12 },
   tripDateIcon: { width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  wishCard: { gap: 12 },
+  wishHeading: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  reactionRow: { flexDirection: 'row', gap: 7 },
+  reactionButton: { flex: 1, minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingHorizontal: 5, borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.background },
+  reactionLabel: { color: colors.muted, fontSize: 11, fontWeight: '600' },
+  reactionCount: { color: colors.muted, fontSize: 10, fontWeight: '700' },
+  voterNames: { color: colors.muted, fontSize: 11, lineHeight: 17 },
+  syncHint: { color: '#9B711F', backgroundColor: '#FFF6E3', fontSize: 12, lineHeight: 18, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 14, marginTop: 6, marginBottom: 12 },
 }));
