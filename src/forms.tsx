@@ -2,7 +2,7 @@
 import { ReactNode } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { colors } from './theme';
 import { Suggestion } from './suggestions';
 
@@ -11,6 +11,8 @@ export function Field({ value, onChangeText, placeholder, multiline = false }: {
 export function AutocompleteField({ value, onChangeText, placeholder, suggestions, onPick, showSuggestionsOnFocus = false }: { value: string; onChangeText: (value: string) => void; placeholder: string; suggestions: Suggestion[]; onPick?: (suggestion: Suggestion) => void; showSuggestionsOnFocus?: boolean }) {
   const [focused, setFocused] = useState(false);
   const [remote, setRemote] = useState<Suggestion[]>([]);
+  const suggestionScrollActive = useRef(false);
+  const resetScrollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isDestinationSearch = placeholder === 'City or destination';
 
   useEffect(() => {
@@ -42,11 +44,21 @@ export function AutocompleteField({ value, onChangeText, placeholder, suggestion
     if (!query) return showSuggestionsOnFocus ? choices.slice(0, 8) : [];
     return choices.filter((item) => normalise(item.label).startsWith(query) || normalise(item.label).includes(query)).sort((a, b) => Number(normalise(b.label).startsWith(query)) - Number(normalise(a.label).startsWith(query))).slice(0, 8);
   }, [value, choices, showSuggestionsOnFocus]);
-  const pick = (suggestion: Suggestion) => { onChangeText(suggestion.value); onPick?.(suggestion); setFocused(false); };
+  useEffect(() => () => { if (resetScrollTimer.current) clearTimeout(resetScrollTimer.current); }, []);
+
+  const pick = (suggestion: Suggestion) => {
+    // A finger lift after dragging the nested list must not activate the row.
+    if (suggestionScrollActive.current) return;
+    onChangeText(suggestion.value); onPick?.(suggestion); setFocused(false);
+  };
+  const finishSuggestionScroll = () => {
+    if (resetScrollTimer.current) clearTimeout(resetScrollTimer.current);
+    resetScrollTimer.current = setTimeout(() => { suggestionScrollActive.current = false; }, 120);
+  };
 
   return <View style={s.autocomplete}>
     <TextInput value={value} onChangeText={onChangeText} onFocus={() => setFocused(true)} onBlur={() => setTimeout(() => setFocused(false), 500)} placeholder={placeholder} placeholderTextColor={colors.muted} autoCorrect={false} style={s.field}/>
-    {focused && matches.length > 0 && <View style={s.suggestions}><ScrollView style={s.suggestionList} contentContainerStyle={s.suggestionsContent} nestedScrollEnabled keyboardShouldPersistTaps="always" showsVerticalScrollIndicator bounces={false} overScrollMode="never">{matches.map((suggestion) => <Pressable key={suggestion.label} onPress={() => pick(suggestion)} style={s.suggestion}><View style={{ flex: 1 }}><Text style={s.suggestionTitle}>{suggestion.value}</Text>{suggestion.detail && <Text style={s.suggestionDetail}>{suggestion.detail}</Text>}</View><Text style={s.suggestionUse}>Choose</Text></Pressable>)}</ScrollView></View>}
+    {focused && matches.length > 0 && <View style={s.suggestions}><ScrollView style={s.suggestionList} contentContainerStyle={s.suggestionsContent} nestedScrollEnabled keyboardShouldPersistTaps="always" showsVerticalScrollIndicator bounces={false} overScrollMode="never" onScrollBeginDrag={() => { if (resetScrollTimer.current) clearTimeout(resetScrollTimer.current); suggestionScrollActive.current = true; }} onScrollEndDrag={finishSuggestionScroll} onMomentumScrollBegin={() => { suggestionScrollActive.current = true; }} onMomentumScrollEnd={() => { suggestionScrollActive.current = false; }}>{matches.map((suggestion) => <Pressable key={suggestion.label} delayPressIn={100} onPress={() => pick(suggestion)} style={s.suggestion}><View style={{ flex: 1 }}><Text style={s.suggestionTitle}>{suggestion.value}</Text>{suggestion.detail && <Text style={s.suggestionDetail}>{suggestion.detail}</Text>}</View><Text style={s.suggestionUse}>Choose</Text></Pressable>)}</ScrollView></View>}
   </View>;
 }
 export function DateField({ value, onChangeText, placeholder, minDate }: { value: string; onChangeText: (value: string) => void; placeholder: string; minDate?: string }) {
@@ -112,7 +124,7 @@ Object.assign(s, StyleSheet.create({
   field: { minHeight: 56, borderWidth: 1, borderColor: colors.border, borderRadius: 16, backgroundColor: colors.surface, color: colors.text, fontSize: 16, fontWeight: '400', paddingHorizontal: 16, marginBottom: 13 },
   multiline: { minHeight: 108, paddingTop: 16, textAlignVertical: 'top' },
   suggestions: { marginTop: -3, marginBottom: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 16, overflow: 'hidden', shadowColor: colors.text, shadowOpacity: .07, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 3 },
-  suggestionList: { maxHeight: 280, flexGrow: 0 },
+  suggestionList: { maxHeight: 168, flexGrow: 0 },
   suggestionTitle: { color: colors.text, fontSize: 15, fontWeight: '600' },
   suggestionUse: { color: colors.blue, fontSize: 12, fontWeight: '600' },
   dateField: { minHeight: 56, borderWidth: 1, borderColor: colors.border, borderRadius: 16, backgroundColor: colors.surface, paddingHorizontal: 16, marginBottom: 13, flexDirection: 'row', alignItems: 'center', gap: 12 },
