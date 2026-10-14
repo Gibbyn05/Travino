@@ -8,7 +8,7 @@ import { Suggestion } from './suggestions';
 
 export function Sheet({ visible, title, onClose, children }: { visible: boolean; title: string; onClose: () => void; children: ReactNode }) { return <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}><KeyboardAvoidingView style={[s.backdrop, { backgroundColor: 'rgba(29,29,40,.32)' }]} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}><View style={s.sheet}><View style={s.header}><Text style={[s.title, { color: colors.text, fontWeight: '700', fontSize: 26 }]}>{title}</Text><Pressable onPress={onClose} hitSlop={12}><Text style={[s.close, { fontWeight: '600' }]}>Close</Text></Pressable></View><ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" automaticallyAdjustKeyboardInsets contentContainerStyle={s.formContent}>{children}</ScrollView></View></KeyboardAvoidingView></Modal>; }
 export function Field({ value, onChangeText, placeholder, multiline = false }: { value: string; onChangeText: (value: string) => void; placeholder: string; multiline?: boolean }) { return <TextInput value={value} onChangeText={onChangeText} placeholder={placeholder} placeholderTextColor={colors.muted} multiline={multiline} style={[s.field, multiline && s.multiline]}/>; }
-export function AutocompleteField({ value, onChangeText, placeholder, suggestions, onPick }: { value: string; onChangeText: (value: string) => void; placeholder: string; suggestions: Suggestion[]; onPick?: (suggestion: Suggestion) => void }) {
+export function AutocompleteField({ value, onChangeText, placeholder, suggestions, onPick, showSuggestionsOnFocus = false }: { value: string; onChangeText: (value: string) => void; placeholder: string; suggestions: Suggestion[]; onPick?: (suggestion: Suggestion) => void; showSuggestionsOnFocus?: boolean }) {
   const [focused, setFocused] = useState(false);
   const [remote, setRemote] = useState<Suggestion[]>([]);
   const isDestinationSearch = placeholder === 'City or destination';
@@ -39,9 +39,9 @@ export function AutocompleteField({ value, onChangeText, placeholder, suggestion
   const choices = useMemo(() => [...remote, ...suggestions].filter((item, index, list) => list.findIndex((candidate) => normalise(candidate.label) === normalise(item.label)) === index), [remote, suggestions]);
   const matches = useMemo(() => {
     const query = normalise(value);
-    if (!query) return [];
+    if (!query) return showSuggestionsOnFocus ? choices.slice(0, 8) : [];
     return choices.filter((item) => normalise(item.label).startsWith(query) || normalise(item.label).includes(query)).sort((a, b) => Number(normalise(b.label).startsWith(query)) - Number(normalise(a.label).startsWith(query))).slice(0, 8);
-  }, [value, choices]);
+  }, [value, choices, showSuggestionsOnFocus]);
   const pick = (suggestion: Suggestion) => { onChangeText(suggestion.value); onPick?.(suggestion); setFocused(false); };
 
   return <View style={s.autocomplete}>
