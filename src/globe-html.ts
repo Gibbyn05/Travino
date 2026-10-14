@@ -1,5 +1,7 @@
 export type GlobePlace = { id: string; country: string };
 
+import { colors } from './theme';
+
 /** A zoomable, flat world map using public-domain Natural Earth boundaries. */
 export function buildGlobeHtml(places: GlobePlace[]) {
   const data = JSON.stringify(places).replace(/</g, '\\u003c');
@@ -15,7 +17,6 @@ export function buildGlobeHtml(places: GlobePlace[]) {
     .country { fill: #fff; stroke: #252B30; stroke-width: 1.35; stroke-linejoin: round; vector-effect: non-scaling-stroke; cursor: pointer; }
     .country.visited { stroke-width: 1.7; }
     .country.selected { stroke: #171D22; stroke-width: 2.7; }
-    .label { fill: #171D22; font: 600 17px -apple-system, BlinkMacSystemFont, sans-serif; text-anchor: middle; dominant-baseline: central; pointer-events: none; paint-order: stroke; stroke: rgba(255,255,255,.82); stroke-width: 2.5px; stroke-linejoin: round; }
     .controls { position: absolute; right: 10px; bottom: 10px; display: flex; gap: 6px; align-items: center; }
     button { min-width: 34px; height: 34px; padding: 0 10px; border: 1px solid #dfe4e7; border-radius: 12px; background: rgba(255,255,255,.96); color: #252B30; font: 600 15px -apple-system, BlinkMacSystemFont, sans-serif; box-shadow: 0 2px 8px rgba(27,39,49,.10); }
     #status { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #68737d; font: 500 13px -apple-system, BlinkMacSystemFont, sans-serif; text-align: center; padding: 20px; pointer-events: none; }
@@ -26,7 +27,6 @@ export function buildGlobeHtml(places: GlobePlace[]) {
   <div id="map">
     <svg id="world" viewBox="0 0 1200 600" role="img" aria-label="World map showing countries visited">
       <g id="features"></g>
-      <g id="labels"></g>
     </svg>
     <div class="controls" aria-label="Map zoom controls"><button id="zoomOut" aria-label="Zoom out">−</button><button id="zoomIn" aria-label="Zoom in">+</button><button id="reset">World</button></div>
     <div id="status">Loading country outlines …</div>
@@ -37,7 +37,6 @@ export function buildGlobeHtml(places: GlobePlace[]) {
     const world = document.getElementById('world');
     const mapRoot = document.getElementById('map');
     const featureLayer = document.getElementById('features');
-    const labelLayer = document.getElementById('labels');
     const status = document.getElementById('status');
     const post = (message) => window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify(message));
     const normalise = (value) => String(value || '').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLocaleLowerCase('en-US').replace(/[^a-z0-9]+/g, ' ').trim();
@@ -64,8 +63,9 @@ export function buildGlobeHtml(places: GlobePlace[]) {
       'turkiye': ['turkey']
     };
     const visitByName = new Map();
+    const visitedPalette = ${JSON.stringify(colors.visitedCountryPalette)};
     [...visited].sort((a,b) => normalise(a.country).localeCompare(normalise(b.country))).forEach((place, index) => {
-      const item = { ...place, color: 'hsl(' + ((index * 137.508 + 14) % 360).toFixed(1) + ' 68% 82%)' };
+      const item = { ...place, color: visitedPalette[index % visitedPalette.length] };
       const key = normalise(place.country);
       visitByName.set(key, item);
       (aliases[key] || []).forEach((alias) => visitByName.set(normalise(alias), item));
@@ -86,15 +86,6 @@ export function buildGlobeHtml(places: GlobePlace[]) {
       const points = ring.map(project);
       return 'M' + points.map(([x,y]) => x.toFixed(1) + ',' + y.toFixed(1)).join('L') + 'Z';
     }).join('');
-    const labelPoint = (geometry) => {
-      const rings = ringsFor(geometry).sort((a,b) => b.length-a.length);
-      const ring = rings[0];
-      if (!ring || !ring.length) return [0,0];
-      let sin = 0, cos = 0, lat = 0;
-      ring.forEach(([lon, y]) => { const rad = lon * Math.PI / 180; sin += Math.sin(rad); cos += Math.cos(rad); lat += y; });
-      return project([Math.atan2(sin, cos) * 180 / Math.PI, lat / ring.length]);
-    };
-    const esc = (value) => String(value).replace(/[&<>"']/g, (char) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
     let scale = 1, offsetX = 0, offsetY = 0;
     const updateView = () => {
       const viewWidth = width / scale, viewHeight = height / scale;
@@ -146,7 +137,6 @@ export function buildGlobeHtml(places: GlobePlace[]) {
     fetch('https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@master/geojson/ne_110m_admin_0_countries.geojson')
       .then((response) => { if (!response.ok) throw new Error('Country boundaries unavailable'); return response.json(); })
       .then((geojson) => {
-        const labels = [];
         geojson.features.forEach((feature) => {
           const properties = feature.properties || {};
           const name = properties.ADMIN || properties.NAME_EN || properties.NAME || 'Unknown';
@@ -164,10 +154,7 @@ export function buildGlobeHtml(places: GlobePlace[]) {
           title.textContent = item ? name + ' · visited' : name;
           path.appendChild(title);
           featureLayer.appendChild(path);
-          const [x,y] = labelPoint(feature.geometry);
-          labels.push('<text class="label" x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" font-size="' + (name.length > 14 ? '14' : name.length > 9 ? '16' : '18') + '">' + esc(name) + '</text>');
         });
-        labelLayer.innerHTML = labels.join('');
         status.remove();
         if (!visited.length) post({ type: 'ready' });
       })
