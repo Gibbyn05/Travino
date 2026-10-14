@@ -15,7 +15,7 @@ Open the QR code in Expo Go, or launch an iOS simulator with `npm run ios`. Trip
 
 Copy `.env.example` to `.env` and add the public Supabase URL and anon key to enable authentication and shared, cross-device syncing. Never put a Supabase service-role key in an Expo app. Enable anonymous sign-ins in Supabase to support lightweight guest invitations; guests can later upgrade to a permanent account.
 
-Run `supabase/migrations/20261013170000_reisefolge.sql` in the Supabase SQL editor or with the Supabase CLI. It creates the travel model, enables RLS on every application table, and limits trips, activities, checklists, wishes, votes, and memories to trip members. Create a **private** Storage bucket named `trip-media`; media object paths must begin with the trip UUID, for example `trip-id/memory.jpg`.
+Run the SQL files in `supabase/migrations` in timestamp order in the Supabase SQL editor or with the Supabase CLI. The profiles/friends migration adds short friend codes, friend requests, friends-only profile visibility, and a private `memory-book` storage bucket; no memory book is shared until its owner switches sharing on in Profile. Friends can see the selected memory photos only after accepting a request. Trip plans, packing lists and wishes are never exposed by memory-book sharing. Each user's friend code is visible in Profile → Friends and can be shared with people they know.
 
 ## RevenueCat
 
