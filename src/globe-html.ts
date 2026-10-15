@@ -18,6 +18,8 @@ export function buildGlobeHtml(places: GlobePlace[]) {
     .country.visited { stroke-width: 1.7; }
     .country.selected { stroke: #171D22; stroke-width: 2.7; }
     .visit-arrow { fill: #1670EF; stroke: #fff; stroke-width: 2.5; stroke-linejoin: round; vector-effect: non-scaling-stroke; pointer-events: none; filter: drop-shadow(0 1px 2px rgba(20,36,64,.28)); }
+    .country-label { fill: #1D1D28; opacity: 0; font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-weight: 650; text-anchor: middle; dominant-baseline: central; pointer-events: none; paint-order: stroke; stroke: rgba(255,255,255,.96); stroke-width: 6px; stroke-linejoin: round; transition: opacity .18s ease; }
+    #world.show-country-labels .country-label { opacity: 1; }
     .controls { position: absolute; right: 10px; bottom: 10px; display: flex; gap: 6px; align-items: center; }
     button { min-width: 34px; height: 34px; padding: 0 10px; border: 1px solid #dfe4e7; border-radius: 12px; background: rgba(255,255,255,.96); color: #252B30; font: 600 15px -apple-system, BlinkMacSystemFont, sans-serif; box-shadow: 0 2px 8px rgba(27,39,49,.10); }
     #status { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #68737d; font: 500 13px -apple-system, BlinkMacSystemFont, sans-serif; text-align: center; padding: 20px; pointer-events: none; }
@@ -29,6 +31,7 @@ export function buildGlobeHtml(places: GlobePlace[]) {
     <svg id="world" viewBox="0 0 1200 600" role="img" aria-label="World map showing countries visited">
       <g id="features"></g>
       <g id="markers" aria-hidden="true"></g>
+      <g id="labels" aria-hidden="true"></g>
     </svg>
     <div class="controls" aria-label="Map zoom controls"><button id="zoomOut" aria-label="Zoom out">−</button><button id="zoomIn" aria-label="Zoom in">+</button><button id="reset" aria-label="Reset map">↺</button></div>
     <div id="status">Loading country outlines …</div>
@@ -40,6 +43,7 @@ export function buildGlobeHtml(places: GlobePlace[]) {
     const mapRoot = document.getElementById('map');
     const featureLayer = document.getElementById('features');
     const markerLayer = document.getElementById('markers');
+    const labelLayer = document.getElementById('labels');
     const status = document.getElementById('status');
     const post = (message) => window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify(message));
     const normalise = (value) => String(value || '').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLocaleLowerCase('en-US').replace(/[^a-z0-9]+/g, ' ').trim();
@@ -90,7 +94,7 @@ export function buildGlobeHtml(places: GlobePlace[]) {
       return 'M' + points.map(([x,y]) => x.toFixed(1) + ',' + y.toFixed(1)).join('L') + 'Z';
     }).join('');
     const markerPoint = (geometry) => {
-      const ring = ringsFor(geometry).sort((a,b) => b.length - a.length)[0];
+      const ring = [...ringsFor(geometry)].sort((a,b) => b.length - a.length)[0];
       if (!ring || !ring.length) return [0, 0];
       let sin = 0, cos = 0, latitude = 0;
       ring.forEach(([longitude, lat]) => {
@@ -105,6 +109,7 @@ export function buildGlobeHtml(places: GlobePlace[]) {
       offsetX = Math.max(0, Math.min(width - viewWidth, offsetX));
       offsetY = Math.max(0, Math.min(height - viewHeight, offsetY));
       world.setAttribute('viewBox', offsetX + ' ' + offsetY + ' ' + viewWidth + ' ' + viewHeight);
+      world.classList.toggle('show-country-labels', scale >= 2.1);
     };
     const zoom = (factor) => {
       const centerX = offsetX + width / scale / 2, centerY = offsetY + height / scale / 2;
@@ -152,7 +157,7 @@ export function buildGlobeHtml(places: GlobePlace[]) {
       .then((geojson) => {
         geojson.features.forEach((feature) => {
           const properties = feature.properties || {};
-          const name = properties.ADMIN || properties.NAME_EN || properties.NAME || 'Unknown';
+          const name = properties.NAME_EN || properties.ADMIN || properties.NAME || 'Unknown';
           const item = visitByName.get(normalise(name));
           const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
           path.setAttribute('d', makePath(ringsFor(feature.geometry)));
@@ -164,8 +169,15 @@ export function buildGlobeHtml(places: GlobePlace[]) {
             path.setAttribute('role', 'button');
           }
           featureLayer.appendChild(path);
+          const [x, y] = markerPoint(feature.geometry);
+          const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          label.setAttribute('class', 'country-label');
+          label.setAttribute('x', x.toFixed(1));
+          label.setAttribute('y', y.toFixed(1));
+          label.setAttribute('font-size', name.length > 16 ? '24' : name.length > 10 ? '30' : '38');
+          label.textContent = name;
+          labelLayer.appendChild(label);
           if (item) {
-            const [x, y] = markerPoint(feature.geometry);
             const marker = document.createElementNS('http://www.w3.org/2000/svg', 'path');
             marker.setAttribute('class', 'visit-arrow');
             marker.setAttribute('d', 'M' + x.toFixed(1) + ',' + (y - 13).toFixed(1) + 'L' + (x + 9).toFixed(1) + ',' + (y + 9).toFixed(1) + 'L' + x.toFixed(1) + ',' + (y + 4).toFixed(1) + 'L' + (x - 9).toFixed(1) + ',' + (y + 9).toFixed(1) + 'Z');
