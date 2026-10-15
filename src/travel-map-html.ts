@@ -39,7 +39,7 @@ export function buildTravelMapHtml(places: TripLocation[]) {
     const post = (message) => window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify(message));
     const map = L.map('map', { zoomControl: false, attributionControl: true, minZoom: 2, worldCopyJump: true }).setView([30, 8], 2);
     L.control.zoom({ position: 'bottomright' }).addTo(map);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { subdomains: 'abcd', maxZoom: 19, attribution: '&copy; OpenStreetMap contributors &copy; CARTO' }).addTo(map);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
     const markers = new Map();
     const iconSvg = '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 27h22M7 24V9l9-4 9 4v15M11 24v-8h10v8M13 11h.01M19 11h.01"/></svg>';
     const iconFor = (place, selected = false) => L.divIcon({ className: '', iconSize: [54, 54], iconAnchor: [27, 54], html: '<div class="trip-marker ' + (place.completed ? 'completed' : 'future') + (selected ? ' selected' : '') + '"><div class="card">' + iconSvg + '</div><div class="tail"></div></div>' });
