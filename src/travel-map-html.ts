@@ -7,10 +7,29 @@ export function buildTravelMapHtml(places: TripLocation[]) {
 <html lang="en">
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIINfQ6QeeD3tDkL5JrFzPp7t6r1E8p5e2M=" crossorigin="" />
   <style>
     html, body, #map { width: 100%; height: 100%; margin: 0; background: #dceff4; overflow: hidden; }
     * { box-sizing: border-box; }
+    /* Kept inline because some Expo WebViews do not apply a remote Leaflet stylesheet. */
+    .leaflet-container { position: relative; overflow: hidden; outline: 0; -webkit-tap-highlight-color: transparent; }
+    .leaflet-pane, .leaflet-tile, .leaflet-marker-icon, .leaflet-marker-shadow, .leaflet-tile-container, .leaflet-pane > svg, .leaflet-pane > canvas, .leaflet-image-layer, .leaflet-layer { position: absolute; left: 0; top: 0; }
+    .leaflet-pane { z-index: 400; }
+    .leaflet-tile-pane { z-index: 200; }
+    .leaflet-overlay-pane { z-index: 400; }
+    .leaflet-shadow-pane { z-index: 500; }
+    .leaflet-marker-pane { z-index: 600; }
+    .leaflet-tooltip-pane { z-index: 650; }
+    .leaflet-popup-pane { z-index: 700; }
+    .leaflet-tile { visibility: hidden; }
+    .leaflet-tile-loaded { visibility: inherit; }
+    .leaflet-zoom-animated { transform-origin: 0 0; }
+    .leaflet-top, .leaflet-bottom { position: absolute; z-index: 1000; pointer-events: none; }
+    .leaflet-top { top: 0; } .leaflet-bottom { bottom: 0; } .leaflet-right { right: 0; }
+    .leaflet-control { position: relative; z-index: 800; pointer-events: visiblePainted; float: left; clear: both; }
+    .leaflet-right .leaflet-control { float: right; } .leaflet-bottom .leaflet-control { margin-bottom: 10px; } .leaflet-right .leaflet-control { margin-right: 10px; }
+    .leaflet-popup { position: absolute; text-align: center; margin-bottom: 20px; }
+    .leaflet-popup-tip-container { width: 40px; height: 20px; overflow: hidden; margin: 0 auto; }
+    .leaflet-popup-tip { width: 17px; height: 17px; padding: 1px; margin: -10px auto 0; transform: rotate(45deg); background: white; }
     .leaflet-control-zoom { border: 0 !important; box-shadow: 0 2px 10px rgba(27, 42, 51, .18) !important; }
     .leaflet-control-zoom a { width: 40px !important; height: 40px !important; line-height: 38px !important; color: #26323a !important; border: 0 !important; font: 400 25px -apple-system, BlinkMacSystemFont, sans-serif !important; }
     .leaflet-control-zoom a:first-child { border-radius: 13px 13px 0 0 !important; border-bottom: 1px solid #e9edef !important; }
