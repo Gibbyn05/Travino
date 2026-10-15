@@ -10,20 +10,18 @@ export function buildTravelMapHtml(places: TripLocation[]) {
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <style>
-    html, body, #map { width: 100%; height: 100%; margin: 0; background: #dceff4; overflow: hidden; }
+    html, body, #map { width: 100%; height: 100%; margin: 0; background: #EAF3F2; overflow: hidden; }
     * { box-sizing: border-box; }
     /* Kept inline because some Expo WebViews do not apply a remote Leaflet stylesheet. */
     .leaflet-container { position: relative; overflow: hidden; outline: 0; -webkit-tap-highlight-color: transparent; }
     .leaflet-pane, .leaflet-tile, .leaflet-marker-icon, .leaflet-marker-shadow, .leaflet-tile-container, .leaflet-pane > svg, .leaflet-pane > canvas, .leaflet-image-layer, .leaflet-layer { position: absolute; left: 0; top: 0; }
     .leaflet-pane { z-index: 400; }
-    .leaflet-tile-pane { z-index: 200; filter: grayscale(.16) saturate(.78) brightness(1.1) contrast(.86); }
     .leaflet-overlay-pane { z-index: 400; }
     .leaflet-shadow-pane { z-index: 500; }
     .leaflet-marker-pane { z-index: 600; }
+    .country-label-pane { z-index: 625; pointer-events: none; }
     .leaflet-tooltip-pane { z-index: 650; }
     .leaflet-popup-pane { z-index: 700; }
-    .leaflet-tile { visibility: hidden; }
-    .leaflet-tile-loaded { visibility: inherit; }
     .leaflet-zoom-animated { transform-origin: 0 0; }
     .leaflet-top, .leaflet-bottom { position: absolute; z-index: 1000; pointer-events: none; }
     .leaflet-top { top: 0; } .leaflet-bottom { bottom: 0; } .leaflet-right { right: 0; }
@@ -37,7 +35,6 @@ export function buildTravelMapHtml(places: TripLocation[]) {
     .leaflet-control-zoom a { width: 42px !important; height: 42px !important; line-height: 40px !important; color: #202B31 !important; border: 0 !important; background: rgba(255,255,255,.96) !important; font: 400 25px -apple-system, BlinkMacSystemFont, sans-serif !important; }
     .leaflet-control-zoom a:first-child { border-radius: 15px 15px 0 0 !important; border-bottom: 1px solid #E6EAEB !important; }
     .leaflet-control-zoom a:last-child { border-radius: 0 0 15px 15px !important; }
-    .leaflet-control-attribution { background: rgba(255,255,255,.74) !important; border-radius: 7px 0 0 0; font: 9px -apple-system, BlinkMacSystemFont, sans-serif !important; }
     .trip-marker { width: 46px; height: 50px; filter: drop-shadow(0 4px 7px rgba(28, 42, 48, .19)); cursor: pointer; }
     .trip-marker .card { width: 42px; height: 42px; margin: 0 auto; border-radius: 13px; background: rgba(255,255,255,.98); border: 2px solid #fff; display: grid; place-items: center; box-shadow: 0 1px 1px rgba(0,0,0,.08); }
     .trip-marker .tail { width: 10px; height: 10px; background: #fff; transform: rotate(45deg); margin: -6px auto 0; border-radius: 1px; }
@@ -50,6 +47,9 @@ export function buildTravelMapHtml(places: TripLocation[]) {
     .leaflet-popup-content-wrapper { border-radius: 16px; box-shadow: 0 8px 26px rgba(28, 42, 48, .2); font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
     .leaflet-popup-content { margin: 12px 15px; color: #26323a; font-size: 13px; line-height: 18px; }
     .leaflet-popup-content strong { display: block; font-size: 14px; margin-bottom: 2px; }
+    .country-name-label { opacity: 0; color: #53656A; font: 600 11px/1.15 -apple-system, BlinkMacSystemFont, sans-serif; white-space: nowrap; text-align: center; text-shadow: 0 1px 0 rgba(255,255,255,.98), 1px 0 0 rgba(255,255,255,.98), 0 -1px 0 rgba(255,255,255,.98), -1px 0 0 rgba(255,255,255,.98); transition: opacity .18s ease; }
+    .country-name-label.visited-label { opacity: .92; }
+    .labels-visible .country-name-label { opacity: 1; }
     .empty-label { background: rgba(255,255,255,.94); padding: 10px 13px; border-radius: 14px; color: #48545b; font: 600 13px -apple-system, BlinkMacSystemFont, sans-serif; box-shadow: 0 3px 14px rgba(26,43,51,.14); }
   </style>
 </head>
@@ -60,9 +60,13 @@ export function buildTravelMapHtml(places: TripLocation[]) {
     const places = ${data};
     const visitedPalette = ${visitedPalette};
     const post = (message) => window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify(message));
-    const map = L.map('map', { zoomControl: false, attributionControl: true, minZoom: 2, maxZoom: 8, worldCopyJump: true }).setView([30, 8], 2);
+    const map = L.map('map', { zoomControl: false, attributionControl: false, minZoom: 2, maxZoom: 8, worldCopyJump: true }).setView([30, 8], 2);
     L.control.zoom({ position: 'topright' }).addTo(map);
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 8, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
+    map.createPane('countryLabelPane');
+    map.getPane('countryLabelPane').classList.add('country-label-pane');
+    const countryLabels = L.layerGroup({ pane: 'countryLabelPane' }).addTo(map);
+    const updateCountryLabels = () => map.getContainer().classList.toggle('labels-visible', map.getZoom() >= 4);
+    map.on('zoomend', updateCountryLabels);
     const markers = new Map();
     const normalise = (value) => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('en-US').replace(/[^a-z0-9]+/g, ' ').trim();
     const aliases = {
@@ -110,12 +114,26 @@ export function buildTravelMapHtml(places: TripLocation[]) {
         L.geoJSON(geojson, {
           pane: 'overlayPane', interactive: false,
           style: (feature) => {
-            const properties = feature && feature.properties ? feature.properties : {};
-            const name = properties.ADMIN || properties.NAME_EN || properties.NAME || '';
+          const properties = feature && feature.properties ? feature.properties : {};
+          const name = properties.NAME_EN || properties.ADMIN || properties.NAME || '';
             const visit = visitedCountries.get(normalise(name));
-            return visit ? { color: visit.color, weight: 1.2, opacity: .92, fillColor: visit.color, fillOpacity: .66 } : { color: 'transparent', weight: 0, fillOpacity: 0 };
-          }
+          return { color: visit ? visit.color : '#CBD9D6', weight: visit ? 1.15 : .8, opacity: .9, fillColor: visit ? visit.color : '#F9FBFA', fillOpacity: visit ? .75 : 1, lineJoin: 'round' };
+        },
+        onEachFeature: (feature, layer) => {
+          const properties = feature && feature.properties ? feature.properties : {};
+          const name = properties.NAME_EN || properties.ADMIN || properties.NAME || '';
+          if (!name || !layer.getBounds) return;
+          const center = layer.getBounds().getCenter();
+          const label = L.marker(center, {
+            pane: 'countryLabelPane',
+            interactive: false,
+            keyboard: false,
+            icon: L.divIcon({ className: '', html: '<div class="country-name-label' + (visit ? ' visited-label' : '') + '">' + escapeHtml(name) + '</div>', iconSize: [Math.max(48, name.length * 7), 16], iconAnchor: [Math.max(24, name.length * 3.5), 8] })
+          });
+          countryLabels.addLayer(label);
+        }
         }).addTo(map);
+        updateCountryLabels();
       })
       .catch(() => { /* The basemap remains useful when country outlines are unavailable. */ });
     if (places.length === 1) map.setView([places[0].latitude, places[0].longitude], 5);
