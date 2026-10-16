@@ -6,14 +6,25 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { colors } from './theme';
 import { Suggestion } from './suggestions';
 
-export function Sheet({ visible, title, onClose, children }: { visible: boolean; title: string; onClose: () => void; children: ReactNode }) { return <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}><KeyboardAvoidingView style={s.modalRoot} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}><View pointerEvents="none" style={s.modalDim}/><View style={s.dialog}><View style={s.header}><Text style={[s.title, { color: colors.text, fontWeight: '700', fontSize: 23 }]} numberOfLines={1}>{title}</Text><Pressable onPress={onClose} hitSlop={12}><Text style={[s.close, { fontWeight: '600' }]}>Close</Text></Pressable></View><ScrollView showsVerticalScrollIndicator={false} bounces={false} alwaysBounceVertical={false} overScrollMode="never" keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" automaticallyAdjustKeyboardInsets contentContainerStyle={s.formContent}>{children}</ScrollView></View></KeyboardAvoidingView></Modal>; }
-export function Field({ value, onChangeText, placeholder, multiline = false }: { value: string; onChangeText: (value: string) => void; placeholder: string; multiline?: boolean }) { return <TextInput value={value} onChangeText={onChangeText} placeholder={placeholder} placeholderTextColor={colors.muted} multiline={multiline} style={[s.field, multiline && s.multiline]}/>; }
+const autocompleteDismissers = new Set<() => void>();
+const dismissAutocompleteFields = () => autocompleteDismissers.forEach((dismiss) => dismiss());
+
+export function Sheet({ visible, title, onClose, children }: { visible: boolean; title: string; onClose: () => void; children: ReactNode }) { const close = () => { dismissAutocompleteFields(); onClose(); }; return <Modal visible={visible} animationType="fade" transparent onRequestClose={close}><KeyboardAvoidingView style={s.modalRoot} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}><View pointerEvents="none" style={s.modalDim}/><View style={s.dialog}><View style={s.header}><Text style={[s.title, { color: colors.text, fontWeight: '700', fontSize: 23 }]} numberOfLines={1}>{title}</Text><Pressable onPress={close} hitSlop={12}><Text style={[s.close, { fontWeight: '600' }]}>Close</Text></Pressable></View><ScrollView showsVerticalScrollIndicator={false} bounces={false} alwaysBounceVertical={false} overScrollMode="never" keyboardShouldPersistTaps="always" keyboardDismissMode="none" automaticallyAdjustKeyboardInsets contentContainerStyle={s.formContent}>{children}</ScrollView></View></KeyboardAvoidingView></Modal>; }
+export function Field({ value, onChangeText, placeholder, multiline = false }: { value: string; onChangeText: (value: string) => void; placeholder: string; multiline?: boolean }) { return <TextInput value={value} onChangeText={onChangeText} onFocus={dismissAutocompleteFields} placeholder={placeholder} placeholderTextColor={colors.muted} multiline={multiline} style={[s.field, multiline && s.multiline]}/>; }
 export function AutocompleteField({ value, onChangeText, placeholder, suggestions, onPick, showSuggestionsOnFocus = false }: { value: string; onChangeText: (value: string) => void; placeholder: string; suggestions: Suggestion[]; onPick?: (suggestion: Suggestion) => void; showSuggestionsOnFocus?: boolean }) {
   const [focused, setFocused] = useState(false);
   const [remote, setRemote] = useState<Suggestion[]>([]);
-  const suggestionScrollActive = useRef(false);
-  const resetScrollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suggestionInteraction = useRef(false);
+  const blurPending = useRef(false);
+  const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const interactionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isDestinationSearch = placeholder === 'City or destination';
+
+  useEffect(() => {
+    const dismiss = () => setFocused(false);
+    autocompleteDismissers.add(dismiss);
+    return () => { autocompleteDismissers.delete(dismiss); };
+  }, []);
 
   useEffect(() => {
     const query = value.trim();
@@ -44,21 +55,51 @@ export function AutocompleteField({ value, onChangeText, placeholder, suggestion
     if (!query) return showSuggestionsOnFocus ? choices.slice(0, 8) : [];
     return choices.filter((item) => normalise(item.label).startsWith(query) || normalise(item.label).includes(query)).sort((a, b) => Number(normalise(b.label).startsWith(query)) - Number(normalise(a.label).startsWith(query))).slice(0, 8);
   }, [value, choices, showSuggestionsOnFocus]);
-  useEffect(() => () => { if (resetScrollTimer.current) clearTimeout(resetScrollTimer.current); }, []);
+  useEffect(() => () => {
+    if (blurTimer.current) clearTimeout(blurTimer.current);
+    if (interactionTimer.current) clearTimeout(interactionTimer.current);
+  }, []);
+
+  const keepSuggestionsOpen = () => {
+    suggestionInteraction.current = true;
+    blurPending.current = false;
+    if (interactionTimer.current) clearTimeout(interactionTimer.current);
+    if (blurTimer.current) clearTimeout(blurTimer.current);
+  };
+  const finishSuggestionInteraction = () => {
+    if (interactionTimer.current) clearTimeout(interactionTimer.current);
+    interactionTimer.current = setTimeout(() => {
+      suggestionInteraction.current = false;
+      if (blurPending.current) setFocused(false);
+    }, 700);
+  };
+  const handleBlur = () => {
+    if (suggestionInteraction.current) {
+      blurPending.current = false;
+      return;
+    }
+    blurPending.current = true;
+    if (blurTimer.current) clearTimeout(blurTimer.current);
+    if (!suggestionInteraction.current) {
+      blurTimer.current = setTimeout(() => {
+        if (!suggestionInteraction.current && blurPending.current) setFocused(false);
+      }, 350);
+    }
+  };
 
   const pick = (suggestion: Suggestion) => {
-    // A finger lift after dragging the nested list must not activate the row.
-    if (suggestionScrollActive.current) return;
-    onChangeText(suggestion.value); onPick?.(suggestion); setFocused(false);
-  };
-  const finishSuggestionScroll = () => {
-    if (resetScrollTimer.current) clearTimeout(resetScrollTimer.current);
-    resetScrollTimer.current = setTimeout(() => { suggestionScrollActive.current = false; }, 120);
+    if (blurTimer.current) clearTimeout(blurTimer.current);
+    if (interactionTimer.current) clearTimeout(interactionTimer.current);
+    suggestionInteraction.current = false;
+    blurPending.current = false;
+    onChangeText(suggestion.value);
+    onPick?.(suggestion);
+    setFocused(false);
   };
 
   return <View style={s.autocomplete}>
-    <TextInput value={value} onChangeText={onChangeText} onFocus={() => setFocused(true)} onBlur={() => setTimeout(() => setFocused(false), 500)} placeholder={placeholder} placeholderTextColor={colors.muted} autoCorrect={false} style={s.field}/>
-    {focused && matches.length > 0 && <View style={s.suggestions}><ScrollView style={s.suggestionList} contentContainerStyle={s.suggestionsContent} nestedScrollEnabled keyboardShouldPersistTaps="always" showsVerticalScrollIndicator bounces={false} overScrollMode="never" onScrollBeginDrag={() => { if (resetScrollTimer.current) clearTimeout(resetScrollTimer.current); suggestionScrollActive.current = true; }} onScrollEndDrag={finishSuggestionScroll} onMomentumScrollBegin={() => { suggestionScrollActive.current = true; }} onMomentumScrollEnd={() => { suggestionScrollActive.current = false; }}>{matches.map((suggestion) => <Pressable key={suggestion.label} delayPressIn={100} onPress={() => pick(suggestion)} style={s.suggestion}><View style={{ flex: 1 }}><Text style={s.suggestionTitle}>{suggestion.value}</Text>{suggestion.detail && <Text style={s.suggestionDetail}>{suggestion.detail}</Text>}</View><Text style={s.suggestionUse}>Choose</Text></Pressable>)}</ScrollView></View>}
+    <TextInput value={value} onChangeText={onChangeText} onFocus={() => { dismissAutocompleteFields(); blurPending.current = false; if (blurTimer.current) clearTimeout(blurTimer.current); setFocused(true); }} onBlur={handleBlur} placeholder={placeholder} placeholderTextColor={colors.muted} autoCorrect={false} style={s.field}/>
+    {focused && matches.length > 0 && <View style={s.suggestions}><ScrollView style={s.suggestionList} contentContainerStyle={s.suggestionsContent} nestedScrollEnabled keyboardShouldPersistTaps="always" keyboardDismissMode="none" showsVerticalScrollIndicator bounces={false} overScrollMode="never" onTouchStartCapture={keepSuggestionsOpen} onTouchEndCapture={finishSuggestionInteraction} onScrollBeginDrag={keepSuggestionsOpen} onScrollEndDrag={finishSuggestionInteraction} onMomentumScrollBegin={keepSuggestionsOpen} onMomentumScrollEnd={finishSuggestionInteraction}>{matches.map((suggestion) => <Pressable key={suggestion.label} onPress={() => pick(suggestion)} style={s.suggestion}><View style={{ flex: 1 }}><Text style={s.suggestionTitle}>{suggestion.value}</Text>{suggestion.detail && <Text style={s.suggestionDetail}>{suggestion.detail}</Text>}</View><Text style={s.suggestionUse}>Choose</Text></Pressable>)}</ScrollView></View>}
   </View>;
 }
 export function DateField({ value, onChangeText, placeholder, minDate }: { value: string; onChangeText: (value: string) => void; placeholder: string; minDate?: string }) {
@@ -69,6 +110,7 @@ export function DateField({ value, onChangeText, placeholder, minDate }: { value
   const [month, setMonth] = useState(current.month);
   const [year, setYear] = useState(current.year);
   const show = () => {
+    dismissAutocompleteFields();
     const selected = dateParts(value);
     const clamped = minimum && compareParts(selected, minimum) < 0 ? minimum : selected;
     setDay(clamped.day); setMonth(clamped.month); setYear(clamped.year); setOpen(true);
