@@ -2,8 +2,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ReactNode } from 'react';
-import { Image, ImageSourcePropType, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, ImageBackground, ImageSourcePropType, Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, radius } from './theme';
+import { stockCoverForCountry } from './country-images';
 
 const titleColors = [colors.blue, '#8EA9F8', '#EBA8D7'];
 function titleRuns(value: string, darkFirst: boolean) {
@@ -25,6 +26,12 @@ export function PrimaryButton({ title, onPress, icon = 'add' }: { title: string;
 }
 export function Avatar({ name, image }: { name: string; image?: ImageSourcePropType }) {
   return image ? <Image source={image} style={styles.avatar}/> : <View style={styles.avatar}><Text style={styles.avatarText}>{name.slice(0, 1)}</Text></View>;
+}
+export function DestinationCover({ country, uri, style, imageStyle, children }: { country: string; uri?: string; style?: object; imageStyle?: object; children?: ReactNode }) {
+  const cover = uri || stockCoverForCountry(country);
+  return cover
+    ? <ImageBackground source={{ uri: cover }} style={style} imageStyle={imageStyle}>{children}</ImageBackground>
+    : <LinearGradient colors={['#1670EF', '#9363EF', '#F53D88']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={style}>{children}</LinearGradient>;
 }
 export function Chip({ label, warm = false }: { label: string; warm?: boolean }) { return <View style={[styles.chip, warm && styles.warmChip]}><Text style={[styles.chipText, warm && { color: colors.navy }]}>{label}</Text></View>; }
 

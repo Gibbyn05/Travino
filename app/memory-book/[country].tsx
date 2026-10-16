@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Image, ImageBackground, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { AccentText, Card, PrimaryButton } from '@/src/ui';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AccentText, Card, DestinationCover, PrimaryButton } from '@/src/ui';
 import { colors } from '@/src/theme';
 import { Memory, Trip, useTravel } from '@/src/store';
 import { stockCoverForCountry } from '@/src/country-images';
@@ -36,12 +36,12 @@ export default function CountryMemoryBook() {
     <Pressable onPress={() => router.back()} hitSlop={12} style={s.back}><Ionicons name="arrow-back" size={20} color={colors.text}/><Text style={s.backText}>All memory books</Text></Pressable>
     {countryTrips.length ? <>
       <View style={s.bookCoverFrame}>
-        <ImageBackground source={{ uri: cover }} imageStyle={s.coverImage} style={s.cover}>
+        <DestinationCover country={countryTrips[0].country} uri={cover} imageStyle={s.coverImage} style={s.cover}>
           <LinearGradient colors={['rgba(26,27,42,.02)', 'rgba(26,27,42,.15)', 'rgba(26,27,42,.76)']} locations={[0, .48, 1]} style={s.coverShade}>
             <View style={s.coverTop}><Text style={s.coverKicker}>THE TRAVEL JOURNAL</Text><Ionicons name="sparkles-outline" size={17} color="#FFFFFF"/></View>
             <View><Text style={s.coverTitle}>{countryTrips[0].country}</Text><Text style={s.coverCities}>{[...new Set(countryTrips.map((trip) => trip.city).filter(Boolean))].join('   ·   ')}</Text><View style={s.coverDivider}/><Text style={s.coverMeta}>{countryTrips.length} {countryTrips.length === 1 ? 'journey' : 'journeys'}   /   {photos} {photos === 1 ? 'memory' : 'memories'}</Text></View>
           </LinearGradient>
-        </ImageBackground>
+        </DestinationCover>
         <View style={s.bookSpine}/>
       </View>
 

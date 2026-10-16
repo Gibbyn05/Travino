@@ -1,11 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { ImageBackground, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Card, PageTitle, PrimaryButton } from '@/src/ui';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Card, DestinationCover, PageTitle, PrimaryButton } from '@/src/ui';
 import { colors } from '@/src/theme';
 import { Trip, useTravel } from '@/src/store';
-import { stockCoverForCountry } from '@/src/country-images';
 
 function parseDate(value: string) {
   const iso = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -60,7 +59,7 @@ export default function CountdownScreen() {
   return <ScrollView style={s.page} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
     <PageTitle eyebrow="A LITTLE SOMETHING TO LOOK FORWARD TO" accent="is getting closer">Your next trip</PageTitle>
     <Pressable accessibilityRole="button" onPress={() => openTrip(nextTrip)} style={({ pressed }) => [s.heroFrame, pressed && s.pressed]}>
-      <ImageBackground source={{ uri: nextTrip.coverImage || stockCoverForCountry(nextTrip.country) }} style={s.hero} imageStyle={s.heroImage}>
+      <DestinationCover country={nextTrip.country} uri={nextTrip.coverImage} style={s.hero} imageStyle={s.heroImage}>
         <LinearGradient colors={['rgba(20,24,43,.02)', 'rgba(20,24,43,.24)', 'rgba(20,24,43,.78)']} locations={[0, .42, 1]} style={s.heroShade}>
           <View style={s.destinationPill}><Ionicons name="location-outline" size={14} color={colors.text}/><Text style={s.destinationPillText}>{nextTrip.city}, {nextTrip.country}</Text></View>
           <View style={s.heroText}>
@@ -70,7 +69,7 @@ export default function CountdownScreen() {
           </View>
           <View style={s.heroArrow}><Ionicons name="arrow-forward" size={20} color={colors.text}/></View>
         </LinearGradient>
-      </ImageBackground>
+      </DestinationCover>
     </Pressable>
 
     <View style={s.preparationHeading}><Text style={s.sectionTitle}>The little details</Text><Text style={s.sectionCopy}>A few things that make the days away feel close.</Text></View>

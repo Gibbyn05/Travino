@@ -2,14 +2,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ActivityIndicator, Alert, Image, ImageBackground, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { AutocompleteField, DateField, Field, Sheet } from '@/src/forms';
-import { Avatar, Card, PageTitle, PrimaryButton, Section } from '@/src/ui';
+import { Avatar, Card, DestinationCover, PageTitle, PrimaryButton, Section } from '@/src/ui';
 import { colors } from '@/src/theme';
 import { useTravel, WishReaction } from '@/src/store';
 import { fetchWeather, Weather } from '@/src/weather';
 import { activitySuggestionsForDestination, packingCategorySuggestions, packingSuggestions, suggestedPackingCategory, wishSuggestions } from '@/src/suggestions';
-import { stockCoverForCountry } from '@/src/country-images';
 import { inviteUrl } from '@/src/invites';
 import { ensureGuestIdentity, supabase } from '@/src/lib/supabase';
 import { sendTripNotification } from '@/src/notifications';
@@ -30,7 +29,7 @@ export default function TripScreen() {
   return <ScrollView style={s.page} contentContainerStyle={s.content}>
     <PageTitle eyebrow={`${selectedTrip.city}, ${selectedTrip.country}`} accent="Trip Plan">{selectedTrip.title}</PageTitle>
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.tabs}>{tabs.map((item) => <Pressable key={item} onPress={() => setTab(item)} style={[s.tab, tab === item && s.activeTab]}><Text style={[s.tabText, tab === item && s.activeText]}>{item}</Text></Pressable>)}</ScrollView>
-    <View style={s.heroCard}><ImageBackground source={{ uri: selectedTrip.coverImage || stockCoverForCountry(selectedTrip.country) }} style={s.hero} imageStyle={s.heroImage}/><View style={s.heroDetails}><View style={{ flex: 1 }}><Text style={s.date}>{selectedTrip.startDate} – {selectedTrip.endDate}</Text><Text style={s.heroCopy}>{selectedTrip.members.length ? `${selectedTrip.members.join(', ')} are travelling together` : 'No one has been added yet.'}</Text></View><Ionicons name="arrow-forward" size={19} color={colors.blue}/></View></View>
+    <View style={s.heroCard}><DestinationCover country={selectedTrip.country} uri={selectedTrip.coverImage} style={s.hero} imageStyle={s.heroImage}/><View style={s.heroDetails}><View style={{ flex: 1 }}><Text style={s.date}>{selectedTrip.startDate} – {selectedTrip.endDate}</Text><Text style={s.heroCopy}>{selectedTrip.members.length ? `${selectedTrip.members.join(', ')} are travelling together` : 'No one has been added yet.'}</Text></View><Ionicons name="arrow-forward" size={19} color={colors.blue}/></View></View>
     <View style={{ marginTop: 12 }}><PrimaryButton title="Invite members" icon="person-add-outline" onPress={invite}/></View>
     <Pressable accessibilityRole="button" onPress={() => setAddFriendOpen(true)} style={s.addFriendLink}><Ionicons name="people-outline" size={18} color={colors.blue}/><Text style={s.addFriendText}>Add an accepted friend to this trip</Text><Ionicons name="chevron-forward" size={17} color={colors.muted}/></Pressable>
     {tab === 'Overview' && <Overview/>}{tab === 'Plan' && <Plan/>}{tab === 'Activities' && <ThingsToDo onOpen={(activity) => router.push({ pathname: '/activity-browser', params: { activity, city: selectedTrip.city, country: selectedTrip.country } })} />}{tab === 'Packing' && <Packing/>}{tab === 'Wishlist' && <Wishes/>}{tab === 'Memories' && <Memories/>}

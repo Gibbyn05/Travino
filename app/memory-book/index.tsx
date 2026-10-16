@@ -1,13 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { ImageBackground, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Card, PageTitle, PrimaryButton } from '@/src/ui';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Card, DestinationCover, PageTitle, PrimaryButton } from '@/src/ui';
 import { colors } from '@/src/theme';
 import { Trip, useTravel } from '@/src/store';
 import { stockCoverForCountry } from '@/src/country-images';
 
-type CountryBook = { country: string; trips: Trip[]; photoCount: number; cover: string };
+type CountryBook = { country: string; trips: Trip[]; photoCount: number; cover?: string };
 const normalise = (value: string) => value.trim().toLocaleLowerCase('en-US');
 
 export default function MemoryBookIndex() {
@@ -29,12 +29,12 @@ export default function MemoryBookIndex() {
     {books.length ? <View style={s.books}>{books.map((book) => {
       const cities = [...new Set(book.trips.map((trip) => trip.city).filter(Boolean))];
       return <Pressable key={normalise(book.country)} accessibilityRole="button" onPress={() => router.push({ pathname: '/memory-book/[country]', params: { country: book.country } } as any)} style={({ pressed }) => [s.bookPressable, pressed && s.pressed]}>
-        <ImageBackground source={{ uri: book.cover }} imageStyle={s.bookImage} style={s.bookImage}>
+        <DestinationCover country={book.country} uri={book.cover} imageStyle={s.bookImage} style={s.bookImage}>
           <LinearGradient colors={['rgba(20,28,38,0.04)', 'rgba(20,28,38,0.08)', 'rgba(20,28,38,0.78)']} locations={[0, .42, 1]} style={s.bookShade}>
             <View style={s.photoCount}><Ionicons name="images-outline" size={14} color="#FFFFFF"/><Text style={s.photoCountText}>{book.photoCount}</Text></View>
             <View><Text style={s.country}>{book.country}</Text><Text style={s.bookDetail}>{cities.join(' · ') || `${book.trips.length} ${book.trips.length === 1 ? 'trip' : 'trips'}`}</Text></View>
           </LinearGradient>
-        </ImageBackground>
+        </DestinationCover>
         <View style={s.bookFooter}><Text style={s.footerText}>{book.trips.length} {book.trips.length === 1 ? 'trip' : 'trips'} · {book.photoCount} {book.photoCount === 1 ? 'memory' : 'memories'}</Text><Ionicons name="arrow-forward" size={18} color={colors.blue}/></View>
       </Pressable>;
     })}</View> : <Card style={s.empty}><View style={s.emptyIcon}><Ionicons name="book-outline" size={26} color={colors.purple}/></View><Text style={s.emptyTitle}>Your first chapter is waiting</Text><Text style={s.emptyCopy}>Create a trip and add a few photos to start your travel journal.</Text><PrimaryButton title="Go to trips" icon="airplane-outline" onPress={() => router.push('/trip')}/></Card>}
