@@ -17,7 +17,7 @@ export function buildTravelMapHtml(places: TripLocation[]) {
     .leaflet-pane, .leaflet-tile, .leaflet-marker-icon, .leaflet-marker-shadow, .leaflet-tile-container, .leaflet-pane > svg, .leaflet-pane > canvas, .leaflet-image-layer, .leaflet-layer { position: absolute; left: 0; top: 0; }
     .leaflet-pane { z-index: 400; }
     /* A calm, airy basemap treatment inspired by modern travel-map UIs. */
-    .leaflet-tile-pane { z-index: 200; filter: saturate(.72) brightness(1.16) contrast(.78); }
+    .leaflet-tile-pane { z-index: 200; filter: saturate(.72) brightness(1.16) contrast(.78); will-change: transform; }
     .leaflet-overlay-pane { z-index: 400; }
     .leaflet-shadow-pane { z-index: 500; }
     .leaflet-marker-pane { z-index: 600; }
@@ -25,7 +25,13 @@ export function buildTravelMapHtml(places: TripLocation[]) {
     .leaflet-popup-pane { z-index: 700; }
     .leaflet-tile { visibility: hidden; }
     .leaflet-tile-loaded { visibility: inherit; }
-    .leaflet-zoom-animated { transform-origin: 0 0; }
+    .leaflet-zoom-animated { transform-origin: 0 0; will-change: transform; backface-visibility: hidden; }
+    .leaflet-zoom-anim .leaflet-zoom-animated { transition: transform .24s cubic-bezier(.2, .7, .25, 1); }
+    .leaflet-zoom-anim .leaflet-zoom-hide { visibility: hidden; }
+    .leaflet-zoom-anim .leaflet-tile, .leaflet-pan-anim .leaflet-tile { transition: none; }
+    /* CSS filters force expensive repaints while pinching. Keep the visual treatment
+       at rest and let Leaflet animate cached tiles without it during the gesture. */
+    #map.is-zooming .leaflet-tile-pane { filter: none; }
     .leaflet-top, .leaflet-bottom { position: absolute; z-index: 1000; pointer-events: none; }
     .leaflet-top { top: 0; } .leaflet-bottom { bottom: 0; } .leaflet-right { right: 0; }
     .leaflet-control { position: relative; z-index: 800; pointer-events: visiblePainted; float: left; clear: both; }
@@ -61,9 +67,18 @@ export function buildTravelMapHtml(places: TripLocation[]) {
     const places = ${data};
     const visitedPalette = ${visitedPalette};
     const post = (message) => window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify(message));
-    const map = L.map('map', { zoomControl: false, attributionControl: true, minZoom: 2, maxZoom: 8, worldCopyJump: true }).setView([30, 8], 2);
+    const map = L.map('map', {
+      zoomControl: false, attributionControl: true, minZoom: 2, maxZoom: 8, worldCopyJump: true,
+      zoomAnimation: true, fadeAnimation: true, markerZoomAnimation: true, zoomAnimationThreshold: 12,
+      inertia: true, inertiaDeceleration: 2600, inertiaMaxSpeed: 1500, zoomSnap: .25, zoomDelta: .5,
+      preferCanvas: true
+    }).setView([30, 8], 2);
     L.control.zoom({ position: 'topright' }).addTo(map);
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 8, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 8, attribution: '&copy; OpenStreetMap contributors', updateWhenIdle: true, updateWhenZooming: false, keepBuffer: 4
+    }).addTo(map);
+    map.on('zoomstart', () => map.getContainer().classList.add('is-zooming'));
+    map.on('zoomend', () => map.getContainer().classList.remove('is-zooming'));
     const markers = new Map();
     const normalise = (value) => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('en-US').replace(/[^a-z0-9]+/g, ' ').trim();
     const aliases = {
@@ -109,7 +124,7 @@ export function buildTravelMapHtml(places: TripLocation[]) {
       .then((response) => { if (!response.ok) throw new Error('Country borders unavailable'); return response.json(); })
       .then((geojson) => {
         L.geoJSON(geojson, {
-          pane: 'overlayPane', interactive: false,
+          pane: 'overlayPane', renderer: L.canvas({ padding: .3 }), interactive: false,
           style: (feature) => {
             const properties = feature && feature.properties ? feature.properties : {};
             const name = properties.ADMIN || properties.NAME_EN || properties.NAME || '';
