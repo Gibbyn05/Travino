@@ -39,10 +39,7 @@ export default function MapScreen() {
   const { places, loading } = useMapPlaces(trips);
   const [selectedId, setSelectedId] = useState<string>();
   const selected = places.find((place) => place.id === selectedId) ?? places[0];
-  const mapHtml = useMemo(
-    () => buildTravelMapHtml(places, { googleMapsApiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY }),
-    [places],
-  );
+  const mapHtml = useMemo(() => buildTravelMapHtml(places), [places]);
 
   useEffect(() => {
     if (selected && selected.id !== selectedId) setSelectedId(selected.id);

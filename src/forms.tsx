@@ -97,9 +97,9 @@ export function AutocompleteField({ value, onChangeText, placeholder, suggestion
     setFocused(false);
   };
 
-  return <View style={s.autocomplete}>
+  return <View style={[s.autocomplete, focused && s.autocompleteActive]}>
     <TextInput value={value} onChangeText={onChangeText} onFocus={() => { dismissAutocompleteFields(); blurPending.current = false; if (blurTimer.current) clearTimeout(blurTimer.current); setFocused(true); }} onBlur={handleBlur} placeholder={placeholder} placeholderTextColor={colors.muted} autoCorrect={false} style={s.field}/>
-    {focused && matches.length > 0 && <View style={s.suggestions}><ScrollView style={s.suggestionList} contentContainerStyle={s.suggestionsContent} nestedScrollEnabled keyboardShouldPersistTaps="always" keyboardDismissMode="none" showsVerticalScrollIndicator bounces={false} overScrollMode="never" onTouchStartCapture={keepSuggestionsOpen} onTouchEndCapture={finishSuggestionInteraction} onScrollBeginDrag={keepSuggestionsOpen} onScrollEndDrag={finishSuggestionInteraction} onMomentumScrollBegin={keepSuggestionsOpen} onMomentumScrollEnd={finishSuggestionInteraction}>{matches.map((suggestion) => <Pressable key={suggestion.label} onPress={() => pick(suggestion)} style={s.suggestion}><View style={{ flex: 1 }}><Text style={s.suggestionTitle}>{suggestion.value}</Text>{suggestion.detail && <Text style={s.suggestionDetail}>{suggestion.detail}</Text>}</View><Text style={s.suggestionUse}>Choose</Text></Pressable>)}</ScrollView></View>}
+    {focused && matches.length > 0 && <View style={s.suggestions}><ScrollView style={s.suggestionList} contentContainerStyle={s.suggestionsContent} nestedScrollEnabled keyboardShouldPersistTaps="always" keyboardDismissMode="none" showsVerticalScrollIndicator bounces={false} overScrollMode="never" removeClippedSubviews={false} onStartShouldSetResponderCapture={() => false} onTouchStartCapture={keepSuggestionsOpen} onTouchEndCapture={finishSuggestionInteraction} onScrollBeginDrag={keepSuggestionsOpen} onScrollEndDrag={finishSuggestionInteraction} onMomentumScrollBegin={keepSuggestionsOpen} onMomentumScrollEnd={finishSuggestionInteraction}>{matches.map((suggestion) => <Pressable key={suggestion.label} onPressIn={keepSuggestionsOpen} onPress={() => pick(suggestion)} style={s.suggestion}><View pointerEvents="none" style={{ flex: 1 }}><Text style={s.suggestionTitle}>{suggestion.value}</Text>{suggestion.detail && <Text style={s.suggestionDetail}>{suggestion.detail}</Text>}</View><Text pointerEvents="none" style={s.suggestionUse}>Choose</Text></Pressable>)}</ScrollView></View>}
   </View>;
 }
 export function DateField({ value, onChangeText, placeholder, minDate }: { value: string; onChangeText: (value: string) => void; placeholder: string; minDate?: string }) {
@@ -166,6 +166,9 @@ Object.assign(s, StyleSheet.create({
   field: { minHeight: 56, borderWidth: 1, borderColor: colors.border, borderRadius: 16, backgroundColor: colors.surface, color: colors.text, fontSize: 16, fontWeight: '400', paddingHorizontal: 16, marginBottom: 13 },
   multiline: { minHeight: 108, paddingTop: 16, textAlignVertical: 'top' },
   suggestions: { marginTop: -3, marginBottom: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 16, overflow: 'hidden', shadowColor: colors.text, shadowOpacity: .07, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 3 },
+  autocomplete: { position: 'relative', zIndex: 1 },
+  autocompleteActive: { zIndex: 50, elevation: 12 },
+  suggestions: { zIndex: 50, elevation: 12 },
   suggestionList: { maxHeight: 168, flexGrow: 0 },
   suggestionTitle: { color: colors.text, fontSize: 15, fontWeight: '600' },
   suggestionUse: { color: colors.blue, fontSize: 12, fontWeight: '600' },
