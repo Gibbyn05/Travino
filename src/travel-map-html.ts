@@ -1,10 +1,12 @@
 import { TripLocation } from './trip-locations';
 import { colors } from './theme';
+import countryBoundaries from './data/country-boundaries.json';
 
 /** A live Leaflet map with OpenStreetMap data and native-app message handling. */
 export function buildTravelMapHtml(places: TripLocation[]) {
   const data = JSON.stringify(places).replace(/</g, '\\u003c');
   const visitedPalette = JSON.stringify(colors.visitedCountryPalette);
+  const boundaries = JSON.stringify(countryBoundaries).replace(/</g, '\\u003c');
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -108,34 +110,32 @@ export function buildTravelMapHtml(places: TripLocation[]) {
       marker.on('click', () => select(place.id));
       markers.set(place.id, { marker, place });
     });
-    fetch('https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@master/geojson/ne_110m_admin_0_countries.geojson')
-      .then((response) => { if (!response.ok) throw new Error('Country borders unavailable'); return response.json(); })
-      .then((geojson) => {
-        L.geoJSON(geojson, {
-          pane: 'overlayPane', interactive: false,
-          style: (feature) => {
-          const properties = feature && feature.properties ? feature.properties : {};
-          const name = properties.NAME_EN || properties.ADMIN || properties.NAME || '';
-            const visit = visitedCountries.get(normalise(name));
-          return { color: visit ? visit.color : '#CBD9D6', weight: visit ? 1.15 : .8, opacity: .9, fillColor: visit ? visit.color : '#F9FBFA', fillOpacity: visit ? .75 : 1, lineJoin: 'round' };
-        },
-        onEachFeature: (feature, layer) => {
-          const properties = feature && feature.properties ? feature.properties : {};
-          const name = properties.NAME_EN || properties.ADMIN || properties.NAME || '';
-          if (!name || !layer.getBounds) return;
-          const center = layer.getBounds().getCenter();
-          const label = L.marker(center, {
-            pane: 'countryLabelPane',
-            interactive: false,
-            keyboard: false,
-            icon: L.divIcon({ className: '', html: '<div class="country-name-label' + (visit ? ' visited-label' : '') + '">' + escapeHtml(name) + '</div>', iconSize: [Math.max(48, name.length * 7), 16], iconAnchor: [Math.max(24, name.length * 3.5), 8] })
-          });
-          countryLabels.addLayer(label);
-        }
-        }).addTo(map);
-        updateCountryLabels();
-      })
-      .catch(() => { /* The basemap remains useful when country outlines are unavailable. */ });
+    const countryData = ${boundaries};
+    L.geoJSON(countryData, {
+      pane: 'overlayPane',
+      interactive: false,
+      style: (feature) => {
+        const properties = feature && feature.properties ? feature.properties : {};
+        const name = properties.NAME_EN || properties.ADMIN || properties.NAME || '';
+        const visit = visitedCountries.get(normalise(name));
+        return { color: visit ? visit.color : '#C7D5D2', weight: visit ? 1.1 : .75, opacity: .92, fillColor: visit ? visit.color : '#F9FBFA', fillOpacity: visit ? .75 : 1, lineJoin: 'round' };
+      },
+      onEachFeature: (feature, layer) => {
+        const properties = feature && feature.properties ? feature.properties : {};
+        const name = properties.NAME_EN || properties.ADMIN || properties.NAME || '';
+        if (!name || !layer.getBounds) return;
+        const center = layer.getBounds().getCenter();
+        const visit = visitedCountries.get(normalise(name));
+        const label = L.marker(center, {
+          pane: 'countryLabelPane',
+          interactive: false,
+          keyboard: false,
+          icon: L.divIcon({ className: '', html: '<div class="country-name-label' + (visit ? ' visited-label' : '') + '">' + escapeHtml(name) + '</div>', iconSize: [Math.max(48, name.length * 7), 16], iconAnchor: [Math.max(24, name.length * 3.5), 8] })
+        });
+        countryLabels.addLayer(label);
+      }
+    }).addTo(map);
+    updateCountryLabels();
     if (places.length === 1) map.setView([places[0].latitude, places[0].longitude], 5);
     else if (places.length > 1) map.fitBounds(places.map((place) => [place.latitude, place.longitude]), { padding: [62, 54], maxZoom: 5 });
     else { const label = L.control({ position: 'topleft' }); label.onAdd = () => { const node = L.DomUtil.create('div', 'empty-label'); node.textContent = 'Your next destination will appear here'; return node; }; label.addTo(map); }
