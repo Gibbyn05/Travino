@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { Field, Sheet } from '@/src/forms';
 import { AccentText, Card, PageTitle, PrimaryButton } from '@/src/ui';
-import { colors } from '@/src/theme';
+import { colors, fonts } from '@/src/theme';
 import { ensureGuestIdentity, supabase } from '@/src/lib/supabase';
 import { useTravel } from '@/src/store';
 
@@ -103,11 +103,11 @@ function FriendRow({ friend, busy, onAccept, onReject, onOpen, onRemove }: { fri
 const s = StyleSheet.create({
   page: { flex: 1, backgroundColor: colors.background }, content: { paddingHorizontal: 16, paddingTop: 58, paddingBottom: 50 },
   back: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', minHeight: 38, gap: 8, marginBottom: 14 }, backText: { color: colors.text, fontSize: 14, fontWeight: '600' },
-  codeCard: { alignItems: 'center', padding: 20, backgroundColor: colors.blueSoft, borderColor: '#D9EAFF' }, codeIcon: { width: 48, height: 48, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', marginBottom: 10 }, cardTitle: { color: colors.text, fontSize: 17, fontWeight: '700' }, cardCopy: { color: colors.muted, textAlign: 'center', fontSize: 13, lineHeight: 20, marginTop: 5 },
+  codeCard: { alignItems: 'center', padding: 20, backgroundColor: colors.blueSoft, borderColor: '#D9EAFF' }, codeIcon: { width: 48, height: 48, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', marginBottom: 10 }, cardTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 17, fontWeight: '700' }, cardCopy: { color: colors.muted, textAlign: 'center', fontSize: 13, lineHeight: 20, marginTop: 5 },
   codeRow: { width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, marginVertical: 15 }, code: { color: colors.text, fontSize: 22, fontWeight: '800', letterSpacing: 2.5 }, shareButton: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' },
-  section: { marginTop: 27, gap: 10 }, sectionTitle: { color: colors.text, fontSize: 19, fontWeight: '700', letterSpacing: -.4, marginBottom: 2 },
+  section: { marginTop: 27, gap: 10 }, sectionTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 19, fontWeight: '700', letterSpacing: -.2, marginBottom: 2 },
   row: { minHeight: 69, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 19, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, flexDirection: 'row', alignItems: 'center', gap: 11 }, avatar: { height: 42, width: 42, borderRadius: 15, backgroundColor: colors.purpleSoft, alignItems: 'center', justifyContent: 'center' }, avatarText: { color: colors.purple, fontSize: 17, fontWeight: '700' }, friendName: { color: colors.text, fontSize: 14, fontWeight: '700' }, friendDetail: { color: colors.muted, fontSize: 11, marginTop: 3 },
   bookButton: { width: 36, height: 36, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.blueSoft }, moreButton: { width: 28, height: 36, alignItems: 'center', justifyContent: 'center' }, requestActions: { flexDirection: 'row', gap: 6, alignItems: 'center' }, accept: { borderRadius: 13, paddingHorizontal: 12, paddingVertical: 9, backgroundColor: colors.blue }, acceptText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' }, reject: { borderRadius: 13, paddingHorizontal: 10, paddingVertical: 9, backgroundColor: '#F3F4F7' }, rejectText: { color: colors.muted, fontSize: 12, fontWeight: '600' },
-  empty: { alignItems: 'center', padding: 20, backgroundColor: colors.purpleSoft, borderColor: '#E8DFFF' }, emptyIcon: { width: 46, height: 46, borderRadius: 15, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', marginBottom: 9 }, emptyTitle: { color: colors.text, fontSize: 16, fontWeight: '700' },
+  empty: { alignItems: 'center', padding: 20, backgroundColor: colors.purpleSoft, borderColor: '#E8DFFF' }, emptyIcon: { width: 46, height: 46, borderRadius: 15, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', marginBottom: 9 }, emptyTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 16, fontWeight: '700' },
   privacyNote: { color: colors.muted, fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 24 }, sheetCopy: { color: colors.muted, fontSize: 14, lineHeight: 21, marginTop: -9, marginBottom: 15 },
 });
