@@ -4,7 +4,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Field } from '@/src/forms';
 import { readInvite } from '@/src/invites';
 import { ensureGuestIdentity, supabase } from '@/src/lib/supabase';
-import { colors } from '@/src/theme';
+import { colors, fonts } from '@/src/theme';
 import { AccentText, PrimaryButton } from '@/src/ui';
 import { useTravel } from '@/src/store';
 
@@ -36,4 +36,4 @@ export default function JoinTrip() {
   </View>;
 }
 
-const s = StyleSheet.create({ page: { flex: 1, backgroundColor: colors.background, padding: 24, paddingTop: 96, gap: 18 }, eyebrow: { color: colors.blue, fontSize: 13, fontWeight: '600' }, title: { color: colors.text, fontSize: 36, fontWeight: '700', letterSpacing: -1.6, lineHeight: 42 }, copy: { color: colors.muted, fontSize: 16, lineHeight: 25, marginBottom: 8 } });
+const s = StyleSheet.create({ page: { flex: 1, backgroundColor: colors.background, padding: 24, paddingTop: 96, gap: 18 }, eyebrow: { color: colors.blue, fontSize: 13, fontWeight: '600' }, title: { color: colors.text, fontFamily: fonts.heading, fontSize: 36, fontWeight: '700', letterSpacing: -.5, lineHeight: 46 }, copy: { color: colors.muted, fontSize: 16, lineHeight: 25, marginBottom: 8 } });
