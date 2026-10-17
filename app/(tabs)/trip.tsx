@@ -5,7 +5,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ActivityIndicator, Alert, Image, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { AutocompleteField, DateField, Field, Sheet } from '@/src/forms';
 import { Avatar, Card, DestinationCover, PageTitle, PrimaryButton, Section } from '@/src/ui';
-import { colors } from '@/src/theme';
+import { colors, fonts } from '@/src/theme';
 import { useTravel, WishReaction } from '@/src/store';
 import { fetchWeather, Weather } from '@/src/weather';
 import { activitySuggestionsForDestination, packingCategorySuggestions, packingSuggestions, suggestedPackingCategory, wishSuggestions } from '@/src/suggestions';
@@ -26,13 +26,26 @@ export default function TripScreen() {
     const link = inviteUrl(selectedTrip, base);
     return Share.share({ message: `Join ${selectedTrip.title} in Reisefølge:\n${link}` });
   };
+  const isOverview = tab === 'Overview';
   return <ScrollView style={s.page} contentContainerStyle={s.content}>
-    <PageTitle eyebrow={`${selectedTrip.city}, ${selectedTrip.country}`} accent="Trip Plan">{selectedTrip.title}</PageTitle>
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.tabs}>{tabs.map((item) => <Pressable key={item} onPress={() => setTab(item)} style={[s.tab, tab === item && s.activeTab]}><Text style={[s.tabText, tab === item && s.activeText]}>{item}</Text></Pressable>)}</ScrollView>
-    <View style={s.heroCard}><DestinationCover country={selectedTrip.country} uri={selectedTrip.coverImage} style={s.hero} imageStyle={s.heroImage}/><View style={s.heroDetails}><View style={{ flex: 1 }}><Text style={s.date}>{selectedTrip.startDate} – {selectedTrip.endDate}</Text><Text style={s.heroCopy}>{selectedTrip.members.length ? `${selectedTrip.members.join(', ')} are travelling together` : 'No one has been added yet.'}</Text></View><Ionicons name="arrow-forward" size={19} color={colors.blue}/></View></View>
-    <View style={{ marginTop: 12 }}><PrimaryButton title="Invite members" icon="person-add-outline" onPress={invite}/></View>
-    <Pressable accessibilityRole="button" onPress={() => setAddFriendOpen(true)} style={s.addFriendLink}><Ionicons name="people-outline" size={18} color={colors.blue}/><Text style={s.addFriendText}>Add an accepted friend to this trip</Text><Ionicons name="chevron-forward" size={17} color={colors.muted}/></Pressable>
-    {tab === 'Overview' && <Overview/>}{tab === 'Plan' && <Plan/>}{tab === 'Activities' && <ThingsToDo onOpen={(activity) => router.push({ pathname: '/activity-browser', params: { activity, city: selectedTrip.city, country: selectedTrip.country } })} />}{tab === 'Packing' && <Packing/>}{tab === 'Wishlist' && <Wishes/>}{tab === 'Memories' && <Memories/>}
+    {isOverview ? <PageTitle eyebrow={`${selectedTrip.city}, ${selectedTrip.country}`} accent="Trip Plan">{selectedTrip.title}</PageTitle>
+      : <Pressable accessibilityRole="button" accessibilityLabel="Open trip overview" onPress={() => setTab('Overview')} style={({ pressed }) => [s.compactTripHeader, pressed && s.pressed]}>
+        <DestinationCover country={selectedTrip.country} uri={selectedTrip.coverImage} style={s.compactTripImage} imageStyle={s.compactTripImage}/>
+        <View style={s.compactTripContent}>
+          <Text style={s.compactTripEyebrow} numberOfLines={1}>{selectedTrip.city}, {selectedTrip.country}</Text>
+          <Text style={s.compactTripTitle} numberOfLines={1}>{selectedTrip.title}</Text>
+          <View style={s.compactTripMeta}><Ionicons name="calendar-clear-outline" size={13} color={colors.muted}/><Text style={s.compactTripMetaText} numberOfLines={1}>{selectedTrip.startDate} – {selectedTrip.endDate}</Text></View>
+          <View style={s.compactTripMeta}><Ionicons name="people-outline" size={13} color={colors.muted}/><Text style={s.compactTripMetaText}>{selectedTrip.members.length ? `${selectedTrip.members.length} ${selectedTrip.members.length === 1 ? 'traveller' : 'travellers'}` : 'Solo trip'}</Text></View>
+        </View>
+        <View style={s.compactTripAction}><Ionicons name="grid-outline" size={17} color={colors.blue}/></View>
+      </Pressable>}
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[s.tabs, !isOverview && s.compactTabs]}>{tabs.map((item) => <Pressable key={item} onPress={() => setTab(item)} style={[s.tab, tab === item && s.activeTab]}><Text style={[s.tabText, tab === item && s.activeText]}>{item}</Text></Pressable>)}</ScrollView>
+    {isOverview && <>
+      <View style={s.heroCard}><DestinationCover country={selectedTrip.country} uri={selectedTrip.coverImage} style={s.hero} imageStyle={s.heroImage}/><View style={s.heroDetails}><View style={{ flex: 1 }}><Text style={s.date}>{selectedTrip.startDate} – {selectedTrip.endDate}</Text><Text style={s.heroCopy}>{selectedTrip.members.length ? `${selectedTrip.members.join(', ')} are travelling together` : 'No one has been added yet.'}</Text></View><Ionicons name="arrow-forward" size={19} color={colors.blue}/></View></View>
+      <View style={{ marginTop: 12 }}><PrimaryButton title="Invite members" icon="person-add-outline" onPress={invite}/></View>
+      <Pressable accessibilityRole="button" onPress={() => setAddFriendOpen(true)} style={s.addFriendLink}><Ionicons name="people-outline" size={18} color={colors.blue}/><Text style={s.addFriendText}>Add an accepted friend to this trip</Text><Ionicons name="chevron-forward" size={17} color={colors.muted}/></Pressable>
+    </>}
+    {tab === 'Overview' && <Overview onOpenPlan={() => setTab('Plan')}/>}{tab === 'Plan' && <Plan/>}{tab === 'Activities' && <ThingsToDo onOpen={(activity) => router.push({ pathname: '/activity-browser', params: { activity, city: selectedTrip.city, country: selectedTrip.country } })} />}{tab === 'Packing' && <Packing/>}{tab === 'Wishlist' && <Wishes/>}{tab === 'Memories' && <Memories/>}
     <AddTripFriendSheet visible={addFriendOpen} onClose={() => setAddFriendOpen(false)} tripId={selectedTrip.id} tripTitle={selectedTrip.title} existingNames={selectedTrip.members}/>
   </ScrollView>;
 }
@@ -88,7 +101,69 @@ function Empty() { return <View style={s.empty}><Ionicons name="airplane-outline
 function useWeather(city: string, country: string) { const [weather, setWeather] = useState<Weather | null>(null); const [error, setError] = useState(false); const [loading, setLoading] = useState(true); useEffect(() => { const controller = new AbortController(); setLoading(true); setError(false); fetchWeather(city, country, controller.signal).then((value) => { setWeather(value); setLoading(false); }).catch((reason) => { if (reason.name !== 'AbortError') { setError(true); setLoading(false); } }); return () => controller.abort(); }, [city, country]); return { weather, error, loading }; }
 function readableCountdown(value: string) { const parts = value.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/); const start = parts ? new Date(Number(parts[3]), Number(parts[2]) - 1, Number(parts[1])) : new Date(value); if (Number.isNaN(start.getTime())) return null; const today = new Date(); today.setHours(0, 0, 0, 0); start.setHours(0, 0, 0, 0); const days = Math.round((start.getTime() - today.getTime()) / 86400000); return days < 0 ? 'Trip completed' : days === 0 ? 'Leaving today' : `${days} ${days === 1 ? 'day' : 'days'} to go`; }
 function WeatherCard({ city, country }: { city: string; country: string }) { const { weather, error, loading } = useWeather(city, country); return <Card style={s.weather}>{<Ionicons name={weather?.icon ?? 'partly-sunny-outline'} size={38} color={colors.teal}/>}<View style={{ flex: 1 }}><Text style={s.weatherTitle}>Weather in {city}</Text>{loading ? <Text style={s.copy}>Getting the forecast …</Text> : error ? <Text style={s.copy}>Weather is unavailable right now.</Text> : <Text style={s.copy}>{weather?.condition} · Feels like {weather?.apparentTemperature}°</Text>}</View>{weather && <View style={s.temperature}><Text style={s.temperatureValue}>{weather.temperature}°</Text><Text style={s.weatherRange}>{weather.low}°–{weather.high}°</Text></View>}</Card>; }
-function Overview() { const { selectedTrip } = useTravel(); if (!selectedTrip) return null; const next = selectedTrip.activities.slice().sort((a, b) => `${a.date} ${a.startTime}`.localeCompare(`${b.date} ${b.startTime}`))[0]; const remainingPacking = selectedTrip.packing.filter((item) => !item.done).length; const countdown = readableCountdown(selectedTrip.startDate); return <><WeatherCard city={selectedTrip.city} country={selectedTrip.country}/><Section title="Trip details"><Card style={s.tripFacts}><TripDateFact label="Departure" date={selectedTrip.startDate}/><View style={s.factDivider}/><TripDateFact label="Return" date={selectedTrip.endDate} returning/><View style={s.countdown}><Text style={s.countdownText}>{countdown ?? 'Date missing'}</Text></View></Card></Section><Section title="Next activity">{next ? <Card><Text style={s.itemTitle}>{next.title}</Text><Text style={s.copy}>{next.date} · {next.startTime}{next.location ? ` · ${next.location}` : ''}</Text>{next.note && <Text style={s.note}>{next.note}</Text>}</Card> : <Card><Text style={s.copy}>No activities yet. Add them under Plan.</Text></Card>}</Section><Section title="Still to do"><View style={s.summaryRow}><Card style={s.summaryCard}><Ionicons name="bag-handle-outline" size={22} color={colors.teal}/><Text style={s.summaryNumber}>{remainingPacking}</Text><Text style={s.copy}>to pack</Text></Card><Card style={s.summaryCard}><Ionicons name="heart-outline" size={22} color={colors.coral}/><Text style={s.summaryNumber}>{selectedTrip.wishes.length}</Text><Text style={s.copy}>on your wishlist</Text></Card></View></Section><Section title="Travel group">{selectedTrip.members.length ? <Card style={s.members}>{selectedTrip.members.map((member) => <View key={member} style={s.member}><Avatar name={member}/><Text style={s.memberName}>{member}</Text></View>)}</Card> : <Card><Text style={s.copy}>No one has been added yet. Use “Invite members” above.</Text></Card>}</Section></>; }
+function activityMoment(dateValue: string, timeValue: string) {
+  const iso = dateValue.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  const dotted = dateValue.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  const date = iso
+    ? new Date(+iso[1], +iso[2] - 1, +iso[3])
+    : dotted
+      ? new Date(+dotted[3], +dotted[2] - 1, +dotted[1])
+      : new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return null;
+  const time = timeValue.trim().match(/^(\d{1,2})(?::|\.)(\d{2})$/);
+  if (!time || +time[1] > 23 || +time[2] > 59) return null;
+  date.setHours(+time[1], +time[2], 0, 0);
+  return date;
+}
+
+function activityStatus(activity: { date: string; startTime: string; endTime?: string }, now: Date) {
+  const start = activityMoment(activity.date, activity.startTime);
+  if (!start) return null;
+  const end = activity.endTime ? activityMoment(activity.date, activity.endTime) : start;
+  if (!end || end.getTime() < now.getTime()) return null;
+  return { start, happeningNow: start.getTime() <= now.getTime() };
+}
+
+function Overview({ onOpenPlan }: { onOpenPlan: () => void }) {
+  const { selectedTrip } = useTravel();
+  if (!selectedTrip) return null;
+  const now = new Date();
+  const nextEntry = selectedTrip.activities
+    .map((activity) => ({ activity, status: activityStatus(activity, now) }))
+    .filter((entry) => entry.status !== null)
+    .sort((a, b) => a.status!.start.getTime() - b.status!.start.getTime())[0];
+  const next = nextEntry?.activity;
+  const happeningNow = nextEntry?.status?.happeningNow;
+  const hasActivities = selectedTrip.activities.length > 0;
+  const remainingPacking = selectedTrip.packing.filter((item) => !item.done).length;
+  const countdown = readableCountdown(selectedTrip.startDate);
+  return <>
+    <WeatherCard city={selectedTrip.city} country={selectedTrip.country}/>
+    <Section title="Trip details"><Card style={s.tripFacts}><TripDateFact label="Departure" date={selectedTrip.startDate}/><View style={s.factDivider}/><TripDateFact label="Return" date={selectedTrip.endDate} returning/><View style={s.countdown}><Text style={s.countdownText}>{countdown ?? 'Date missing'}</Text></View></Card></Section>
+    <Section title="Next activity">
+      {next ? <Card style={s.nextActivityCard}>
+        <View style={s.nextActivityTop}>
+          <View style={s.nextActivityIcon}><Ionicons name={happeningNow ? 'play' : 'calendar-clear-outline'} size={20} color={colors.blue}/></View>
+          <View style={{ flex: 1 }}>
+            <Text style={s.nextActivityLabel}>{happeningNow ? 'HAPPENING NOW' : 'UP NEXT'}</Text>
+            <Text style={s.itemTitle}>{next.title}</Text>
+          </View>
+        </View>
+        <View style={s.nextActivityDetails}>
+          <View style={s.nextActivityDetail}><Ionicons name="time-outline" size={16} color={colors.muted}/><Text style={s.nextActivityMeta}>{next.date} · {next.startTime}{next.endTime ? `–${next.endTime}` : ''}</Text></View>
+          {next.location && <View style={s.nextActivityDetail}><Ionicons name="location-outline" size={16} color={colors.muted}/><Text style={s.nextActivityMeta}>{next.location}</Text></View>}
+        </View>
+        {next.note && <Text style={s.nextActivityNote}>{next.note}</Text>}
+      </Card> : <Card style={s.activityEmptyCard}>
+        <View style={[s.activityEmptyIcon, hasActivities && s.activityCompleteIcon]}><Ionicons name={hasActivities ? 'checkmark' : 'calendar-outline'} size={23} color={hasActivities ? '#35A875' : colors.blue}/></View>
+        <View style={{ flex: 1 }}><Text style={s.activityEmptyTitle}>{hasActivities ? 'All caught up' : 'Your days are wide open'}</Text><Text style={s.activityEmptyCopy}>{hasActivities ? 'Everything on the plan is finished. Time to enjoy the moment.' : 'Add an activity when you’re ready to shape the trip.'}</Text></View>
+        <Pressable accessibilityRole="button" accessibilityLabel={hasActivities ? 'View trip plan' : 'Add an activity'} onPress={onOpenPlan} hitSlop={8} style={({ pressed }) => [s.activityEmptyAction, pressed && s.pressed]}><Ionicons name="arrow-forward" size={18} color={colors.blue}/></Pressable>
+      </Card>}
+    </Section>
+    <Section title="Still to do"><View style={s.summaryRow}><Card style={s.summaryCard}><Ionicons name="bag-handle-outline" size={22} color={colors.teal}/><Text style={s.summaryNumber}>{remainingPacking}</Text><Text style={s.copy}>to pack</Text></Card><Card style={s.summaryCard}><Ionicons name="heart-outline" size={22} color={colors.coral}/><Text style={s.summaryNumber}>{selectedTrip.wishes.length}</Text><Text style={s.copy}>on your wishlist</Text></Card></View></Section>
+    <Section title="Travel group">{selectedTrip.members.length ? <Card style={s.members}>{selectedTrip.members.map((member) => <View key={member} style={s.member}><Avatar name={member}/><Text style={s.memberName}>{member}</Text></View>)}</Card> : <Card><Text style={s.copy}>No one has been added yet. Use “Invite members” above.</Text></Card>}</Section>
+  </>;
+}
 function TripDateFact({ label, date, returning = false }: { label: string; date: string; returning?: boolean }) {
   const tint = returning ? '#E36F78' : '#35A875';
   return <View style={s.tripDateRow}>
@@ -109,6 +184,33 @@ function Plan() {
   const [note, setNote] = useState('');
   if (!selectedTrip) return null;
   const ideas = activitySuggestionsForDestination(selectedTrip.city, selectedTrip.country);
+  const orderedActivities = selectedTrip.activities.slice().sort((left, right) => {
+    const leftTime = activityMoment(left.date, left.startTime)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+    const rightTime = activityMoment(right.date, right.startTime)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+    return leftTime - rightTime || left.title.localeCompare(right.title);
+  });
+  const dayGroups = orderedActivities.reduce<{ key: string; heading: string; date: string; items: typeof orderedActivities }[]>((groups, activity) => {
+    const parsed = activityMoment(activity.date, '00:00');
+    const key = parsed ? `${parsed.getFullYear()}-${parsed.getMonth()}-${parsed.getDate()}` : 'unscheduled';
+    let group = groups.find((item) => item.key === key);
+    if (!group) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const isToday = parsed?.getTime() === today.getTime();
+      const isTomorrow = parsed?.getTime() === tomorrow.getTime();
+      group = {
+        key,
+        heading: !parsed ? 'DATE NEEDED' : isToday ? 'TODAY' : isTomorrow ? 'TOMORROW' : new Intl.DateTimeFormat('en', { weekday: 'long' }).format(parsed).toUpperCase(),
+        date: parsed ? new Intl.DateTimeFormat('en', { month: 'long', day: 'numeric', year: 'numeric' }).format(parsed) : 'Choose a date to place these in the plan',
+        items: [],
+      };
+      groups.push(group);
+    }
+    group.items.push(activity);
+    return groups;
+  }, []);
   const save = () => {
     if (!title || !date || !start) return;
     addActivity(selectedTrip.id, { title, date, startTime: start, endTime: end, location, note });
@@ -121,16 +223,27 @@ function Plan() {
     setNote('');
   };
   return <Section title="Plan">
-    <View style={s.stack}>{selectedTrip.activities.map((item) => <Card key={item.id} style={s.row}>
-      <View style={{ flex: 1 }}>
-        <Text style={s.itemTitle}>{item.title}</Text>
-        <Text style={s.copy}>{item.date} · {item.startTime}{item.endTime ? `–${item.endTime}` : ''}</Text>
-        {item.location && <Text style={s.copy}>{item.location}</Text>}
+    {dayGroups.length ? <View style={s.planTimeline}>{dayGroups.map((group) => <View key={group.key} style={s.planDay}>
+      <View style={s.planDayHeader}>
+        <View style={s.planDayMarker}><View style={s.planDayDot}/></View>
+        <View style={{ flex: 1 }}><Text style={s.planDayHeading}>{group.heading}</Text><Text style={s.planDayDate}>{group.date}</Text></View>
+        <View style={s.planDayCount}><Text style={s.planDayCountText}>{group.items.length}</Text></View>
       </View>
-      <Pressable onPress={() => removeActivity(selectedTrip.id, item.id)}><Ionicons name="trash-outline" size={20} color={colors.coral}/></Pressable>
-    </Card>)}</View>
-    {!selectedTrip.activities.length && <Text style={s.copy}>Add activities for your travel days.</Text>}
-    <PrimaryButton title="Add activity" onPress={() => setOpen(true)}/>
+      <View style={s.planDayActivities}>{group.items.map((item) => <Card key={item.id} style={s.planActivityCard}>
+        <View style={s.planTimeBlock}><Text style={s.planStartTime}>{item.startTime || '—'}</Text>{item.endTime && <Text style={s.planEndTime}>{item.endTime}</Text>}</View>
+        <View style={s.planActivityContent}>
+          <Text style={s.itemTitle}>{item.title}</Text>
+          {item.location && <View style={s.planMetaRow}><Ionicons name="location-outline" size={14} color={colors.muted}/><Text style={s.planMetaText}>{item.location}</Text></View>}
+          {item.note && <Text style={s.planNote} numberOfLines={2}>{item.note}</Text>}
+        </View>
+        <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${item.title}`} hitSlop={10} onPress={() => removeActivity(selectedTrip.id, item.id)} style={({ pressed }) => [s.planRemove, pressed && s.pressed]}><Ionicons name="trash-outline" size={17} color={colors.muted}/></Pressable>
+      </Card>)}</View>
+    </View>)}</View> : <Card style={s.planEmptyCard}>
+      <View style={s.planEmptyIcon}><Ionicons name="calendar-clear-outline" size={25} color={colors.blue}/></View>
+      <Text style={s.planEmptyTitle}>A blank page for your trip</Text>
+      <Text style={s.planEmptyCopy}>Add the first activity and your days will arrange themselves here.</Text>
+    </Card>}
+    <View style={s.planAddButton}><PrimaryButton title={dayGroups.length ? 'Add another activity' : 'Add first activity'} onPress={() => setOpen(true)}/></View>
     <Sheet visible={open} title="New activity" onClose={() => setOpen(false)}>
       <AutocompleteField value={title} onChangeText={setTitle} placeholder="Activity" suggestions={ideas} showSuggestionsOnFocus/>
       <DateField value={date} onChangeText={setDate} placeholder="Date"/>
@@ -330,16 +443,25 @@ Object.assign(s, StyleSheet.create({
   heroDetails: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14 },
   date: { color: colors.text, fontWeight: '700', fontSize: 15 },
   heroCopy: { color: colors.muted, fontSize: 13, lineHeight: 20, marginTop: 5, fontWeight: '400' },
+  compactTripHeader: { minHeight: 98, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 7, paddingRight: 11, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 22, shadowColor: colors.text, shadowOpacity: .035, shadowRadius: 12, shadowOffset: { width: 0, height: 5 } },
+  compactTripImage: { width: 79, height: 82, borderRadius: 16, backgroundColor: colors.blueSoft },
+  compactTripContent: { flex: 1, alignSelf: 'stretch', justifyContent: 'center', minWidth: 0 },
+  compactTripEyebrow: { color: colors.blue, fontSize: 10, fontWeight: '700', letterSpacing: .55, textTransform: 'uppercase', marginBottom: 3 },
+  compactTripTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 18, fontWeight: '700', letterSpacing: -.2, marginBottom: 7 },
+  compactTripMeta: { flexDirection: 'row', alignItems: 'center', gap: 5, minHeight: 17 },
+  compactTripMetaText: { flex: 1, color: colors.muted, fontSize: 10, lineHeight: 14 },
+  compactTripAction: { width: 34, height: 34, borderRadius: 14, backgroundColor: colors.blueSoft, alignItems: 'center', justifyContent: 'center' },
   tabs: { gap: 8, paddingVertical: 20 },
+  compactTabs: { paddingBottom: 2 },
   tab: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 999, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   activeTab: { backgroundColor: colors.blueSoft, borderColor: '#C8E3FF' },
   tabText: { color: colors.muted, fontWeight: '500', fontSize: 13 },
   activeText: { color: colors.blue, fontWeight: '600' },
-  itemTitle: { color: colors.text, fontSize: 16, fontWeight: '700', letterSpacing: -.35 },
+  itemTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 16, fontWeight: '700', letterSpacing: -.15 },
   packGroupTitle: { color: colors.purple, fontSize: 12, fontWeight: '700', letterSpacing: .2, paddingHorizontal: 4, marginTop: 5 },
   pack: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 18, backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, padding: 16 },
   weather: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: colors.blueSoft, borderColor: '#D9EAFF', marginTop: 2, paddingVertical: 21 },
-  weatherTitle: { color: colors.text, fontSize: 16, fontWeight: '700' },
+  weatherTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 16, fontWeight: '700' },
   temperatureValue: { color: colors.blue, fontSize: 32, fontWeight: '700', letterSpacing: -1.4 },
   factText: { color: colors.text, fontSize: 16, fontWeight: '700', marginTop: 4 },
   countdown: { alignSelf: 'flex-start', backgroundColor: colors.purpleSoft, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 9 },
@@ -355,6 +477,44 @@ Object.assign(s, StyleSheet.create({
   activityIconPurple: { backgroundColor: colors.purpleSoft },
   tripDateRow: { minHeight: 54, flexDirection: 'row', alignItems: 'center', gap: 12 },
   tripDateIcon: { width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  nextActivityCard: { gap: 15, padding: 17, borderColor: '#DCEBFF', backgroundColor: '#FBFDFF' },
+  nextActivityTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  nextActivityIcon: { width: 42, height: 42, borderRadius: 15, backgroundColor: colors.blueSoft, alignItems: 'center', justifyContent: 'center' },
+  nextActivityLabel: { color: colors.blue, fontSize: 10, fontWeight: '700', letterSpacing: .9, marginBottom: 4 },
+  nextActivityDetails: { gap: 8, paddingTop: 13, borderTopWidth: 1, borderTopColor: colors.border },
+  nextActivityDetail: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  nextActivityMeta: { flex: 1, color: colors.muted, fontSize: 13, lineHeight: 18 },
+  nextActivityNote: { color: colors.text, fontSize: 13, lineHeight: 19, backgroundColor: colors.surface, borderRadius: 13, paddingHorizontal: 12, paddingVertical: 10 },
+  activityEmptyCard: { minHeight: 112, flexDirection: 'row', alignItems: 'center', gap: 13, padding: 17, backgroundColor: '#FBFCFE' },
+  activityEmptyIcon: { width: 44, height: 44, borderRadius: 16, backgroundColor: colors.blueSoft, alignItems: 'center', justifyContent: 'center' },
+  activityCompleteIcon: { backgroundColor: '#ECF8F1' },
+  activityEmptyTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 15, fontWeight: '700' },
+  activityEmptyCopy: { color: colors.muted, fontSize: 12, lineHeight: 18, marginTop: 4 },
+  activityEmptyAction: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  planTimeline: { gap: 25 },
+  planDay: { gap: 12 },
+  planDayHeader: { minHeight: 43, flexDirection: 'row', alignItems: 'center', gap: 11, paddingHorizontal: 3 },
+  planDayMarker: { width: 18, height: 43, alignItems: 'center', justifyContent: 'center' },
+  planDayDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.blue, borderWidth: 3, borderColor: '#DCEBFF' },
+  planDayHeading: { color: colors.text, fontSize: 13, fontWeight: '700', letterSpacing: .65 },
+  planDayDate: { color: colors.muted, fontSize: 12, marginTop: 3 },
+  planDayCount: { minWidth: 29, height: 29, borderRadius: 15, backgroundColor: colors.blueSoft, alignItems: 'center', justifyContent: 'center' },
+  planDayCountText: { color: colors.blue, fontSize: 12, fontWeight: '700' },
+  planDayActivities: { gap: 9, marginLeft: 9, paddingLeft: 19, borderLeftWidth: 1, borderLeftColor: '#DCEBFF' },
+  planActivityCard: { minHeight: 91, flexDirection: 'row', alignItems: 'flex-start', gap: 13, padding: 14, borderRadius: 19, shadowOpacity: .02 },
+  planTimeBlock: { width: 48, minHeight: 57, borderRadius: 14, backgroundColor: colors.blueSoft, alignItems: 'center', justifyContent: 'center', paddingVertical: 8 },
+  planStartTime: { color: colors.blue, fontSize: 13, fontWeight: '700' },
+  planEndTime: { color: colors.muted, fontSize: 10, marginTop: 3 },
+  planActivityContent: { flex: 1, minHeight: 57, justifyContent: 'center', paddingVertical: 2 },
+  planMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 7 },
+  planMetaText: { flex: 1, color: colors.muted, fontSize: 12, lineHeight: 17 },
+  planNote: { color: colors.muted, fontSize: 12, lineHeight: 17, marginTop: 6 },
+  planRemove: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginTop: -2, marginRight: -3 },
+  planEmptyCard: { minHeight: 210, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 29, backgroundColor: '#FBFDFF', borderColor: '#DCEBFF' },
+  planEmptyIcon: { width: 54, height: 54, borderRadius: 19, backgroundColor: colors.blueSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
+  planEmptyTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 17, fontWeight: '700', textAlign: 'center' },
+  planEmptyCopy: { color: colors.muted, fontSize: 13, lineHeight: 19, textAlign: 'center', marginTop: 7 },
+  planAddButton: { marginTop: 4 },
   wishCard: { gap: 12 },
   wishHeading: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   reactionRow: { flexDirection: 'row', gap: 7 },
