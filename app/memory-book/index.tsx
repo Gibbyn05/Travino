@@ -3,7 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Card, DestinationCover, PageTitle, PrimaryButton } from '@/src/ui';
-import { colors } from '@/src/theme';
+import { colors, fonts } from '@/src/theme';
 import { Trip, useTravel } from '@/src/store';
 import { stockCoverForCountry } from '@/src/country-images';
 
@@ -51,13 +51,13 @@ const s = StyleSheet.create({
   bookShade: { flex: 1, justifyContent: 'space-between', padding: 18 },
   photoCount: { alignSelf: 'flex-end', flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 7, backgroundColor: 'rgba(20,28,38,.34)' },
   photoCountText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
-  country: { color: '#FFFFFF', fontSize: 29, lineHeight: 34, fontWeight: '700', letterSpacing: -1 },
+  country: { color: '#FFFFFF', fontFamily: fonts.heading, fontSize: 29, lineHeight: 36, fontWeight: '700', letterSpacing: -.55 },
   bookDetail: { color: 'rgba(255,255,255,.9)', fontSize: 13, marginTop: 4 },
   bookFooter: { minHeight: 52, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 17 },
   footerText: { color: colors.muted, fontSize: 13, fontWeight: '500' },
   pressed: { opacity: .86, transform: [{ scale: .99 }] },
   empty: { alignItems: 'center', gap: 10, padding: 23, backgroundColor: colors.purpleSoft, borderColor: '#E8DFFF' },
   emptyIcon: { width: 52, height: 52, borderRadius: 18, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
-  emptyTitle: { color: colors.text, fontSize: 19, fontWeight: '700', textAlign: 'center' },
+  emptyTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 19, fontWeight: '700', textAlign: 'center' },
   emptyCopy: { color: colors.muted, fontSize: 14, lineHeight: 21, textAlign: 'center', marginBottom: 7 },
 });
