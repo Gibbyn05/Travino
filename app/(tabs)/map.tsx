@@ -6,7 +6,7 @@ import { WebView } from 'react-native-webview';
 import { Trip, useTravel } from '@/src/store';
 import { buildTravelMapHtml } from '@/src/travel-map-html';
 import { resolveTripCoordinates, TripLocation } from '@/src/trip-locations';
-import { colors } from '@/src/theme';
+import { colors, fonts } from '@/src/theme';
 
 const dateValue = (value: string) => { const parsed = Date.parse(value); return Number.isNaN(parsed) ? null : parsed; };
 const isCompleted = (trip: Trip) => { const end = dateValue(trip.endDate); return end !== null && end < new Date().setHours(0, 0, 0, 0); };
@@ -75,7 +75,7 @@ const s = StyleSheet.create({
   map: { flex: 1, backgroundColor: '#DCEFF4' },
   header: { position: 'absolute', top: 60, left: 20, right: 20, alignItems: 'center' },
   titlePill: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,.96)', borderRadius: 20, paddingHorizontal: 15, paddingVertical: 11, shadowColor: '#1A303C', shadowOpacity: .16, shadowRadius: 12, shadowOffset: { width: 0, height: 5 }, elevation: 4 },
-  title: { color: colors.text, fontSize: 15, fontWeight: '800' },
+  title: { color: colors.text, fontFamily: fonts.heading, fontSize: 15, fontWeight: '700' },
   loading: { position: 'absolute', top: 120, alignSelf: 'center', backgroundColor: 'rgba(255,255,255,.95)', paddingHorizontal: 15, paddingVertical: 10, borderRadius: 16, flexDirection: 'row', alignItems: 'center', gap: 8, shadowColor: '#1A303C', shadowOpacity: .12, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } },
   loadingText: { color: colors.muted, fontSize: 12, fontWeight: '700' },
   bottomArea: { position: 'absolute', left: 12, right: 12, bottom: 13 },
@@ -86,10 +86,10 @@ const s = StyleSheet.create({
   futureMarker: { backgroundColor: '#437EAE' },
   completedMarker: { backgroundColor: '#D66E5A' },
   eyebrow: { color: colors.muted, fontSize: 10, fontWeight: '800', letterSpacing: .8 },
-  destination: { color: colors.text, fontSize: 20, fontWeight: '800', letterSpacing: -.35, marginTop: 2 },
+  destination: { color: colors.text, fontFamily: fonts.heading, fontSize: 20, fontWeight: '700', letterSpacing: -.15, marginTop: 2 },
   country: { color: colors.muted, fontSize: 12, marginTop: 2 },
   emptySheet: { alignItems: 'center', backgroundColor: 'rgba(255,255,255,.98)', borderRadius: 28, padding: 18, shadowColor: '#172833', shadowOpacity: .17, shadowRadius: 20, shadowOffset: { width: 0, height: 7 }, elevation: 6 },
-  emptyTitle: { color: colors.text, fontSize: 19, fontWeight: '800', marginTop: 7 },
+  emptyTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 19, fontWeight: '700', marginTop: 7 },
   emptyCopy: { color: colors.muted, fontSize: 13, lineHeight: 19, marginTop: 5, textAlign: 'center', maxWidth: 270 },
   pressed: { opacity: .86 },
 });
