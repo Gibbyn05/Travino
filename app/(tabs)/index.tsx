@@ -27,10 +27,14 @@ export default function HomeScreen() {
       <Text style={s.greeting}>Hi {profileName || 'traveller'}!</Text>
       <View style={s.profileDot}><Text style={s.profileInitial}>{(profileName || 'T').slice(0, 1).toUpperCase()}</Text></View>
     </View>
-    <Text style={s.heading}>Create Your</Text>
-    <Text style={s.gradientHeading}><Text style={{ color: colors.blue }}>Own</Text><Text style={{ color: '#8EA9F8' }}> Trip</Text><Text style={{ color: '#EBA8D7' }}> Plan</Text></Text>
+    <View style={s.heroCopy}>
+      <Text style={s.heroEyebrow}>TRAVEL, TOGETHER</Text>
+      <Text style={s.heading}>Plan your</Text>
+      <Text style={s.gradientHeading}><Text style={{ color: colors.blue }}>next</Text><Text style={{ color: '#8EA9F8' }}> adventure</Text></Text>
+      <Text style={s.heroDescription}>Keep your itinerary, memories and travel crew in one happy place.</Text>
+    </View>
     <LinearGradient colors={['#FFFFFF', '#F7F8FF', '#EDF8FF']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.createCard}>
-      <View style={s.createText}><Text style={s.microCopy}>Ready to plan something fun?</Text><Text style={s.createTitle}>Tell us where to go.{"\n"}We’ve got the rest ✈️</Text></View>
+      <View style={s.createText}><Text style={s.microCopy}>YOUR FIRST STEP</Text><Text style={s.createTitle}>Tell us where to go.{"\n"}We’ll help with the rest ✈️</Text></View>
       <View style={s.characters} pointerEvents="none">
         <Character style={s.characterPink}/><Character style={s.characterYellow}/><Character style={s.characterBlue}/><Character style={s.characterPurple}/>
         <Ionicons name="sparkles" size={14} color="#FFC451" style={s.characterSparkle}/>
@@ -58,16 +62,19 @@ function Character({ style }: { style: object }) {
 }
 
 const s = StyleSheet.create({
-  page: { flex: 1, backgroundColor: colors.background }, content: { paddingHorizontal: 16, paddingTop: 72, paddingBottom: 44 },
-  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
+  page: { flex: 1, backgroundColor: colors.background }, content: { paddingHorizontal: 16, paddingTop: 68, paddingBottom: 44 },
+  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 25 },
   greeting: { color: colors.muted, fontSize: 16, fontWeight: '400' },
   profileDot: { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.purpleSoft, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   profileInitial: { color: colors.purple, fontSize: 17, fontWeight: '700' },
-  heading: { color: colors.text, fontFamily: fonts.heading, fontSize: 32, fontWeight: '700', letterSpacing: -.5, lineHeight: 40 },
-  gradientHeading: { fontFamily: fonts.heading, fontSize: 32, fontWeight: '700', letterSpacing: -.5, lineHeight: 42, marginBottom: 25 },
-  createCard: { borderWidth: 1, borderColor: '#D7E8FF', borderRadius: 22, minHeight: 166, padding: 19, overflow: 'hidden' },
-  createText: { zIndex: 1 }, microCopy: { color: colors.muted, fontSize: 12, marginBottom: 7 },
-  createTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 17, fontWeight: '700', lineHeight: 24, letterSpacing: -.15 },
+  heroCopy: { marginBottom: 28 },
+  heroEyebrow: { color: colors.blue, fontSize: 11, fontWeight: '800', letterSpacing: 1.25, marginBottom: 8 },
+  heading: { color: colors.text, fontFamily: fonts.heading, fontSize: 43, fontWeight: '700', letterSpacing: 0, lineHeight: 49 },
+  gradientHeading: { fontFamily: fonts.heading, fontSize: 43, fontWeight: '700', letterSpacing: 0, lineHeight: 51 },
+  heroDescription: { color: colors.muted, fontSize: 15, lineHeight: 22, marginTop: 10, maxWidth: 315 },
+  createCard: { borderWidth: 1, borderColor: '#D7E8FF', borderRadius: 24, minHeight: 180, padding: 20, overflow: 'hidden' },
+  createText: { zIndex: 1 }, microCopy: { color: colors.blue, fontSize: 10, fontWeight: '800', letterSpacing: 1.05, marginBottom: 7 },
+  createTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 19, fontWeight: '700', lineHeight: 26, letterSpacing: 0 },
   characters: { position: 'absolute', right: 17, top: 24, width: 130, height: 83 },
   character: { position: 'absolute', width: 44, height: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center', shadowColor: colors.text, shadowOpacity: .09, shadowRadius: 7, shadowOffset: { width: 0, height: 4 } },
   eyes: { flexDirection: 'row', gap: 4, transform: [{ rotate: '-7deg' }] },
@@ -79,7 +86,7 @@ const s = StyleSheet.create({
   characterYellow: { left: 39, top: 7, backgroundColor: '#FFC451', transform: [{ rotate: '-13deg' }] },
   characterBlue: { left: 10, bottom: 2, backgroundColor: colors.blueBright, transform: [{ rotate: '10deg' }] },
   characterPurple: { right: 14, bottom: 0, backgroundColor: colors.purple, transform: [{ rotate: '-9deg' }] },
-  createButton: { marginTop: 21, zIndex: 1 },
+  createButton: { marginTop: 22, zIndex: 1 },
   sectionHead: { marginTop: 34, marginBottom: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   sectionTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 22, fontWeight: '700', letterSpacing: -.35 },
   empty: { minHeight: 210, borderWidth: 1, borderColor: colors.border, borderRadius: 24, alignItems: 'center', justifyContent: 'center', padding: 25, backgroundColor: colors.surface },
