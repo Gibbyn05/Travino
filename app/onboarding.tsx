@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AutocompleteField, DateField, Field } from '@/src/forms';
 import { AccentText, PrimaryButton } from '@/src/ui';
-import { colors } from '@/src/theme';
+import { colors, fonts } from '@/src/theme';
 import { useTravel } from '@/src/store';
 import { destinationSuggestions } from '@/src/suggestions';
 
@@ -37,14 +37,14 @@ function SplashMascot({ style }: { style: object }) {
 
 const s = StyleSheet.create({
   keyboard: { flex: 1, backgroundColor: colors.background }, page: { flex: 1, backgroundColor: colors.background }, content: { flexGrow: 1, minHeight: '100%', padding: 16, paddingTop: 70, paddingBottom: 42, justifyContent: 'space-between' },
-  brandRow: { flexDirection: 'row', justifyContent: 'space-between' }, brand: { color: colors.text, fontSize: 22, fontWeight: '700', letterSpacing: -.8 }, skip: { color: colors.blue, fontWeight: '600' }, hero: { alignItems: 'center', paddingTop: 34 }, illustration: { width: 154, height: 154, borderRadius: 54, backgroundColor: colors.blueBright, alignItems: 'center', justifyContent: 'center', marginBottom: 34, borderWidth: 9, borderColor: colors.blueSoft, shadowColor: colors.blue, shadowOpacity: .13, shadowRadius: 23, shadowOffset: { width: 0, height: 10 }, elevation: 2 }, title: { color: colors.text, fontSize: 37, fontWeight: '700', letterSpacing: -1.6, textAlign: 'center' }, copy: { color: colors.muted, fontSize: 16, textAlign: 'center', lineHeight: 25, marginTop: 14, maxWidth: 310 }, form: { marginTop: 28 }, formTitle: { color: colors.text, fontSize: 20, fontWeight: '700', marginBottom: 15, letterSpacing: -.4 }, footer: { gap: 18, marginTop: 30 }, dots: { flexDirection: 'row', justifyContent: 'center', gap: 7 }, dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.border }, active: { backgroundColor: colors.blue, width: 26 }, note: { color: colors.muted, fontSize: 11, textAlign: 'center', lineHeight: 17 },
+  brandRow: { flexDirection: 'row', justifyContent: 'space-between' }, brand: { color: colors.text, fontFamily: fonts.heading, fontSize: 22, fontWeight: '700', letterSpacing: -.15 }, skip: { color: colors.blue, fontWeight: '600' }, hero: { alignItems: 'center', paddingTop: 34 }, illustration: { width: 154, height: 154, borderRadius: 54, backgroundColor: colors.blueBright, alignItems: 'center', justifyContent: 'center', marginBottom: 34, borderWidth: 9, borderColor: colors.blueSoft, shadowColor: colors.blue, shadowOpacity: .13, shadowRadius: 23, shadowOffset: { width: 0, height: 10 }, elevation: 2 }, title: { color: colors.text, fontFamily: fonts.heading, fontSize: 37, fontWeight: '700', letterSpacing: -.45, lineHeight: 46, textAlign: 'center' }, copy: { color: colors.muted, fontSize: 16, textAlign: 'center', lineHeight: 25, marginTop: 14, maxWidth: 310 }, form: { marginTop: 28 }, formTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 20, fontWeight: '700', marginBottom: 15, letterSpacing: -.05 }, footer: { gap: 18, marginTop: 30 }, dots: { flexDirection: 'row', justifyContent: 'center', gap: 7 }, dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.border }, active: { backgroundColor: colors.blue, width: 26 }, note: { color: colors.muted, fontSize: 11, textAlign: 'center', lineHeight: 17 },
 });
 
 const art = StyleSheet.create({
   heroArt: { width: 240, height: 190, alignItems: 'center', justifyContent: 'center', marginBottom: 18 },
   splashFrame: { width: 320, height: 280 },
   splash: { width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' },
-  splashBrand: { color: colors.text, fontSize: 32, fontWeight: '700', letterSpacing: -1.7 },
+  splashBrand: { color: colors.text, fontFamily: fonts.heading, fontSize: 32, fontWeight: '700', letterSpacing: -.45 },
   mascot: { width: 72, height: 70, borderRadius: 26, alignItems: 'center', justifyContent: 'center', position: 'absolute', shadowColor: colors.text, shadowOpacity: .12, shadowRadius: 11, shadowOffset: { width: 0, height: 6 } },
   mascotEyes: { flexDirection: 'row', gap: 5 }, mascotEye: { width: 19, height: 22, borderRadius: 12, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' }, mascotPupil: { width: 10, height: 14, borderRadius: 7, backgroundColor: '#243869' },
   splashBlue: { top: 0, left: 7, backgroundColor: colors.blueBright, transform: [{ rotate: '17deg' }] },
