@@ -34,11 +34,11 @@ export default function HomeScreen() {
       <Text style={s.heroDescription}>Keep your itinerary, memories and travel crew in one happy place.</Text>
     </View>
     <LinearGradient colors={['#FFFFFF', '#F7F8FF', '#EDF8FF']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.createCard}>
-      <View style={s.createText}><Text style={s.microCopy}>YOUR FIRST STEP</Text><Text style={s.createTitle}>Tell us where to go.{"\n"}We’ll help with the rest ✈️</Text></View>
-      <View style={s.characters} pointerEvents="none">
+      <View style={s.characters} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
         <Character style={s.characterPink}/><Character style={s.characterYellow}/><Character style={s.characterBlue}/><Character style={s.characterPurple}/>
         <Ionicons name="sparkles" size={14} color="#FFC451" style={s.characterSparkle}/>
       </View>
+      <View style={s.createText}><Text style={s.microCopy}>YOUR FIRST STEP</Text><Text style={s.createTitle}>Where shall we go?</Text><Text style={s.createCopy}>Pick a destination. We’ll help with the rest.</Text></View>
       <View style={s.createButton}><PrimaryButton title="Start a new trip" icon="add" onPress={() => setOpen(true)}/></View>
     </LinearGradient>
     <View style={s.sectionHead}><AccentText text={trips.length ? 'Your trips' : 'Your next adventure'} style={s.sectionTitle}/>{trips.length > 0 && <Ionicons name="arrow-forward" size={18} color={colors.text}/>}</View>
@@ -58,7 +58,7 @@ export default function HomeScreen() {
 }
 
 function Character({ style }: { style: object }) {
-  return <View style={[s.character, style]}><View style={s.eyes}><View style={s.eye}><View style={s.pupil}/></View><View style={s.eye}><View style={s.pupil}/></View></View><View style={s.mouth}/></View>;
+  return <View style={[s.character, style]}><View style={s.eyes}><View style={s.eye}><View style={s.pupil}/></View><View style={s.eye}><View style={s.pupil}/></View></View><View style={s.mouth}><View style={s.teeth}/></View></View>;
 }
 
 const s = StyleSheet.create({
@@ -73,20 +73,22 @@ const s = StyleSheet.create({
   gradientHeading: { fontFamily: fonts.heading, fontSize: 43, fontWeight: '700', letterSpacing: 0, lineHeight: 51 },
   heroDescription: { color: colors.muted, fontSize: 15, lineHeight: 22, marginTop: 10, maxWidth: 315 },
   createCard: { borderWidth: 1, borderColor: '#D7E8FF', borderRadius: 24, minHeight: 180, padding: 20, overflow: 'hidden' },
-  createText: { zIndex: 1 }, microCopy: { color: colors.blue, fontSize: 10, fontWeight: '800', letterSpacing: 1.05, marginBottom: 7 },
-  createTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 19, fontWeight: '700', lineHeight: 26, letterSpacing: 0 },
-  characters: { position: 'absolute', right: 17, top: 24, width: 130, height: 83 },
-  character: { position: 'absolute', width: 44, height: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center', shadowColor: colors.text, shadowOpacity: .09, shadowRadius: 7, shadowOffset: { width: 0, height: 4 } },
-  eyes: { flexDirection: 'row', gap: 4, transform: [{ rotate: '-7deg' }] },
-  eye: { width: 13, height: 15, borderRadius: 8, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
-  pupil: { width: 6, height: 8, borderRadius: 4, backgroundColor: '#243869' },
-  mouth: { width: 13, height: 4, borderRadius: 4, backgroundColor: '#FFFFFF', marginTop: 4, opacity: .86 },
-  characterSparkle: { position: 'absolute', right: -3, top: 40 },
-  characterPink: { right: 2, top: 1, backgroundColor: '#F170A4', transform: [{ rotate: '16deg' }] },
-  characterYellow: { left: 39, top: 7, backgroundColor: '#FFC451', transform: [{ rotate: '-13deg' }] },
-  characterBlue: { left: 10, bottom: 2, backgroundColor: colors.blueBright, transform: [{ rotate: '10deg' }] },
-  characterPurple: { right: 14, bottom: 0, backgroundColor: colors.purple, transform: [{ rotate: '-9deg' }] },
-  createButton: { marginTop: 22, zIndex: 1 },
+  createText: { alignItems: 'center' }, microCopy: { color: colors.blue, fontSize: 10, fontWeight: '800', letterSpacing: 1.05, marginBottom: 7 },
+  createTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 23, lineHeight: 30, letterSpacing: 0, textAlign: 'center' },
+  createCopy: { color: colors.muted, fontSize: 14, lineHeight: 21, textAlign: 'center', marginTop: 6 },
+  characters: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 9, paddingVertical: 9, marginBottom: 16, alignSelf: 'center' },
+  character: { width: 44, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center', shadowColor: colors.text, shadowOpacity: .09, shadowRadius: 7, shadowOffset: { width: 0, height: 4 } },
+  eyes: { flexDirection: 'row', gap: 5 },
+  eye: { width: 12, height: 14, borderRadius: 8, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
+  pupil: { width: 6, height: 7, borderRadius: 4, backgroundColor: '#243869' },
+  mouth: { width: 18, height: 11, borderTopLeftRadius: 2, borderTopRightRadius: 2, borderBottomLeftRadius: 12, borderBottomRightRadius: 12, backgroundColor: '#243869', marginTop: 4, overflow: 'hidden', alignItems: 'center' },
+  teeth: { width: 14, height: 4, backgroundColor: '#FFFFFF', borderBottomLeftRadius: 3, borderBottomRightRadius: 3 },
+  characterSparkle: { position: 'absolute', right: -17, top: 0 },
+  characterPink: { backgroundColor: '#F170A4', transform: [{ rotate: '-9deg' }] },
+  characterYellow: { backgroundColor: '#FFC451', transform: [{ translateY: -5 }, { rotate: '5deg' }] },
+  characterBlue: { backgroundColor: colors.blueBright, transform: [{ translateY: -5 }, { rotate: '-5deg' }] },
+  characterPurple: { backgroundColor: colors.purple, transform: [{ rotate: '9deg' }] },
+  createButton: { marginTop: 20 },
   sectionHead: { marginTop: 34, marginBottom: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   sectionTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 22, fontWeight: '700', letterSpacing: -.35 },
   empty: { minHeight: 210, borderWidth: 1, borderColor: colors.border, borderRadius: 24, alignItems: 'center', justifyContent: 'center', padding: 25, backgroundColor: colors.surface },
