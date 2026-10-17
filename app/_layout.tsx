@@ -1,10 +1,14 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { View } from 'react-native';
+import { useFonts } from '@expo-google-fonts/fredoka';
+import { Fredoka_700Bold } from '@expo-google-fonts/fredoka';
 import { TravelProvider, useTravel } from '@/src/store';
 import { colors } from '@/src/theme';
 
 export default function RootLayout() {
+  const [fontsLoaded] = useFonts({ Fredoka_700Bold });
+  if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: colors.background }}/>;
   return <TravelProvider><StatusBar style="auto"/><AppNavigator/></TravelProvider>;
 }
 
