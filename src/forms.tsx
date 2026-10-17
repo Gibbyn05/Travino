@@ -3,7 +3,7 @@ import { ReactNode } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { colors } from './theme';
+import { colors, fonts } from './theme';
 import { Suggestion } from './suggestions';
 
 const autocompleteDismissers = new Set<() => void>();
@@ -161,7 +161,7 @@ Object.assign(s, StyleSheet.create({
   backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(29,29,40,.32)' },
   sheet: { maxHeight: '92%', backgroundColor: colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, paddingBottom: 0 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
-  title: { color: colors.text, fontSize: 26, fontWeight: '700', letterSpacing: -.8 },
+  title: { color: colors.text, fontFamily: fonts.heading, fontSize: 26, fontWeight: '700', letterSpacing: -.45 },
   close: { color: colors.blue, fontSize: 15, fontWeight: '600' },
   field: { minHeight: 56, borderWidth: 1, borderColor: colors.border, borderRadius: 16, backgroundColor: colors.surface, color: colors.text, fontSize: 16, fontWeight: '400', paddingHorizontal: 16, marginBottom: 13 },
   multiline: { minHeight: 108, paddingTop: 16, textAlignVertical: 'top' },
@@ -176,7 +176,7 @@ Object.assign(s, StyleSheet.create({
   dateValue: { color: colors.text, fontSize: 16, fontWeight: '400' },
   dateBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(29,29,40,.32)' },
   dateSheet: { backgroundColor: colors.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, paddingBottom: 36 },
-  dateTitle: { color: colors.text, fontSize: 26, fontWeight: '700', letterSpacing: -.8 },
+  dateTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 26, fontWeight: '700', letterSpacing: -.45 },
   dateColumn: { flex: 1, backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border },
   dateOptionActive: { backgroundColor: colors.blueSoft },
   dateOptionTextActive: { color: colors.blue, fontWeight: '700' },
