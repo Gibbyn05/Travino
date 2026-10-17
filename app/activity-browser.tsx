@@ -3,7 +3,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
-import { colors } from '@/src/theme';
+import { colors, fonts } from '@/src/theme';
 
 export default function ActivityBrowserScreen() {
   const router = useRouter();
@@ -68,7 +68,7 @@ const s = StyleSheet.create({
   header: { minHeight: 92, paddingHorizontal: 14, paddingTop: 48, paddingBottom: 10, backgroundColor: colors.surface, flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
   back: { width: 42, height: 42, borderRadius: 16, backgroundColor: colors.blueSoft, alignItems: 'center', justifyContent: 'center' },
   heading: { flex: 1 },
-  title: { color: colors.text, fontSize: 17, fontWeight: '700', letterSpacing: -.3 },
+  title: { color: colors.text, fontFamily: fonts.heading, fontSize: 17, fontWeight: '700', letterSpacing: -.1 },
   subtitle: { color: colors.muted, fontSize: 12, marginTop: 3 },
   reload: { width: 42, height: 42, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   webContainer: { flex: 1, backgroundColor: colors.surface },
@@ -77,7 +77,7 @@ const s = StyleSheet.create({
   loadingText: { color: colors.muted, fontSize: 14 },
   error: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center', padding: 28, backgroundColor: colors.background },
   errorIcon: { width: 58, height: 58, borderRadius: 20, backgroundColor: colors.blueSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 15 },
-  errorTitle: { color: colors.text, fontSize: 19, fontWeight: '700' },
+  errorTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 19, fontWeight: '700' },
   errorCopy: { color: colors.muted, fontSize: 14, marginTop: 6 },
   retry: { marginTop: 20, borderRadius: 999, backgroundColor: colors.blue, paddingHorizontal: 25, paddingVertical: 12 },
   retryText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
