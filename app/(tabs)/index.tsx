@@ -6,7 +6,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AutocompleteField, DateField, Field, Sheet } from '@/src/forms';
 import { destinationSuggestions } from '@/src/suggestions';
 import { AccentText, DestinationCover, PrimaryButton } from '@/src/ui';
-import { colors } from '@/src/theme';
+import { colors, fonts } from '@/src/theme';
 import { useTravel } from '@/src/store';
 
 export default function HomeScreen() {
@@ -63,11 +63,11 @@ const s = StyleSheet.create({
   greeting: { color: colors.muted, fontSize: 16, fontWeight: '400' },
   profileDot: { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.purpleSoft, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   profileInitial: { color: colors.purple, fontSize: 17, fontWeight: '700' },
-  heading: { color: colors.text, fontSize: 32, fontWeight: '700', letterSpacing: -1.5, lineHeight: 36 },
-  gradientHeading: { fontSize: 32, fontWeight: '700', letterSpacing: -1.5, lineHeight: 38, marginBottom: 25 },
+  heading: { color: colors.text, fontFamily: fonts.heading, fontSize: 32, fontWeight: '700', letterSpacing: -.5, lineHeight: 40 },
+  gradientHeading: { fontFamily: fonts.heading, fontSize: 32, fontWeight: '700', letterSpacing: -.5, lineHeight: 42, marginBottom: 25 },
   createCard: { borderWidth: 1, borderColor: '#D7E8FF', borderRadius: 22, minHeight: 166, padding: 19, overflow: 'hidden' },
   createText: { zIndex: 1 }, microCopy: { color: colors.muted, fontSize: 12, marginBottom: 7 },
-  createTitle: { color: colors.text, fontSize: 17, fontWeight: '700', lineHeight: 24, letterSpacing: -.35 },
+  createTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 17, fontWeight: '700', lineHeight: 24, letterSpacing: -.15 },
   characters: { position: 'absolute', right: 17, top: 24, width: 130, height: 83 },
   character: { position: 'absolute', width: 44, height: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center', shadowColor: colors.text, shadowOpacity: .09, shadowRadius: 7, shadowOffset: { width: 0, height: 4 } },
   eyes: { flexDirection: 'row', gap: 4, transform: [{ rotate: '-7deg' }] },
@@ -81,14 +81,14 @@ const s = StyleSheet.create({
   characterPurple: { right: 14, bottom: 0, backgroundColor: colors.purple, transform: [{ rotate: '-9deg' }] },
   createButton: { marginTop: 21, zIndex: 1 },
   sectionHead: { marginTop: 34, marginBottom: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sectionTitle: { color: colors.text, fontSize: 22, fontWeight: '700', letterSpacing: -.7 },
+  sectionTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 22, fontWeight: '700', letterSpacing: -.35 },
   empty: { minHeight: 210, borderWidth: 1, borderColor: colors.border, borderRadius: 24, alignItems: 'center', justifyContent: 'center', padding: 25, backgroundColor: colors.surface },
   emptyIcon: { width: 52, height: 52, borderRadius: 18, backgroundColor: colors.blueSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 13 },
-  emptyTitle: { color: colors.text, fontSize: 17, fontWeight: '700' }, emptyCopy: { color: colors.muted, fontSize: 13, lineHeight: 19, textAlign: 'center', marginTop: 6 },
+  emptyTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 17, fontWeight: '700' }, emptyCopy: { color: colors.muted, fontSize: 13, lineHeight: 19, textAlign: 'center', marginTop: 6 },
   list: { gap: 13, paddingRight: 24, paddingBottom: 8 }, tripCard: { width: 228, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 22, padding: 6, shadowColor: colors.text, shadowOpacity: .04, shadowRadius: 12, shadowOffset: { width: 0, height: 5 } },
   tripImage: { height: 150, borderRadius: 17, overflow: 'hidden' }, tripImageRadius: { borderRadius: 17 },
   tripMeta: { paddingHorizontal: 10, paddingTop: 15, paddingBottom: 11, flexDirection: 'row', alignItems: 'center' },
-  tripTitle: { color: colors.text, fontSize: 17, fontWeight: '700', letterSpacing: -.4 },
+  tripTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 17, fontWeight: '700', letterSpacing: -.2 },
   tripLocation: { color: colors.muted, fontSize: 13, marginTop: 3 }, tripDate: { color: colors.blue, fontSize: 12, fontWeight: '500', marginTop: 6 },
   tripArrow: { width: 35, height: 35, borderRadius: 18, backgroundColor: colors.blueSoft, alignItems: 'center', justifyContent: 'center' },
 });
