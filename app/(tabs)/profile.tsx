@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { Field, Sheet } from '@/src/forms';
 import { Card, PageTitle, PrimaryButton, Section } from '@/src/ui';
-import { colors } from '@/src/theme';
+import { colors, fonts } from '@/src/theme';
 import { useTravel } from '@/src/store';
 import { ensureGuestIdentity, supabase } from '@/src/lib/supabase';
 
@@ -141,7 +141,7 @@ const s = StyleSheet.create({
   page: { flex: 1, backgroundColor: colors.background }, content: { paddingHorizontal: 16, paddingTop: 72, paddingBottom: 42 },
   profile: { flexDirection: 'row', alignItems: 'center', gap: 15, paddingVertical: 19, backgroundColor: colors.blueSoft, borderColor: '#D9EAFF' },
   avatar: { height: 58, width: 58, borderRadius: 21, backgroundColor: colors.blueBright, alignItems: 'center', justifyContent: 'center' },
-  initial: { color: '#FFFFFF', fontSize: 23, fontWeight: '700' }, name: { color: colors.text, fontSize: 19, fontWeight: '700', letterSpacing: -.4 },
+  initial: { color: '#FFFFFF', fontSize: 23, fontWeight: '700' }, name: { color: colors.text, fontFamily: fonts.heading, fontSize: 19, fontWeight: '700', letterSpacing: -.2 },
   copy: { color: colors.muted, fontSize: 13, lineHeight: 20, marginTop: 5 }, pencil: { width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' },
   stats: { flexDirection: 'row', gap: 12, marginTop: 14 }, stat: { flex: 1, alignItems: 'flex-start', paddingVertical: 15, paddingHorizontal: 15 }, statIcon: { height: 36, width: 36, borderRadius: 13, backgroundColor: colors.blueSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 9 }, statNumber: { color: colors.text, fontSize: 24, fontWeight: '700', letterSpacing: -.6 }, statLabel: { color: colors.muted, fontSize: 12, marginTop: 2 },
   editRow: { marginTop: 12, minHeight: 68, paddingHorizontal: 17, borderRadius: 20, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', gap: 13 },
@@ -154,7 +154,7 @@ const s = StyleSheet.create({
   detailCard: { flexDirection: 'row', gap: 13, alignItems: 'flex-start' },
   detailIcon: { height: 42, width: 42, borderRadius: 15, backgroundColor: colors.blueSoft, alignItems: 'center', justifyContent: 'center' },
   premiumIcon: { height: 42, width: 42, borderRadius: 15, backgroundColor: colors.purpleSoft, alignItems: 'center', justifyContent: 'center' },
-  detailTitle: { color: colors.text, fontSize: 15, fontWeight: '700', letterSpacing: -.3 },
+  detailTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 15, fontWeight: '700', letterSpacing: -.1 },
   deleteRow: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 8, padding: 10, marginTop: 3 },
   deleteText: { color: colors.pink, fontSize: 14, fontWeight: '600' },
 });
