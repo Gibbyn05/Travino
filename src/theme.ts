@@ -18,8 +18,8 @@ export const colors = {
 
 export const radius = { card: 24, pill: 999, small: 16, hero: 28 };
 
-// Fredoka is round, warm, and substantial: an inviting travel companion
-// without losing clarity. Body copy stays in the platform system font.
+// Nunito stays rounded and warm, with wider, calmer letter shapes than Fredoka.
+// Body copy stays in the platform system font.
 export const fonts = {
-  heading: 'Fredoka_700Bold',
+  heading: 'Nunito_800ExtraBold',
 };
