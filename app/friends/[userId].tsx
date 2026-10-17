@@ -3,7 +3,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Card, PageTitle } from '@/src/ui';
-import { colors } from '@/src/theme';
+import { colors, fonts } from '@/src/theme';
 import { supabase } from '@/src/lib/supabase';
 
 type SharedProfile = { id: string; display_name: string; bio: string; memory_book_public: boolean };
@@ -67,7 +67,7 @@ export default function FriendMemoryBook() {
 const s = StyleSheet.create({
   page: { flex: 1, backgroundColor: colors.background }, content: { paddingHorizontal: 16, paddingTop: 58, paddingBottom: 48 },
   back: { alignSelf: 'flex-start', minHeight: 42, flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 22 }, backText: { color: colors.text, fontSize: 14, fontWeight: '600' },
-  eyebrow: { color: colors.blue, fontSize: 11, fontWeight: '700', letterSpacing: 1.6 }, title: { color: colors.text, fontSize: 29, lineHeight: 36, fontWeight: '700', letterSpacing: -1.1, marginTop: 7 }, copy: { color: colors.muted, fontSize: 14, lineHeight: 21, marginTop: 6 },
+  eyebrow: { color: colors.blue, fontSize: 11, fontWeight: '700', letterSpacing: 1.6 }, title: { color: colors.text, fontFamily: fonts.heading, fontSize: 29, lineHeight: 37, fontWeight: '700', letterSpacing: -.6, marginTop: 7 }, copy: { color: colors.muted, fontSize: 14, lineHeight: 21, marginTop: 6 },
   subheading: { color: colors.muted, fontSize: 13, marginTop: 19, marginBottom: 14 }, gallery: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 14 }, photoCard: { width: '48.3%', overflow: 'hidden', borderRadius: 20, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }, photo: { width: '100%', height: 170, backgroundColor: colors.blueSoft }, caption: { padding: 11, minHeight: 62 }, location: { color: colors.text, fontSize: 13, fontWeight: '700' }, date: { color: colors.muted, fontSize: 11, marginTop: 4 },
-  locked: { alignItems: 'center', padding: 24, marginTop: 25, backgroundColor: colors.blueSoft, borderColor: '#D9EAFF' }, lockIcon: { width: 50, height: 50, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', marginBottom: 10 }, lockedTitle: { color: colors.text, fontSize: 17, fontWeight: '700', marginTop: 3 },
+  locked: { alignItems: 'center', padding: 24, marginTop: 25, backgroundColor: colors.blueSoft, borderColor: '#D9EAFF' }, lockIcon: { width: 50, height: 50, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', marginBottom: 10 }, lockedTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 17, fontWeight: '700', marginTop: 3 },
 });
