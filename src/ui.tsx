@@ -37,11 +37,11 @@ export function Chip({ label, warm = false }: { label: string; warm?: boolean })
 
 export const styles = StyleSheet.create({
   titleWrap: { gap: 5, marginBottom: 24 }, eyebrow: { color: colors.muted, fontSize: 14, fontWeight: '400', letterSpacing: -.1 },
-  title: { color: colors.text, fontFamily: fonts.heading, fontSize: 34, fontWeight: '700', letterSpacing: -.55, lineHeight: 42 },
+  title: { color: colors.text, fontFamily: fonts.heading, fontSize: 39, fontWeight: '700', letterSpacing: 0, lineHeight: 47 },
   titleAccent: { marginTop: -8 },
   card: { backgroundColor: colors.surface, borderRadius: radius.card, padding: 20, borderWidth: 1, borderColor: colors.border, shadowColor: colors.ink, shadowOpacity: .035, shadowRadius: 14, shadowOffset: { width: 0, height: 5 }, elevation: 1 },
   section: { gap: 14, marginTop: 32 }, sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', paddingHorizontal: 1 },
-  sectionTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 21, fontWeight: '700', letterSpacing: -.1 }, action: { color: colors.blue, fontSize: 13, fontWeight: '600' },
+  sectionTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 23, fontWeight: '700', letterSpacing: 0 }, action: { color: colors.blue, fontSize: 13, fontWeight: '600' },
   primary: { minHeight: 54, borderRadius: radius.pill, overflow: 'hidden', backgroundColor: colors.blue, shadowColor: colors.blue, shadowOpacity: .16, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, elevation: 2 }, primaryFill: { minHeight: 54, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 9 }, primaryPressed: { opacity: .88, transform: [{ scale: .99 }] },
   primaryText: { color: '#FFFFFF', fontSize: 15, fontWeight: '600', letterSpacing: -.15 }, avatar: { height: 36, width: 36, borderRadius: 18, backgroundColor: colors.purpleSoft, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.surface }, avatarText: { color: colors.purple, fontWeight: '700' },
   chip: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignSelf: 'flex-start', borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 7 }, warmChip: { backgroundColor: colors.purpleSoft, borderColor: colors.purpleSoft }, chipText: { color: colors.blue, fontSize: 12, fontWeight: '500' },
