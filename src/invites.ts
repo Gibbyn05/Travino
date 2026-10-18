@@ -22,7 +22,7 @@ export function readInvite(raw?: string | string[]) {
   if (!value) return null;
   try {
     const data = JSON.parse(value.includes('%') ? decodeURIComponent(value) : value) as Partial<InviteTrip & { version: number }>;
-    if (data.version !== 1 || !data.title || !data.city || !data.country || !data.startDate || !data.endDate) return null;
+    if (data.version !== 1 || !data.title || !data.city || !data.country || typeof data.startDate !== 'string' || typeof data.endDate !== 'string') return null;
     return { title: data.title, city: data.city, country: data.country, startDate: data.startDate, endDate: data.endDate, members: Array.isArray(data.members) ? data.members.filter(Boolean) : [], coverImage: data.coverImage, wishes: Array.isArray(data.wishes) ? data.wishes : [] } as InviteTrip;
   } catch { return null; }
 }

@@ -1,12 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { AutocompleteField, DateField, Field } from '@/src/forms';
+import { Field } from '@/src/forms';
 import { CapybaraMoment, PrimaryButton } from '@/src/ui';
 import { colors, fonts } from '@/src/theme';
 import { useTravel } from '@/src/store';
-import { destinationSuggestions } from '@/src/suggestions';
 
 const slides = [
   { eyebrow: 'A shared trip, in one calm place', before: 'Plan the ', accent: 'good bits', after: '.', copy: 'Dates, plans and a packing list that stay close from the first idea to the front door.' },
@@ -18,18 +17,19 @@ export default function Onboarding() {
   const params = useLocalSearchParams<{ preview?: string | string[] }>();
   const preview = params.preview === '1' || params.preview === 'true';
   const [step, setStep] = useState(0);
-  const [name, setName] = useState(''); const [title, setTitle] = useState(''); const [city, setCity] = useState(''); const [country, setCountry] = useState(''); const [startDate, setStart] = useState(''); const [endDate, setEnd] = useState(''); const [companions, setCompanions] = useState('');
-  const { createTrip, saveProfile, markOnboarded, onboarded, ready } = useTravel();
+  const [name, setName] = useState('');
+  const { saveProfile, markOnboarded, onboarded, ready } = useTravel();
   const slide = slides[step];
+  const starting = useRef(false);
 
-  useEffect(() => { if (!preview && ready && onboarded) router.replace('/'); }, [preview, ready, onboarded]);
+  useEffect(() => { if (!preview && ready && onboarded && !starting.current) router.replace('/'); }, [preview, ready, onboarded]);
   const closePreview = () => { if (router.canGoBack()) router.back(); else router.replace('/'); };
   const skip = () => { if (preview) closePreview(); else { markOnboarded(); router.replace('/'); } };
   const finish = () => {
     if (preview) { closePreview(); return; }
-    saveProfile(name.trim());
-    if (title.trim() && city.trim() && startDate.trim() && endDate.trim()) createTrip({ title: title.trim(), city: city.trim(), country: country.trim() || 'Unknown', startDate: startDate.trim(), endDate: endDate.trim(), members: companions.split(',').map((item) => item.trim()).filter(Boolean) });
-    markOnboarded(); router.replace('/');
+    starting.current = true;
+    if (name.trim()) saveProfile(name.trim());
+    markOnboarded(); router.replace('/new-trip' as never);
   };
 
   return <KeyboardAvoidingView style={s.keyboard} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
@@ -43,16 +43,7 @@ export default function Onboarding() {
         <Text style={s.copy}>{slide.copy}</Text>
         {step === 0 ? <TicketPreview/> : step === 1 ? <PackingPreview/> : <MemoryPreview/>}
       </View>
-      {step === 2 && <View style={s.form}>
-        <Text style={s.formTitle}>Make it yours</Text><Text style={s.formCopy}>Start with a trip now, or add one later.</Text>
-        <Field value={name} onChangeText={setName} placeholder="Your name" />
-        <Field value={title} onChangeText={setTitle} placeholder="Trip name" />
-        <AutocompleteField value={city} onChangeText={setCity} placeholder="City or destination" suggestions={destinationSuggestions} onPick={(suggestion) => setCountry(suggestion.detail ?? country)} />
-        <Field value={country} onChangeText={setCountry} placeholder="Country" />
-        <DateField value={startDate} onChangeText={(date) => { setStart(date); if (endDate && endDate <= date) setEnd(''); }} placeholder="Start date" rangeStart={startDate} rangeEnd={endDate}/>
-        <DateField value={endDate} onChangeText={setEnd} placeholder="End date" minDate={startDate} rangeStart={startDate} rangeEnd={endDate}/>
-        <Field value={companions} onChangeText={setCompanions} placeholder="Who is coming? (optional)" />
-      </View>}
+      {!preview && step === 2 && <View style={s.form}><Text style={s.formTitle}>What should we call you?</Text><Field value={name} onChangeText={setName} placeholder="Your name (optional)"/></View>}
       <View style={s.footer}>
         <View style={s.tourControls}>
           {step > 0 ? (
@@ -63,7 +54,7 @@ export default function Onboarding() {
           <View><Text style={s.stepLabel}>Step {step + 1} of {slides.length}</Text><View style={s.dots}>{slides.map((_, index) => <View key={index} style={[s.dot, index === step && s.active]} />)}</View></View>
           <View style={s.backPlaceholder}/>
         </View>
-        <PrimaryButton title={step === 2 ? (preview ? 'Back to profile' : 'Continue') : 'Next'} icon={step === 2 ? (preview ? 'arrow-back' : 'checkmark') : 'arrow-forward'} onPress={step === 2 ? finish : () => setStep((current) => Math.min(slides.length - 1, current + 1))} />
+        <PrimaryButton title={step === 2 ? (preview ? 'Back to profile' : 'Plan my first trip') : 'Next'} icon={step === 2 ? (preview ? 'arrow-back' : 'checkmark') : 'arrow-forward'} onPress={step === 2 ? finish : () => setStep((current) => Math.min(slides.length - 1, current + 1))} />
         {step === 2 && <Text style={s.note}>{preview ? 'This preview leaves your profile and trips unchanged.' : 'You can create more trips or invite someone later.'}</Text>}
       </View>
     </ScrollView>

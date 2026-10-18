@@ -1,21 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { AccentText, EmptyMoment, PrimaryButton } from '@/src/ui';
+import { AccentText, PrimaryButton } from '@/src/ui';
 import { colors, fonts } from '@/src/theme';
 import { Trip, useTravel } from '@/src/store';
-import { formatTripDates, parseTravelDate, tripLength } from '@/src/dates';
-import { tripColors, tripIcons, tripPresentation } from '@/src/trip-presentation';
-import { TripPlannerSheet } from '@/src/trip-planner-sheet';
-
-type Inspiration = { title: string; city: string; country: string };
-const inspirations: Inspiration[] = [
-  { title: 'Exploring the Amalfi Coast', city: 'Amalfi', country: 'Italy' },
-  { title: 'A long weekend in Lisbon', city: 'Lisbon', country: 'Portugal' },
-  { title: 'Slow days in Kyoto', city: 'Kyoto', country: 'Japan' },
-  { title: 'Island time in Mallorca', city: 'Mallorca', country: 'Spain' },
-];
+import { formatTripDates, parseTravelDate } from '@/src/dates';
+import { tripPresentation } from '@/src/trip-presentation';
+import { planningTrip } from '@/src/trip-planning';
 
 function tripCountdown(trip: Pick<Trip, 'startDate' | 'endDate'>) {
   const start = parseTravelDate(trip.startDate);
@@ -53,41 +44,28 @@ function Ticket({ trip, onOpen }: { trip: Trip; onOpen: () => void }) {
   </Pressable>;
 }
 
-function TripPreview({ title, city, country, icon, color }: { title: string; city: string; country: string; icon: string; color: string }) {
-  return <View style={[s.preview, { backgroundColor: `${color}16`, borderColor: `${color}38` }]}>
-    <View style={[s.previewIcon, { backgroundColor: color }]}><Ionicons name={icon as any} size={28} color="#FFFFFF"/></View>
-    <View style={{ flex: 1 }}><Text style={s.previewEyebrow}>YOUR TRIP</Text><Text style={s.previewTitle} numberOfLines={1}>{title || 'A trip worth remembering'}</Text><Text style={s.previewDestination} numberOfLines={1}>{[city, country].filter(Boolean).join(', ') || 'Choose a destination'}</Text></View>
-  </View>;
-}
-
 export default function HomeScreen() {
-  const { profileName, trips, createTrip, setSelectedTripId } = useTravel();
-  const [open, setOpen] = useState(false);
-  const [title, setTitle] = useState(''); const [city, setCity] = useState(''); const [country, setCountry] = useState(''); const [start, setStart] = useState(''); const [end, setEnd] = useState('');
-  const [color, setColor] = useState<string>(tripColors[0]); const [icon, setIcon] = useState<string>(tripIcons[0]); const [inspirationIndex, setInspirationIndex] = useState(0);
-  const inspiration = inspirations[inspirationIndex]; const hasTrips = trips.length > 0;
-
-  useEffect(() => {
-    if (!open) return;
-    const timer = setInterval(() => setInspirationIndex((index) => (index + 1) % inspirations.length), 4600);
-    return () => clearInterval(timer);
-  }, [open]);
-
-  const reset = () => { setOpen(false); setTitle(''); setCity(''); setCountry(''); setStart(''); setEnd(''); setColor(tripColors[0]); setIcon(tripIcons[0]); };
-  const save = () => { if (!title.trim() || !city.trim() || !start.trim() || !end.trim()) return undefined; return createTrip({ title: title.trim(), city: city.trim(), country: country.trim() || 'Unknown', startDate: start, endDate: end, members: [], icon, color }); };
-  const useInspiration = () => { setTitle(inspiration.title); setCity(inspiration.city); setCountry(inspiration.country); };
-
+  const { profileName, trips, selectedTripId, setSelectedTripId } = useTravel();
+  const continuing = planningTrip(trips, selectedTripId);
+  const hasTrips = trips.length > 0;
+  const openNewTrip = () => router.push('/new-trip' as never);
+  const continueTrip = () => {
+    if (!continuing) return;
+    setSelectedTripId(continuing.id);
+    router.push({ pathname: '/trip', params: { tab: 'Overview' } });
+  };
   return <ScrollView style={s.page} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
     <View style={s.topRow}><Text style={s.greeting}>Hi {profileName || 'traveller'}!</Text><Pressable accessibilityRole="button" accessibilityLabel="Open profile" onPress={() => router.push('/profile')} hitSlop={8} style={({ pressed }) => [s.profileDot, pressed && s.pressed]}><Text style={s.profileInitial}>{(profileName || 'T').slice(0, 1).toUpperCase()}</Text></Pressable></View>
-    <View style={s.heroCopy}><Text style={s.heroEyebrow}>YOUR TRAVEL JOURNAL</Text><Text style={s.heading}>Plan your</Text><Text style={s.gradientHeading}><Text style={{ color: colors.blue }}>next</Text><Text style={{ color: '#8EA9F8' }}> adventure</Text></Text><Text style={s.heroDescription}>Keep the small plans, good days and favourite moments close.</Text></View>
-    {!hasTrips ? <View style={s.createCard}><View style={s.routeLine} pointerEvents="none"><View style={s.routeDot}/><View style={s.routeDash}/><Ionicons name="airplane" size={19} color="#FFFFFF"/><View style={s.routeDash}/><View style={[s.routeDot, s.routeDotEnd]}/></View><View style={s.createText}><Text style={s.microCopy}>YOUR FIRST STEP</Text><Text style={s.createTitle}>Where shall we go?</Text><Text style={s.createCopy}>Pick a destination. Keep the details that matter.</Text></View><View style={s.createButton}><PrimaryButton title="Start a new trip" icon="add" onPress={() => setOpen(true)}/></View></View> : null}
-    <View style={[s.sectionHead, hasTrips && s.sectionHeadWithTrips]}><AccentText text={hasTrips ? 'Your trips' : 'Your next adventure'} style={s.sectionTitle}/>{hasTrips ? <Pressable accessibilityRole="button" accessibilityLabel="Start a new trip" onPress={() => setOpen(true)} hitSlop={8} style={({ pressed }) => [s.newTripButton, pressed && s.pressed]}><Ionicons name="add" size={22} color="#FFFFFF"/></Pressable> : null}</View>
-    {hasTrips ? (
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.list}>{trips.map((trip) => <Ticket key={trip.id} trip={trip} onOpen={() => { setSelectedTripId(trip.id); router.push('/trip'); }}/>)}</ScrollView>
-    ) : (
-      <EmptyMoment compact title="A little room for plans" copy="Your first trip will turn into a calm place for lists, days and memories." actionTitle="Plan a trip" icon="add" onPress={() => setOpen(true)} style={s.empty}/>
-    )}
-    <TripPlannerSheet visible={open} title={title} city={city} country={country} start={start} end={end} color={color} icon={icon} colors={tripColors} icons={tripIcons} inspiration={inspiration.title} onTitleChange={setTitle} onDestinationChange={(nextCity, nextCountry) => { setCity(nextCity); setCountry(nextCountry); }} onStartChange={setStart} onEndChange={setEnd} onColorChange={setColor} onIconChange={setIcon} onInspiration={useInspiration} onCreate={save} onOpenTrip={(id) => { reset(); setSelectedTripId(id); router.push('/trip'); }} onClose={reset}/>
+    <View style={s.heroCopy}><Text style={s.heroEyebrow}>YOUR TRAVEL JOURNAL</Text><Text style={s.heading}>Plan your</Text><Text style={s.gradientHeading}><Text style={{ color: colors.blue }}>next</Text><Text style={{ color: '#8EA9F8' }}> adventure</Text></Text><Text style={s.heroDescription}>{continuing ? 'Your plans are right here. Let’s pick up where you left off.' : 'Start with a destination. We’ll guide you, one small step at a time.'}</Text></View>
+    <View style={s.createCard}>
+      <View style={s.routeLine} pointerEvents="none"><View style={s.routeDot}/><View style={s.routeDash}/><Ionicons name="airplane" size={19} color={colors.blue}/><View style={s.routeDash}/><View style={[s.routeDot, s.routeDotEnd]}/></View>
+      <View style={s.createText}><Text style={s.microCopy}>{continuing ? 'YOUR NEXT STEP' : 'YOUR FIRST STEP'}</Text><Text style={s.createTitle}>{continuing ? `Next stop: ${continuing.city}` : 'Where shall we go?'}</Text><Text style={s.createCopy}>{continuing ? (continuing.activities.length ? 'Your itinerary, ideas and travel crew are waiting.' : 'Your trip is ready. Let’s add your first idea.') : 'Pick a destination. Dates and details can come later.'}</Text></View>
+      <View style={s.createButton}><PrimaryButton title={continuing ? `Continue planning ${continuing.city}` : hasTrips ? 'Plan another trip' : 'Plan your first trip'} icon="arrow-forward" onPress={continuing ? continueTrip : openNewTrip}/></View>
+    </View>
+    {hasTrips && <>
+      <View style={s.sectionHead}><AccentText text="Your trips" style={s.sectionTitle}/><Pressable accessibilityRole="button" accessibilityLabel="Start a new trip" onPress={openNewTrip} style={s.newTripButton}><Ionicons name="add" size={22} color="#FFFFFF"/></Pressable></View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.list}>{trips.map(trip => <Ticket key={trip.id} trip={trip} onOpen={() => { setSelectedTripId(trip.id); router.push({ pathname: '/trip', params: { tab: 'Overview' } }); }}/>)}</ScrollView>
+    </>}
   </ScrollView>;
 }
 

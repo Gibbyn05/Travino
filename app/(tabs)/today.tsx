@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { TripDatesSheet } from '@/src/trip-dates-sheet';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -50,7 +52,8 @@ export default function CountdownScreen() {
   };
 
   if (!ready) return <View style={s.loading}><CapybaraMoment size={66}/><Text style={s.loadingCopy}>Finding the next little adventure …</Text></View>;
-  if (!nextTrip) return <Empty activeTrip={activeTrip} openTrip={openTrip}/>;
+  const undatedTrip = trips.find(trip => !parseDate(trip.startDate));
+  if (!nextTrip) return <Empty activeTrip={activeTrip} undatedTrip={undatedTrip} openTrip={openTrip}/>;
 
   const days = dayCountTo(parseDate(nextTrip.startDate)!);
   const completedPacking = nextTrip.packing.filter((item) => item.done).length;
@@ -89,10 +92,17 @@ export default function CountdownScreen() {
   </ScrollView>;
 }
 
-function Empty({ activeTrip, openTrip }: { activeTrip?: Trip; openTrip: (trip: Trip) => void }) {
+function Empty({ activeTrip, undatedTrip, openTrip }: { activeTrip?: Trip; undatedTrip?: Trip; openTrip: (trip: Trip) => void }) {
+  const [datesOpen, setDatesOpen] = useState(false);
   return <ScrollView style={s.page} contentContainerStyle={s.emptyContent}>
     <PageTitle eyebrow="A LITTLE SOMETHING TO LOOK FORWARD TO" accent="starts here">Your next trip</PageTitle>
-    <EmptyMoment style={s.emptyCard} title={activeTrip ? 'You’re away right now' : 'Somewhere lovely is waiting.'} copy={activeTrip ? `Enjoy every moment in ${activeTrip.city}. Add the next trip when you feel like looking ahead.` : 'Your next adventure will have its own little place here.'} actionTitle={activeTrip ? `Open ${activeTrip.title}` : 'Plan a trip'} icon={activeTrip ? 'arrow-forward' : 'add'} onPress={() => activeTrip ? openTrip(activeTrip) : router.push('/' as never)}/>
+    <EmptyMoment style={s.emptyCard}
+      title={activeTrip ? 'You’re away right now' : undatedTrip ? `${undatedTrip.city} is waiting for you` : 'Somewhere lovely is waiting.'}
+      copy={activeTrip ? `Enjoy every moment in ${activeTrip.city}. Add the next trip when you feel like looking ahead.` : undatedTrip ? 'Add travel dates whenever you’re ready, and we’ll count down together.' : 'Your next adventure will have its own little place here.'}
+      actionTitle={activeTrip ? `Open ${activeTrip.title}` : undatedTrip ? 'Add travel dates' : 'Plan a trip'}
+      icon={activeTrip ? 'arrow-forward' : undatedTrip ? 'calendar-outline' : 'add'}
+      onPress={() => activeTrip ? openTrip(activeTrip) : undatedTrip ? setDatesOpen(true) : router.push('/new-trip' as never)}/>
+    {datesOpen && undatedTrip && <TripDatesSheet key={undatedTrip.id} trip={undatedTrip} onClose={() => setDatesOpen(false)}/>}
   </ScrollView>;
 }
 

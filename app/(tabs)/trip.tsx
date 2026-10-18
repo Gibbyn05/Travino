@@ -1,11 +1,13 @@
 // @ts-nocheck
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useState } from 'react';
-import { router, useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { router, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { ActivityIndicator, Alert, Image, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { AutocompleteField, DateField, Field, Sheet } from '@/src/forms';
 import { Avatar, Card, CapybaraMoment, DestinationCover, EmptyMoment, PageTitle, PrimaryButton, Section } from '@/src/ui';
 import { colors, fonts } from '@/src/theme';
+import { TripDatesSheet } from '@/src/trip-dates-sheet';
+import { TripDetailsSheet } from '@/src/trip-details-sheet';
 import { useTravel, WishReaction } from '@/src/store';
 import { fetchWeather, Weather } from '@/src/weather';
 import { activitySuggestionsForDestination, packingCategorySuggestions, packingSuggestions, suggestedPackingCategory, wishSuggestions } from '@/src/suggestions';
@@ -18,10 +20,19 @@ const tabs = ['Overview', 'Plan', 'Activities', 'Packing', 'Wishlist', 'Memories
 export default function TripScreen() {
   const router = useRouter();
   const { selectedTrip } = useTravel();
-  const { tab: requestedTab } = useLocalSearchParams<{ tab?: string }>();
+  const { tab: requestedTab, welcome } = useLocalSearchParams<{ tab?: string; welcome?: string }>();
   const [tab, setTab] = useState('Overview');
   const [addFriendOpen, setAddFriendOpen] = useState(false);
-  useEffect(() => { if (requestedTab && tabs.includes(requestedTab)) setTab(requestedTab); }, [requestedTab]);
+  const [datesOpen, setDatesOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [startActivity, setStartActivity] = useState(false);
+  const scroll = useRef<ScrollView>(null);
+  const selectedId = selectedTrip?.id;
+  useFocusEffect(useCallback(() => {
+    setTab(requestedTab && tabs.includes(requestedTab) ? requestedTab : 'Overview');
+    setStartActivity(false); setDatesOpen(false); setDetailsOpen(false);
+    scroll.current?.scrollTo({ y: 0, animated: false });
+  }, [selectedId, requestedTab]));
   if (!selectedTrip) return <Empty/>;
   const invite = () => {
     const base = process.env.EXPO_PUBLIC_APP_URL || 'https://travino-git-main-gibbyn05s-projects.vercel.app';
@@ -29,8 +40,8 @@ export default function TripScreen() {
     return Share.share({ message: `Join ${selectedTrip.title} in Travino:\n${link}` });
   };
   const isOverview = tab === 'Overview';
-  return <ScrollView style={s.page} contentContainerStyle={s.content}>
-    {isOverview ? <><PageTitle eyebrow={`${selectedTrip.city}, ${selectedTrip.country}`}>{selectedTrip.title}</PageTitle><TripHero/></>
+  return <ScrollView ref={scroll} style={s.page} contentContainerStyle={s.content}>
+    {isOverview ? <PageTitle eyebrow={`${selectedTrip.city}, ${selectedTrip.country}`}>{selectedTrip.title}</PageTitle>
       : <Pressable accessibilityRole="button" accessibilityLabel="Open trip overview" onPress={() => setTab('Overview')} style={({ pressed }) => [s.compactTripHeader, pressed && s.pressed]}>
         <DestinationCover country={selectedTrip.country} uri={selectedTrip.coverImage} style={s.compactTripImage} imageStyle={s.compactTripImage}/>
         <View style={s.compactTripContent}>
@@ -41,8 +52,17 @@ export default function TripScreen() {
         </View>
         <View style={s.compactTripAction}><Ionicons name="grid-outline" size={17} color={colors.blue}/></View>
       </Pressable>}
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[s.tabs, !isOverview && s.compactTabs]}>{tabs.map((item) => <Pressable key={item} onPress={() => setTab(item)} style={[s.tab, tab === item && s.activeTab]}><Text style={[s.tabText, tab === item && s.activeText]}>{item}</Text></Pressable>)}</ScrollView>
-    {tab === 'Overview' && <Overview onOpenPlan={() => setTab('Plan')} onInvite={invite} onOpenAddFriend={() => setAddFriendOpen(true)}/>}{tab === 'Plan' && <Plan/>}{tab === 'Activities' && <ThingsToDo onOpen={(activity) => router.push({ pathname: '/activity-browser', params: { activity, city: selectedTrip.city, country: selectedTrip.country } })} />}{tab === 'Packing' && <Packing/>}{tab === 'Wishlist' && <Wishes/>}{tab === 'Memories' && <Memories/>}
+    {isOverview && selectedTrip.activities.length === 0 && <Card style={s.guidanceCard}>
+      <View style={s.guidanceIcon}><Ionicons name={welcome === selectedTrip.id ? 'checkmark' : 'sparkles-outline'} size={25} color={colors.blue}/></View>
+      <Text accessibilityRole="header" style={s.guidanceTitle}>{welcome === selectedTrip.id ? 'Your trip is ready!' : 'Make it your kind of trip'}</Text>
+      <Text style={s.guidanceCopy}>Start with one thing you’d love to do in {selectedTrip.city}. You can choose a date later.</Text>
+      <PrimaryButton title="Add your first activity" icon="add" onPress={() => { setStartActivity(true); setTab('Plan'); }}/>
+    </Card>}
+    {isOverview && <TripHero/>}
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[s.tabs, !isOverview && s.compactTabs]}>{tabs.map((item) => <Pressable key={item} accessibilityRole="tab" accessibilityState={{ selected: tab === item }} onPress={() => setTab(item)} style={[s.tab, tab === item && s.activeTab]}><Text style={[s.tabText, tab === item && s.activeText]}>{item}</Text></Pressable>)}</ScrollView>
+    {tab === 'Overview' && <Overview onOpenPlan={() => { setStartActivity(false); setTab('Plan'); }} onEditDates={() => setDatesOpen(true)} onEditDetails={() => setDetailsOpen(true)} onInvite={invite} onOpenAddFriend={() => setAddFriendOpen(true)}/>}{tab === 'Plan' && <Plan key={selectedTrip.id} initiallyOpen={startActivity} onOpened={() => setStartActivity(false)}/>}{tab === 'Activities' && <ThingsToDo onOpen={(activity) => router.push({ pathname: '/activity-browser', params: { activity, city: selectedTrip.city, country: selectedTrip.country } })} />}{tab === 'Packing' && <Packing/>}{tab === 'Wishlist' && <Wishes/>}{tab === 'Memories' && <Memories/>}
+    {detailsOpen && <TripDetailsSheet key={selectedTrip.id} trip={selectedTrip} onClose={() => setDetailsOpen(false)}/>}
+    {datesOpen && <TripDatesSheet key={selectedTrip.id} trip={selectedTrip} onClose={() => setDatesOpen(false)}/>}
     <AddTripFriendSheet visible={addFriendOpen} onClose={() => setAddFriendOpen(false)} tripId={selectedTrip.id} tripTitle={selectedTrip.title} existingNames={selectedTrip.members}/>
   </ScrollView>;
 }
@@ -94,7 +114,7 @@ function AddTripFriendSheet({ visible, onClose, tripId, tripTitle, existingNames
     </Pressable>) : <Text style={s.copy}>No new friends to add yet. Connect first from Profile → Friends.</Text>}
   </Sheet>;
 }
-function Empty() { const router = useRouter(); return <View style={s.empty}><EmptyMoment title="Your next trip starts here" copy="Pick a place and Travino will keep the plans, lists and memories close." actionTitle="Plan a trip" icon="add" onPress={() => router.replace('/')}/></View>; }
+function Empty() { const router = useRouter(); return <View style={s.empty}><EmptyMoment title="Your next trip starts here" copy="Pick a place and Travino will keep the plans, lists and memories close." actionTitle="Plan a trip" icon="add" onPress={() => router.push('/new-trip' as never)}/></View>; }
 function useWeather(city: string, country: string) { const [weather, setWeather] = useState<Weather | null>(null); const [error, setError] = useState(false); const [loading, setLoading] = useState(true); useEffect(() => { const controller = new AbortController(); setLoading(true); setError(false); fetchWeather(city, country, controller.signal).then((value) => { setWeather(value); setLoading(false); }).catch((reason) => { if (reason.name !== 'AbortError') { setError(true); setLoading(false); } }); return () => controller.abort(); }, [city, country]); return { weather, error, loading }; }
 function useCurrencyRate(currency?: string) { const [rate, setRate] = useState<number | null>(null); useEffect(() => { if (!currency || currency === 'NOK') { setRate(currency === 'NOK' ? 1 : null); return; } let active = true; fetch('https://open.er-api.com/v6/latest/NOK').then((response) => response.ok ? response.json() : null).then((payload) => { const value = Number(payload?.rates?.[currency]); if (active) setRate(Number.isFinite(value) ? value : null); }).catch(() => { if (active) setRate(null); }); return () => { active = false; }; }, [currency]); return rate; }
 function readableCountdown(value: string) { const parts = value.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/); const start = parts ? new Date(Number(parts[3]), Number(parts[2]) - 1, Number(parts[1])) : new Date(value); if (Number.isNaN(start.getTime())) return null; const today = new Date(); today.setHours(0, 0, 0, 0); start.setHours(0, 0, 0, 0); const days = Math.round((start.getTime() - today.getTime()) / 86400000); return days < 0 ? 'Trip completed' : days === 0 ? 'Leaving today' : `${days} ${days === 1 ? 'day' : 'days'} to go`; }
@@ -123,7 +143,7 @@ function activityStatus(activity: { date: string; startTime: string; endTime?: s
   return { start, happeningNow: start.getTime() <= now.getTime() };
 }
 
-function Overview({ onOpenPlan, onInvite, onOpenAddFriend }: { onOpenPlan: () => void; onInvite: () => void; onOpenAddFriend: () => void }) {
+function Overview({ onOpenPlan, onEditDates, onEditDetails, onInvite, onOpenAddFriend }: { onOpenPlan: () => void; onEditDates: () => void; onEditDetails: () => void; onInvite: () => void; onOpenAddFriend: () => void }) {
   const { selectedTrip, updateTrip } = useTravel();
   const [remindersEnabled, setRemindersEnabled] = useState(Boolean(selectedTrip?.reminderNotificationIds?.length));
   if (!selectedTrip) return null;
@@ -136,6 +156,7 @@ function Overview({ onOpenPlan, onInvite, onOpenAddFriend }: { onOpenPlan: () =>
   const next = nextEntry?.activity;
   const happeningNow = nextEntry?.status?.happeningNow;
   const hasActivities = selectedTrip.activities.length > 0;
+  const hasUnscheduled = selectedTrip.activities.some(activity => !activityMoment(activity.date, activity.startTime));
   const remainingPacking = selectedTrip.packing.filter((item) => !item.done).length;
   const gentleReminders = remindersForTrip(selectedTrip).slice(0, 2);
   const enableReminders = async () => {
@@ -154,6 +175,7 @@ function Overview({ onOpenPlan, onInvite, onOpenAddFriend }: { onOpenPlan: () =>
   };
   return <>
     <WeatherCard city={selectedTrip.city} {...weatherState}/>
+    <Card style={{ marginTop: 16 }}><Text style={s.copy}>{formatTripDates(selectedTrip.startDate, selectedTrip.endDate)}</Text><Pressable accessibilityRole="button" onPress={onEditDates} style={s.editDates}><Ionicons name="calendar-outline" size={17} color={colors.blue}/><Text style={s.editDatesText}>{selectedTrip.startDate ? 'Change dates' : 'Add travel dates'}</Text><Ionicons name="arrow-forward" size={17} color={colors.blue}/></Pressable><Pressable accessibilityRole="button" onPress={onEditDetails} style={s.editDates}><Ionicons name="create-outline" size={17} color={colors.blue}/><Text style={s.editDatesText}>Edit trip name & style</Text></Pressable></Card>
     <TravelInfo country={selectedTrip.country} destinationTimeZone={weatherState.weather?.timezone}/>
     <View style={s.inviteBlock}><PrimaryButton title={isGroupTrip(selectedTrip.members) ? 'Invite travellers' : 'Invite someone'} icon="person-add-outline" onPress={onInvite}/>{!isGroupTrip(selectedTrip.members) ? <Pressable accessibilityRole="button" onPress={onOpenAddFriend} style={s.addFriendLink}><Ionicons name="people-outline" size={18} color={colors.blue}/><Text style={s.addFriendText}>Bring a friend along</Text><Ionicons name="chevron-forward" size={17} color={colors.muted}/></Pressable> : null}</View>
     <Section title="Next activity">
@@ -172,7 +194,7 @@ function Overview({ onOpenPlan, onInvite, onOpenAddFriend }: { onOpenPlan: () =>
         {next.note && <Text style={s.nextActivityNote}>{next.note}</Text>}
       </Card> : <Card style={s.activityEmptyCard}>
         <CapybaraMoment size={48}/>
-        <View style={{ flex: 1 }}><Text style={s.activityEmptyTitle}>{hasActivities ? 'All caught up' : 'Your days are wide open'}</Text><Text style={s.activityEmptyCopy}>{hasActivities ? 'Everything on the plan is finished. Time to enjoy the moment.' : 'Add an activity when you’re ready to shape the trip.'}</Text></View>
+        <View style={{ flex: 1 }}><Text style={s.activityEmptyTitle}>{hasUnscheduled ? 'Your ideas are waiting' : hasActivities ? 'All caught up' : 'Your days are wide open'}</Text><Text style={s.activityEmptyCopy}>{hasUnscheduled ? 'Choose a date and time whenever you’re ready to put your ideas on the calendar.' : hasActivities ? 'Everything on the plan is finished. Time to enjoy the moment.' : 'Add an activity when you’re ready to shape the trip.'}</Text></View>
         <Pressable accessibilityRole="button" accessibilityLabel={hasActivities ? 'View trip plan' : 'Add an activity'} onPress={onOpenPlan} hitSlop={8} style={({ pressed }) => [s.activityEmptyAction, pressed && s.pressed]}><Ionicons name="arrow-forward" size={18} color={colors.blue}/></Pressable>
       </Card>}
     </Section>
@@ -200,20 +222,24 @@ function TravelInfo({ country, destinationTimeZone }: { country: string; destina
 }
 function tripState(trip: { startDate: string; endDate: string }) { const start = new Date(trip.startDate); const end = new Date(trip.endDate); const today = new Date(); today.setHours(0, 0, 0, 0); start.setHours(0, 0, 0, 0); end.setHours(0, 0, 0, 0); if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return { label: 'Upcoming', countdown: 'Dates to be confirmed' }; const days = Math.round((start.getTime() - today.getTime()) / 86400000); if (days > 0) return { label: 'Upcoming', countdown: days === 1 ? '1 day to go' : `Starts in ${days} days` }; if (end >= today) { const number = Math.max(1, Math.round((today.getTime() - start.getTime()) / 86400000) + 1); const total = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000) + 1); return { label: 'Active', countdown: `Day ${number} of ${total}` }; } return { label: 'Completed', countdown: 'A trip to remember' }; }
 function TripHero() { const { selectedTrip } = useTravel(); if (!selectedTrip) return null; const state = tripState(selectedTrip); const packed = selectedTrip.packing.filter((item) => item.done).length; const total = selectedTrip.packing.length; const progress = total ? Math.round(packed / total * 100) : 0; return <View style={s.tripHero}><View style={s.tripHeroTop}><View style={s.tripHeroIcon}><Ionicons name="airplane" size={22} color="#FFFFFF"/></View><View style={{ flex: 1 }}><Text style={s.tripHeroTitle}>{selectedTrip.title}</Text><Text style={s.tripHeroDestination}>{selectedTrip.city}, {selectedTrip.country}</Text></View><View style={[s.statusBadge, state.label === 'Active' && s.activeBadge]}><Text style={[s.statusBadgeText, state.label === 'Active' && s.activeBadgeText]}>{state.label}</Text></View></View><Text style={s.heroCountdown}>{state.countdown}</Text><Text style={s.heroDates}>{formatTripDates(selectedTrip.startDate, selectedTrip.endDate)}</Text><View style={s.packProgressHead}><Text style={s.packProgressText}>Packed</Text><Text style={s.packProgressText}>{packed} of {total} packed</Text></View><View style={s.packProgressTrack}><View style={[s.packProgressFill, { width: `${progress}%` as `${number}%` }]}/></View></View>; }
-function Plan() {
-  const { selectedTrip, addActivity, removeActivity } = useTravel();
-  const [open, setOpen] = useState(false);
+function Plan({ initiallyOpen = false, onOpened }: { initiallyOpen?: boolean; onOpened?: () => void }) {
+  const { selectedTrip, addActivity, updateActivity, removeActivity } = useTravel();
+  const [open, setOpen] = useState(initiallyOpen);
+  useEffect(() => { if (initiallyOpen) { setOpen(true); onOpened?.(); } }, [initiallyOpen]);
   const [title, setTitle] = useState('');
   const [date, setDate] = useState('');
   const [start, setStart] = useState('');
   const [end, setEnd] = useState('');
   const [location, setLocation] = useState('');
   const [note, setNote] = useState('');
+  const [editingId, setEditingId] = useState<string>();
+  const [details, setDetails] = useState(false);
+  const [error, setError] = useState('');
   if (!selectedTrip) return null;
   const ideas = activitySuggestionsForDestination(selectedTrip.city, selectedTrip.country);
   const orderedActivities = selectedTrip.activities.slice().sort((left, right) => {
-    const leftTime = activityMoment(left.date, left.startTime)?.getTime() ?? Number.MAX_SAFE_INTEGER;
-    const rightTime = activityMoment(right.date, right.startTime)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+    const leftTime = activityMoment(left.date, left.startTime || '00:00')?.getTime() ?? Number.MAX_SAFE_INTEGER;
+    const rightTime = activityMoment(right.date, right.startTime || '00:00')?.getTime() ?? Number.MAX_SAFE_INTEGER;
     return leftTime - rightTime || left.title.localeCompare(right.title);
   });
   const dayGroups = orderedActivities.reduce<{ key: string; heading: string; date: string; items: typeof orderedActivities }[]>((groups, activity) => {
@@ -229,8 +255,8 @@ function Plan() {
       const isTomorrow = parsed?.getTime() === tomorrow.getTime();
       group = {
         key,
-        heading: !parsed ? 'DATE NEEDED' : isToday ? 'TODAY' : isTomorrow ? 'TOMORROW' : new Intl.DateTimeFormat('en', { weekday: 'long' }).format(parsed).toUpperCase(),
-        date: parsed ? new Intl.DateTimeFormat('en', { month: 'long', day: 'numeric', year: 'numeric' }).format(parsed) : 'Choose a date to place these in the plan',
+        heading: !parsed ? 'IDEAS FOR YOUR TRIP' : isToday ? 'TODAY' : isTomorrow ? 'TOMORROW' : new Intl.DateTimeFormat('en', { weekday: 'long' }).format(parsed).toUpperCase(),
+        date: parsed ? new Intl.DateTimeFormat('en', { month: 'long', day: 'numeric', year: 'numeric' }).format(parsed) : 'No rush — choose dates whenever you’re ready',
         items: [],
       };
       groups.push(group);
@@ -238,16 +264,20 @@ function Plan() {
     group.items.push(activity);
     return groups;
   }, []);
+  const clear = () => { setTitle(''); setDate(''); setStart(''); setEnd(''); setLocation(''); setNote(''); setEditingId(undefined); setDetails(false); setError(''); };
+  const edit = (item: typeof selectedTrip.activities[number]) => {
+    setEditingId(item.id); setTitle(item.title); setDate(item.date); setStart(item.startTime); setEnd(item.endTime || ''); setLocation(item.location || ''); setNote(item.note || ''); setDetails(true); setError(''); setOpen(true);
+  };
   const save = () => {
-    if (!title || !date || !start) return;
-    addActivity(selectedTrip.id, { title, date, startTime: start, endTime: end, location, note });
-    setOpen(false);
-    setTitle('');
-    setDate('');
-    setStart('');
-    setEnd('');
-    setLocation('');
-    setNote('');
+    if (!title.trim()) return;
+    if ((start && !activityMoment(date, start)) || (end && (!start || !activityMoment(date, end) || activityMoment(date, end)! < activityMoment(date, start)!))) {
+      setError('Choose a date and use times like 10:00. End time must be after start time.');
+      return;
+    }
+    const item = { title: title.trim(), date, startTime: start, endTime: end, location, note };
+    if (editingId) updateActivity(selectedTrip.id, editingId, item);
+    else addActivity(selectedTrip.id, item);
+    setOpen(false); clear();
   };
   return <Section title="Plan">
     {dayGroups.length ? <View style={s.planTimeline}>{dayGroups.map((group) => <View key={group.key} style={s.planDay}>
@@ -256,25 +286,35 @@ function Plan() {
         <View style={{ flex: 1 }}><Text style={s.planDayHeading}>{group.heading}</Text><Text style={s.planDayDate}>{group.date}</Text></View>
         <View style={s.planDayCount}><Text style={s.planDayCountText}>{group.items.length}</Text></View>
       </View>
-      <View style={s.planDayActivities}>{group.items.map((item, index) => <Card key={item.id} enterDelay={index * 35} style={s.planActivityCard}>
+      <View style={s.planDayActivities}>{group.items.map((item) => <Card key={item.id} style={s.planActivityCard}>
         <View style={s.planTimeBlock}><Text style={s.planStartTime}>{item.startTime || '—'}</Text>{item.endTime && <Text style={s.planEndTime}>{item.endTime}</Text>}</View>
-        <View style={s.planActivityContent}>
+        <Pressable accessibilityRole="button" accessibilityLabel={`Edit ${item.title}`} onPress={() => edit(item)} style={s.planActivityContent}>
           <Text style={s.itemTitle}>{item.title}</Text>
           {item.location && <View style={s.planMetaRow}><Ionicons name="location-outline" size={14} color={colors.muted}/><Text style={s.planMetaText}>{item.location}</Text></View>}
           {item.note && <Text style={s.planNote} numberOfLines={2}>{item.note}</Text>}
-        </View>
+          <Text style={s.editDatesText}>{!item.date ? 'Add date & details' : 'Edit details'}</Text>
+        </Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${item.title}`} hitSlop={10} onPress={() => removeActivity(selectedTrip.id, item.id)} style={({ pressed }) => [s.planRemove, pressed && s.pressed]}><Ionicons name="trash-outline" size={17} color={colors.muted}/></Pressable>
       </Card>)}</View>
-    </View>)}</View> : <EmptyMoment compact title="A blank page for your trip" copy="Add the first activity when you know what feels right." actionTitle="Add first activity" icon="add" onPress={() => setOpen(true)} style={s.planEmptyCard}/>}<View />
-    {dayGroups.length ? <View style={s.planAddButton}><PrimaryButton title="Add another activity" onPress={() => setOpen(true)}/></View> : null}
-    <Sheet visible={open} title="New activity" onClose={() => setOpen(false)}>
+    </View>)}</View> : <Card style={s.planEmptyCard}>
+      <View style={s.planEmptyIcon}><Ionicons name="calendar-clear-outline" size={25} color={colors.blue}/></View>
+      <Text style={s.planEmptyTitle}>A blank page for your trip</Text>
+      <Text style={s.planEmptyCopy}>Add the first activity and your days will arrange themselves here.</Text>
+    </Card>}
+    <View style={s.planAddButton}><PrimaryButton title={dayGroups.length ? 'Add another activity' : 'Add first activity'} onPress={() => { clear(); setOpen(true); }}/></View>
+    <Sheet visible={open} title={editingId ? 'Edit activity' : selectedTrip.activities.length ? 'New activity' : 'Your first idea'} onClose={() => { setOpen(false); clear(); }}>
       <AutocompleteField value={title} onChangeText={setTitle} placeholder="Activity" suggestions={ideas} showSuggestionsOnFocus/>
-      <DateField value={date} onChangeText={setDate} placeholder="Date"/>
-      <Field value={start} onChangeText={setStart} placeholder="Start time"/>
-      <Field value={end} onChangeText={setEnd} placeholder="End time (optional)"/>
-      <Field value={location} onChangeText={setLocation} placeholder="Location (optional)"/>
-      <Field value={note} onChangeText={setNote} placeholder="Note (optional)" multiline/>
-      <PrimaryButton title="Save activity" icon="checkmark" onPress={save} disabled={!title.trim() || !date || !start.trim()}/>
+      <Text style={s.copy}>One thing you’d love to do is enough to get started.</Text>
+      <Pressable accessibilityRole="button" accessibilityState={{ expanded: details }} onPress={() => setDetails(!details)} style={s.editDates}><Ionicons name={details ? 'chevron-up' : 'add'} color={colors.blue} size={18}/><Text style={s.editDatesText}>{details ? 'Hide optional details' : 'Add date, time or details'}</Text></Pressable>
+      {details && <>
+        <DateField value={date} onChangeText={setDate} placeholder="Date (optional)"/>
+        <Field value={start} onChangeText={setStart} placeholder="Start time (optional)"/>
+        <Field value={end} onChangeText={setEnd} placeholder="End time (optional)"/>
+        <Field value={location} onChangeText={setLocation} placeholder="Location (optional)"/>
+        <Field value={note} onChangeText={setNote} placeholder="Note (optional)" multiline/>
+      </>}
+      {error ? <Text accessibilityRole="alert" style={{ color: '#B42318', marginVertical: 12 }}>{error}</Text> : null}
+      <PrimaryButton title="Save activity" icon="checkmark" disabled={!title.trim()} onPress={save}/>
     </Sheet>
   </Section>;
 }
@@ -490,7 +530,14 @@ function Wishes() {
   </Section>;
 }
 function Memories() { const { selectedTrip, addPhoto } = useTravel(); if (!selectedTrip) return null; return <Section title="Memories"><View style={s.gallery}>{selectedTrip.memories.map((item) => <View key={item.id} style={s.memory}><Image source={{ uri: item.image }} style={s.image}/><Text style={s.copy}>{formatJournalDate(item.date)}</Text></View>)}</View>{!selectedTrip.memories.length ? <EmptyMoment compact title="Save the good bits" copy="Choose a photo when there is a moment worth keeping." actionTitle="Choose first photo" icon="image-outline" onPress={() => addPhoto(selectedTrip.id)}/> : <PrimaryButton title="Choose another photo" icon="image-outline" onPress={() => addPhoto(selectedTrip.id)}/>}</Section>; }
-const s = StyleSheet.create({ page: { flex: 1, backgroundColor: colors.background }, content: { padding: 24, paddingTop: 72, paddingBottom: 42 }, hero: { height: 224, borderRadius: 32, overflow: 'hidden', backgroundColor: colors.mist, shadowColor: colors.navy, shadowOpacity: .12, shadowRadius: 22, shadowOffset: { width: 0, height: 10 }, elevation: 4 }, heroImage: { borderRadius: 32 }, heroShade: { flex: 1, justifyContent: 'flex-end', padding: 22, backgroundColor: 'rgba(38,49,84,.27)' }, date: { color: colors.sun, fontWeight: '900', fontSize: 14, letterSpacing: .2 }, heroCopy: { color: '#FFFFFF', fontSize: 14, lineHeight: 21, marginTop: 6, fontWeight: '700' }, copy: { color: colors.muted, fontSize: 14, lineHeight: 21, marginTop: 5 }, tabs: { gap: 8, paddingVertical: 24 }, tab: { paddingHorizontal: 17, paddingVertical: 11, borderRadius: 18, backgroundColor: '#F7F8FC' }, activeTab: { backgroundColor: colors.mist }, tabText: { color: colors.muted, fontWeight: '800', fontSize: 13 }, activeText: { color: colors.teal }, stack: { gap: 14, marginBottom: 16 }, row: { flexDirection: 'row', alignItems: 'center', gap: 13 }, itemTitle: { color: colors.navy, fontSize: 17, fontWeight: '900', letterSpacing: -.35 }, packGroup: { gap: 8, marginBottom: 9 }, packGroupTitle: { color: colors.coral, fontSize: 11, fontWeight: '900', letterSpacing: 1, textTransform: 'uppercase', paddingHorizontal: 4, marginTop: 5 }, pack: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 21, backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, padding: 16, shadowColor: colors.navy, shadowOpacity: .035, shadowRadius: 10, shadowOffset: { width: 0, height: 5 } }, done: { textDecorationLine: 'line-through', opacity: .5 }, gallery: { flexDirection: 'row', flexWrap: 'wrap', gap: 13, marginBottom: 16 }, memory: { width: '47%' }, image: { height: 146, borderRadius: 21, backgroundColor: colors.mist }, empty: { flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center', gap: 13, padding: 28 }, emptyText: { color: colors.navy, fontWeight: '800', fontSize: 16 }, weather: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: colors.sand, borderColor: 'transparent', marginTop: 2, paddingVertical: 21 }, weatherTitle: { color: colors.navy, fontSize: 17, fontWeight: '900' }, temperature: { alignItems: 'flex-end' }, temperatureValue: { color: colors.navy, fontSize: 34, fontWeight: '900', letterSpacing: -1.4 }, weatherRange: { color: colors.muted, fontSize: 11, fontWeight: '800' }, tripFacts: { gap: 14, paddingVertical: 21 }, factLabel: { color: colors.muted, fontSize: 12, fontWeight: '800' }, factText: { color: colors.navy, fontSize: 16, fontWeight: '900', marginTop: 4 }, factDivider: { height: 1, backgroundColor: colors.border }, countdown: { alignSelf: 'flex-start', backgroundColor: colors.lime, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 9 }, countdownText: { color: colors.ink, fontSize: 13, fontWeight: '900' }, note: { color: colors.navy, fontSize: 13, lineHeight: 20, marginTop: 12 }, summaryRow: { flexDirection: 'row', gap: 13 }, summaryCard: { flex: 1, gap: 4, padding: 17 }, summaryNumber: { color: colors.navy, fontSize: 28, fontWeight: '900', marginTop: 5 }, members: { flexDirection: 'row', flexWrap: 'wrap', gap: 17, paddingVertical: 17 }, member: { alignItems: 'center', gap: 6, minWidth: 50 }, memberName: { color: colors.navy, fontSize: 12, fontWeight: '800' } });
+const s = StyleSheet.create({
+  guidanceCard: { marginBottom: 22, backgroundColor: colors.blueSoft, borderColor: '#D7E8FF', gap: 12 },
+  guidanceIcon: { width: 48, height: 48, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' },
+  guidanceTitle: { fontFamily: fonts.heading, fontSize: 24, lineHeight: 31, color: colors.text },
+  guidanceCopy: { color: colors.muted, fontSize: 14, lineHeight: 21, marginBottom: 4 },
+  editDates: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 12, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 8 },
+  editDatesText: { color: colors.blue, fontSize: 14, fontWeight: '600' },
+  page: { flex: 1, backgroundColor: colors.background }, content: { padding: 24, paddingTop: 72, paddingBottom: 42 }, hero: { height: 224, borderRadius: 32, overflow: 'hidden', backgroundColor: colors.mist, shadowColor: colors.navy, shadowOpacity: .12, shadowRadius: 22, shadowOffset: { width: 0, height: 10 }, elevation: 4 }, heroImage: { borderRadius: 32 }, heroShade: { flex: 1, justifyContent: 'flex-end', padding: 22, backgroundColor: 'rgba(38,49,84,.27)' }, date: { color: colors.sun, fontWeight: '900', fontSize: 14, letterSpacing: .2 }, heroCopy: { color: '#FFFFFF', fontSize: 14, lineHeight: 21, marginTop: 6, fontWeight: '700' }, copy: { color: colors.muted, fontSize: 14, lineHeight: 21, marginTop: 5 }, tabs: { gap: 8, paddingVertical: 24 }, tab: { paddingHorizontal: 17, paddingVertical: 11, borderRadius: 18, backgroundColor: '#F7F8FC' }, activeTab: { backgroundColor: colors.mist }, tabText: { color: colors.muted, fontWeight: '800', fontSize: 13 }, activeText: { color: colors.teal }, stack: { gap: 14, marginBottom: 16 }, row: { flexDirection: 'row', alignItems: 'center', gap: 13 }, itemTitle: { color: colors.navy, fontSize: 17, fontWeight: '900', letterSpacing: -.35 }, packGroup: { gap: 8, marginBottom: 9 }, packGroupTitle: { color: colors.coral, fontSize: 11, fontWeight: '900', letterSpacing: 1, textTransform: 'uppercase', paddingHorizontal: 4, marginTop: 5 }, pack: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 21, backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, padding: 16, shadowColor: colors.navy, shadowOpacity: .035, shadowRadius: 10, shadowOffset: { width: 0, height: 5 } }, done: { textDecorationLine: 'line-through', opacity: .5 }, gallery: { flexDirection: 'row', flexWrap: 'wrap', gap: 13, marginBottom: 16 }, memory: { width: '47%' }, image: { height: 146, borderRadius: 21, backgroundColor: colors.mist }, empty: { flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center', gap: 13, padding: 28 }, emptyText: { color: colors.navy, fontWeight: '800', fontSize: 16 }, weather: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: colors.sand, borderColor: 'transparent', marginTop: 2, paddingVertical: 21 }, weatherTitle: { color: colors.navy, fontSize: 17, fontWeight: '900' }, temperature: { alignItems: 'flex-end' }, temperatureValue: { color: colors.navy, fontSize: 34, fontWeight: '900', letterSpacing: -1.4 }, weatherRange: { color: colors.muted, fontSize: 11, fontWeight: '800' }, tripFacts: { gap: 14, paddingVertical: 21 }, factLabel: { color: colors.muted, fontSize: 12, fontWeight: '800' }, factText: { color: colors.navy, fontSize: 16, fontWeight: '900', marginTop: 4 }, factDivider: { height: 1, backgroundColor: colors.border }, countdown: { alignSelf: 'flex-start', backgroundColor: colors.lime, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 9 }, countdownText: { color: colors.ink, fontSize: 13, fontWeight: '900' }, note: { color: colors.navy, fontSize: 13, lineHeight: 20, marginTop: 12 }, summaryRow: { flexDirection: 'row', gap: 13 }, summaryCard: { flex: 1, gap: 4, padding: 17 }, summaryNumber: { color: colors.navy, fontSize: 28, fontWeight: '900', marginTop: 5 }, members: { flexDirection: 'row', flexWrap: 'wrap', gap: 17, paddingVertical: 17 }, member: { alignItems: 'center', gap: 6, minWidth: 50 }, memberName: { color: colors.navy, fontSize: 12, fontWeight: '800' } });
 
 // The trip's sections share the same quiet white / blue / lilac language as Home.
 Object.assign(s, StyleSheet.create({
