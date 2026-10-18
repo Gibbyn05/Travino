@@ -1,4 +1,4 @@
--- Reisefølge: shared trip data. Run in Supabase SQL editor or via the Supabase CLI.
+-- Travino: shared trip data. Run in Supabase SQL editor or via the Supabase CLI.
 create extension if not exists pgcrypto;
 
 create table public.profiles (

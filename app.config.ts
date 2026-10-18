@@ -4,7 +4,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   const projectId = process.env.EXPO_PUBLIC_EAS_PROJECT_ID;
   return {
     ...config,
-    name: config.name ?? 'Reisefølge',
+    name: config.name ?? 'Travino',
     slug: config.slug ?? 'reisefolge',
     plugins: [...(config.plugins ?? []), 'expo-font'],
     extra: {

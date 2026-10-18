@@ -80,7 +80,7 @@ export default function FriendsScreen() {
       <View style={s.codeIcon}><Ionicons name="person-add-outline" size={22} color={colors.blue}/></View>
       <Text style={s.cardTitle}>Your friend code</Text>
       <Text style={s.cardCopy}>Share this code with someone you know so they can send you a request.</Text>
-      <View style={s.codeRow}><Text selectable style={s.code}>{friendCode || '••••••••••'}</Text><Pressable accessibilityRole="button" accessibilityLabel="Share friend code" onPress={() => friendCode && Share.share({ message: `Add me on Reisefølge with friend code ${friendCode}` })} style={s.shareButton}><Ionicons name="share-outline" size={20} color={colors.blue}/></Pressable></View>
+      <View style={s.codeRow}><Text selectable style={s.code}>{friendCode || '••••••••••'}</Text><Pressable accessibilityRole="button" accessibilityLabel="Share friend code" onPress={() => friendCode && Share.share({ message: `Add me on Travino with friend code ${friendCode}` })} style={s.shareButton}><Ionicons name="share-outline" size={20} color={colors.blue}/></Pressable></View>
       <PrimaryButton title="Add a friend" icon="person-add-outline" onPress={() => setOpen(true)}/>
     </Card>
 
@@ -89,7 +89,7 @@ export default function FriendsScreen() {
     {!loading && outgoing.length > 0 && <View style={s.section}><AccentText text="Sent requests" style={s.sectionTitle}/>{outgoing.map((friend) => <View key={friend.friendship_id} style={s.row}><Avatar name={friend.display_name}/><View style={{ flex: 1 }}><Text style={s.friendName}>{friend.display_name}</Text><Text style={s.friendDetail}>Waiting for a reply</Text></View><Ionicons name="time-outline" size={19} color={colors.muted}/></View>)}</View>}
     {!loading && <View style={s.section}><AccentText text="Your friends" style={s.sectionTitle}/>{accepted.length ? accepted.map((friend) => <FriendRow key={friend.friendship_id} friend={friend} onOpen={() => router.push({ pathname: '/friends/[userId]', params: { userId: friend.profile_id } } as any)} onRemove={() => removeFriend(friend)}/>) : <Card style={s.empty}><View style={s.emptyIcon}><Ionicons name="people-outline" size={24} color={colors.purple}/></View><Text style={s.emptyTitle}>Your travel circle starts here</Text><Text style={s.cardCopy}>Add a friend with their code. When both of you are connected, you can share your memory books.</Text></Card>}</View>}
     <Text style={s.privacyNote}><Ionicons name="lock-closed-outline" size={13} color={colors.muted}/> Memory books are private by default. Even public books are visible only to accepted friends.</Text>
-    <Sheet visible={open} title="Add a friend" onClose={() => setOpen(false)}><Text style={s.sheetCopy}>Enter their Reisefølge friend code. You can find it on their Friends page.</Text><Field value={inputCode} onChangeText={setInputCode} placeholder="Friend code"/><PrimaryButton title={busyId === 'add' ? 'Sending…' : 'Send request'} icon="paper-plane-outline" onPress={addFriend}/></Sheet>
+    <Sheet visible={open} title="Add a friend" onClose={() => setOpen(false)}><Text style={s.sheetCopy}>Enter their Travino friend code. You can find it on their Friends page.</Text><Field value={inputCode} onChangeText={setInputCode} placeholder="Friend code"/><PrimaryButton title={busyId === 'add' ? 'Sending…' : 'Send request'} icon="paper-plane-outline" onPress={addFriend}/></Sheet>
   </ScrollView>;
 }
 

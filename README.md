@@ -1,4 +1,4 @@
-# Reisefølge
+# Travino
 
 An iOS-first shared travel journal built with Expo, React Native, TypeScript, and Expo Router. It starts with the editable **Spain 2026** demo journey so the end-to-end flow is immediately visible.
 

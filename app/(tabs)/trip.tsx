@@ -24,7 +24,7 @@ export default function TripScreen() {
   const invite = () => {
     const base = process.env.EXPO_PUBLIC_APP_URL || 'https://travino-git-main-gibbyn05s-projects.vercel.app';
     const link = inviteUrl(selectedTrip, base);
-    return Share.share({ message: `Join ${selectedTrip.title} in Reisefølge:\n${link}` });
+    return Share.share({ message: `Join ${selectedTrip.title} in Travino:\n${link}` });
   };
   const isOverview = tab === 'Overview';
   return <ScrollView style={s.page} contentContainerStyle={s.content}>
@@ -61,7 +61,7 @@ function AddTripFriendSheet({ visible, onClose, tripId, tripTitle, existingNames
     let alive = true;
     setLoading(true);
     (async () => {
-      if (!supabase) throw new Error('Connect Reisefølge to Supabase to add friends to a trip.');
+      if (!supabase) throw new Error('Connect Travino to Supabase to add friends to a trip.');
       const user = await ensureGuestIdentity();
       if (!user) throw new Error('Sign in before adding a travel companion.');
       const { data, error } = await supabase.rpc('my_friendships');

@@ -30,7 +30,7 @@ export default function JoinTrip() {
     router.replace('/trip');
   };
   return <View style={s.page}>
-    <Text style={s.eyebrow}>Reisefølge</Text>
+    <Text style={s.eyebrow}>Travino</Text>
     <AccentText text={trip ? `Join ${trip.title}` : 'This invite is unavailable'} style={s.title}/>
     {trip && <><Text style={s.copy}>{trip.city}, {trip.country} · {trip.startDate} – {trip.endDate}</Text><Text style={s.copy}>Enter your name to join the trip.</Text><Field value={name} onChangeText={setName} placeholder="Your name"/><PrimaryButton title="Join trip" icon="person-add-outline" onPress={join}/></>}
   </View>;

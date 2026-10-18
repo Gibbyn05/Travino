@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Reisefølge",
+    "name": "Travino",
     "slug": "reisefolge",
     "scheme": "reisefolge",
     "version": "1.0.0",
@@ -10,7 +10,7 @@
       "expo-router",
       "expo-dev-client",
       "expo-notifications",
-      ["expo-image-picker", { "photosPermission": "Reisefølge bruker bilder du velger til minnene dine." }]
+      ["expo-image-picker", { "photosPermission": "Travino bruker bilder du velger til minnene dine." }]
     ],
     "ios": { "supportsTablet": true, "bundleIdentifier": "no.reisefolge.app" },
     "web": { "bundler": "metro", "output": "single" },
