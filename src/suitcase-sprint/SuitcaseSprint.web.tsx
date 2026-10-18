@@ -23,12 +23,12 @@ type Rect = { x: number; y: number; w: number; h: number };
 type Game = {
   mode: Mode | null; phase: Phase; start: number; last: number; seconds: number; penalty: number; score: number; packed: ItemId[];
   items: Record<ItemId, { state: 'loose' | 'carried' | 'packed'; x: number; y: number; homeX: number; homeY: number }>;
-  player: { x: number; y: number; vx: number; vy: number; facing: 1 | -1; onGround: boolean; carrying: ItemId[]; stumbleUntil: number; invulnerableUntil: number; walk: number; crouchUntil: number; landingUntil: number };
+  player: { x: number; y: number; vx: number; vy: number; facing: 1 | -1; onGround: boolean; carrying: ItemId[]; slowUntil: number; invulnerableUntil: number; knockbackUntil: number; knockbackDirection: 1 | -1; walk: number; crouchUntil: number; landingUntil: number };
   dog: { x: number; awake: boolean; wakeAt: number }; robot: { x: number; vx: number; turnAt: number };
   particles: Particle[]; popup: { text: string; at: number } | null; bounceUntil: number; suitcaseTaken: boolean; message: string;
 };
 
-const W = 1200; const H = 675; const FLOOR = 608; const GRAVITY = 1850; const JUMP = 760; const SPEED = 285; const PLAYER_W = 76;
+const W = 1200; const H = 675; const FLOOR = 608; const GRAVITY = 1850; const JUMP = 1340; const SPEED = 285; const AIR_SPEED = 360; const PLAYER_W = 76;
 const SUITCASE = { x: 930, y: 563, r: 96 }; const DOOR = { x: 1130, y: 486, r: 74 };
 const BEST = 'travino-suitcase-sprint-best'; const MUTED = 'travino-suitcase-sprint-muted';
 // Coordinates are measured directly from room-background.webp (1200 × 675).
@@ -55,7 +55,7 @@ function fresh(mode: Mode | null): Game {
   return {
     mode, phase: mode ? 'play' : 'start', start: 0, last: 0, seconds: 60, penalty: 0, score: 0, packed: [],
     items: Object.fromEntries(PACKING_ITEMS.map((item) => [item.id, { state: 'loose', x: item.x, y: item.y, homeX: item.x, homeY: item.y }])) as Game['items'],
-    player: { x: 78, y: FLOOR, vx: 0, vy: 0, facing: 1, onGround: true, carrying: [], stumbleUntil: 0, invulnerableUntil: 0, walk: 0, crouchUntil: 0, landingUntil: 0 },
+    player: { x: 78, y: FLOOR, vx: 0, vy: 0, facing: 1, onGround: true, carrying: [], slowUntil: 0, invulnerableUntil: 0, knockbackUntil: 0, knockbackDirection: 1, walk: 0, crouchUntil: 0, landingUntil: 0 },
     dog: { x: 350, awake: false, wakeAt: 0 }, robot: { x: 734, vx: -62, turnAt: 0 }, particles: [], popup: null, bounceUntil: 0, suitcaseTaken: false, message: '',
   };
 }
@@ -100,7 +100,7 @@ export function SuitcaseSprint({ onJoinWaitlist }: { onJoinWaitlist: () => void 
 
   const begin = useCallback((mode: Mode) => { const game = fresh(mode); gameRef.current = game; sync(game); setPhase('play'); }, [sync]);
   const end = useCallback((game: Game, won: boolean, message: string) => { if (game.phase !== 'play') return; if (won && game.mode === 'standard') game.score += Math.max(0, Math.floor(game.seconds)) * 10; game.phase = 'end'; game.message = message; if (won) { const now = performance.now(); for (let i = 0; i < 48; i += 1) game.particles.push({ x: 600, y: 140, vx: (Math.random() - .5) * 290, vy: -60 - Math.random() * 200, at: now, life: 1800, color: ['#F19A50', '#78B88D', '#6E9BD8', '#E66F78', '#F5C65F'][i % 5], confetti: true }); setBest((old) => { const next = Math.max(old, game.score); try { localStorage.setItem(BEST, String(next)); } catch {} return next; }); } tone(won ? 523 : 180, .42); sync(game); setPhase('end'); }, [sync, tone]);
-  const jump = useCallback(() => { const game = gameRef.current; const player = game.player; const now = performance.now(); if (game.phase !== 'play' || !player.onGround || player.stumbleUntil > now || player.crouchUntil > now) return; player.crouchUntil = now + 75; tone(660); vibrate(8); }, [tone, vibrate]);
+  const jump = useCallback(() => { const game = gameRef.current; const player = game.player; const now = performance.now(); if (game.phase !== 'play' || !player.onGround || player.crouchUntil > now) return; player.crouchUntil = now + 75; tone(660); vibrate(8); }, [tone, vibrate]);
   const pause = useCallback(() => { const game = gameRef.current; if (game.phase === 'play') { game.phase = 'paused'; setPhase('paused'); } else if (game.phase === 'paused') { game.phase = 'play'; game.last = performance.now(); setPhase('play'); } sync(game); }, [sync]);
   const pack = useCallback(() => { const game = gameRef.current; const now = performance.now(); if (game.phase !== 'play' || distance(game.player, SUITCASE) > SUITCASE.r) return; if (game.packed.length === PACKING_ITEMS.length) { game.suitcaseTaken = true; game.popup = { text: 'Take the suitcase to the door!', at: now }; tone(680); sync(game); return; } if (!game.player.carrying.length) return; const carried = [...game.player.carrying]; game.player.carrying = []; game.bounceUntil = now + 430; carried.forEach((id, index) => { game.items[id].state = 'packed'; game.packed.push(id); game.score += 125; for (let i = 0; i < 6; i += 1) game.particles.push({ x: SUITCASE.x - 18 + index * 22, y: SUITCASE.y - 46, vx: (Math.random() - .5) * 95, vy: -35 - Math.random() * 90, at: now, life: 620, color: '#F4A350' }); }); tone(740, .13); vibrate([8, 18, 12]); sync(game); }, [sync, tone, vibrate]);
 
@@ -126,12 +126,12 @@ export function SuitcaseSprint({ onJoinWaitlist }: { onJoinWaitlist: () => void 
     const drawDog = (game: Game, now: number) => { const dog = game.dog; sprite('dog', dog.x, FLOOR - 39 - (dog.awake ? Math.sin(now / 105) * 2 : 0), 112, 88, game.player.x < dog.x); };
     const drawRobot = (game: Game) => sprite('robot-vacuum', game.robot.x, FLOOR - 28, 68, 68);
     const drawLabels = (game: Game, now: number) => { const loose = PACKING_ITEMS.filter((item) => game.items[item.id].state === 'loose'); loose.forEach((item, index) => { const place = game.items[item.id]; const nearPlayer = distance(game.player, place) < 135; const crowded = loose.some((other, otherIndex) => otherIndex !== index && Math.abs(game.items[other.id].x - place.x) < 110 && Math.abs(game.items[other.id].y - place.y) < 44); if (!nearPlayer && !crowded) { box(place.x - 43, place.y - 48, 86, 19, 9, '#FFF9F1', '#4A3324', 1.5); text(item.label, place.x, place.y - 38, 10, '#3A2B22', 'center', 900); } }); if (!game.suitcaseTaken) { const bounce = game.bounceUntil > now ? Math.sin((1 - (game.bounceUntil - now) / 430) * Math.PI) * 13 : 0; box(SUITCASE.x - 37, SUITCASE.y + 27 - bounce, 74, 23, 11, game.packed.length === 8 ? '#75AD83' : '#FFF8E9', '#263445', 2); text(game.packed.length === 8 ? 'TAKE ME' : `${game.packed.length}/8`, SUITCASE.x, SUITCASE.y + 39 - bounce, 12, game.packed.length === 8 ? '#FFFFFF' : '#356C4D', 'center', 900); } const dog = game.dog; if (dog.awake) text('!', dog.x, FLOOR - 91, 19, '#D77654', 'center', 900); else { text('z', dog.x + 39, FLOOR - 69, 17, '#89739E', 'center'); text('z', dog.x + 54, FLOOR - 83, 12, '#89739E', 'center'); } };
-    const drawDebug = (game: Game) => { context.save(); context.globalAlpha = .82; context.lineWidth = 2; PLATFORMS.forEach((platform) => { context.strokeStyle = '#DBFF4C'; context.strokeRect(platform.x, platform.y - 3, platform.w, 6); text(platform.name, platform.x + platform.w / 2, platform.y - 13, 9, '#DBFF4C', 'center', 900); }); const outlines: Array<[Rect, string]> = [[playerBox(game.player), '#FF5C77'], [dogBox(game.dog), '#FFB347'], [robotBox(game.robot), '#5EEBFF']]; outlines.forEach(([rect, color]) => { context.strokeStyle = color; context.strokeRect(rect.x, rect.y, rect.w, rect.h); }); context.strokeStyle = '#FFFFFF'; context.strokeRect(0, 0, W, H); context.restore(); };
+    const drawDebug = (game: Game, now: number) => { context.save(); context.globalAlpha = .82; context.lineWidth = 2; PLATFORMS.forEach((platform) => { context.strokeStyle = '#DBFF4C'; context.strokeRect(platform.x, platform.y - 3, platform.w, 6); text(platform.name, platform.x + platform.w / 2, platform.y - 13, 9, '#DBFF4C', 'center', 900); }); const outlines: Array<[Rect, string]> = [[playerBox(game.player), '#FF5C77'], [dogBox(game.dog), '#FFB347'], [robotBox(game.robot), '#5EEBFF']]; outlines.forEach(([rect, color]) => { context.strokeStyle = color; context.strokeRect(rect.x, rect.y, rect.w, rect.h); }); if (game.player.slowUntil > now) text(`slow ${Math.max(0, (game.player.slowUntil - now) / 1000).toFixed(1)}s`, game.player.x, game.player.y - 101, 10, '#FFD166', 'center', 900); if (game.player.invulnerableUntil > now) text(`safe ${Math.max(0, (game.player.invulnerableUntil - now) / 1000).toFixed(1)}s`, game.player.x, game.player.y - 116, 10, '#A7F3D0', 'center', 900); context.strokeStyle = '#FFFFFF'; context.strokeRect(0, 0, W, H); context.restore(); };
     const card = (title: string, first: string, second: string, score?: number) => { context.fillStyle = 'rgba(28,38,45,.32)'; context.fillRect(0, 0, W, H); box(265, 130, 670, 408, 38, '#FFF9ED', '#263445', 5); context.fillStyle = '#FFE5A8'; context.beginPath(); context.arc(828, 208, 66, 0, Math.PI * 2); context.fill(); const game = gameRef.current; game.player.facing = 1; drawTraveller(game, 386, 396, true); text(title, 622, 202, score === undefined ? 42 : 20, score === undefined ? '#263445' : '#D27B4F', 'center', 900); if (score !== undefined) text(`${score} points`, 622, 267, 51, '#263445', 'center', 900); text(first, 622, score === undefined ? 274 : 329, 19, '#566578', 'center', 800); text(second, 622, score === undefined ? 306 : 365, 15, '#728096', 'center', 700); };
     const startScreen = () => { room(); card('SUITCASE SPRINT', 'Jump across the furniture and collect eight essentials.', 'Carry three at once. Pack at the suitcase with E or ↓.'); text(`Best score: ${best}`, 622, 475, 15, '#568765', 'center', 900); };
     const endScreen = (now: number) => { const game = gameRef.current; room(); particles(game, now); card('SUITCASE SPRINT', game.message, `${game.packed.length} of 8 packed · Best score: ${Math.max(best, game.score)}`, game.score); };
     const paused = (now: number) => { const game = gameRef.current; drawPlay(game, now); context.fillStyle = 'rgba(28,38,45,.3)'; context.fillRect(0, 0, W, H); box(404, 254, 392, 166, 30, '#FFF9ED', '#263445', 4); text('PAUSED', 600, 310, 34, '#263445', 'center', 900); text('Press P or Resume to keep packing.', 600, 356, 16, '#657287', 'center', 700); };
-    const drawPlay = (game: Game, now: number) => { room(); drawShadows(game); drawSuitcase(game, now); drawItems(game); drawDog(game, now); drawRobot(game); drawTraveller(game); drawLabels(game, now); particles(game, now); if (debug) drawDebug(game); if (game.popup && now - game.popup.at < 950) { const age = (now - game.popup.at) / 950; context.save(); context.globalAlpha = 1 - age; box(game.player.x - 75, game.player.y - 151 - age * 22, 150, 23, 11, '#FFF9EE', '#263445', 2); text(game.popup.text, game.player.x, game.player.y - 140 - age * 22, 11, '#B96545', 'center', 900); context.restore(); } if (game.packed.length === 8 && !game.suitcaseTaken) text('All packed. Press E or ↓ at the suitcase to take it to the door.', 600, 642, 14, '#356C4D', 'center', 900); };
+    const drawPlay = (game: Game, now: number) => { room(); drawShadows(game); drawSuitcase(game, now); drawItems(game); drawDog(game, now); drawRobot(game); drawTraveller(game); drawLabels(game, now); particles(game, now); if (debug) drawDebug(game, now); if (game.popup && now - game.popup.at < 950) { const age = (now - game.popup.at) / 950; context.save(); context.globalAlpha = 1 - age; box(game.player.x - 75, game.player.y - 151 - age * 22, 150, 23, 11, '#FFF9EE', '#263445', 2); text(game.popup.text, game.player.x, game.player.y - 140 - age * 22, 11, '#B96545', 'center', 900); context.restore(); } if (game.packed.length === 8 && !game.suitcaseTaken) text('All packed. Press E or ↓ at the suitcase to take it to the door.', 600, 642, 14, '#356C4D', 'center', 900); };
     const update = (game: Game, now: number) => {
       if (!game.start) game.start = now;
       const dt = Math.min(.04, game.last ? (now - game.last) / 1000 : 0); game.last = now;
@@ -142,7 +142,10 @@ export function SuitcaseSprint({ onJoinWaitlist }: { onJoinWaitlist: () => void 
       const left = keys.current.has('ArrowLeft') || keys.current.has('a') || keys.current.has('A');
       const right = keys.current.has('ArrowRight') || keys.current.has('d') || keys.current.has('D');
       const direction = touchMove.current || (right ? 1 : left ? -1 : 0);
-      player.vx = player.stumbleUntil > now ? player.vx * .78 : direction * SPEED;
+      const movementSpeed = (player.onGround ? SPEED : AIR_SPEED) * (player.slowUntil > now ? .7 : 1);
+      // Knockback is deliberately floor-only, so a hit cannot push the traveller off furniture.
+      const knockback = player.knockbackUntil > now && player.y >= FLOOR - 1 ? player.knockbackDirection * 70 : 0;
+      player.vx = direction * movementSpeed + knockback;
       if (direction) player.facing = direction > 0 ? 1 : -1;
       player.walk += Math.abs(player.vx) * dt / 110;
 
@@ -184,7 +187,8 @@ export function SuitcaseSprint({ onJoinWaitlist }: { onJoinWaitlist: () => void 
       const dogHit = dog.awake && now >= player.invulnerableUntil && overlaps(playerHitbox, dogBox(dog)) && !stomping(dogBox(dog));
       const robotHit = now >= player.invulnerableUntil && overlaps(playerHitbox, robotBox(robot)) && !stomping(robotBox(robot));
       if (dogHit || robotHit) {
-        player.invulnerableUntil = now + 1000; player.stumbleUntil = now + (dogHit ? 740 : 520);
+        player.invulnerableUntil = now + 2500; player.slowUntil = now + 800;
+        player.knockbackUntil = now + 180; player.knockbackDirection = player.x < (dogHit ? dog.x : robot.x) ? -1 : 1;
         if (dogHit) {
           game.penalty += 3; const dropped = player.carrying.pop();
           if (dropped) { const item = game.items[dropped]; item.state = 'loose'; item.x = item.homeX; item.y = item.homeY; }
