@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import MapView, { Marker, Region } from 'react-native-maps';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CapybaraMoment } from '@/src/ui';
 import { Trip, useTravel } from '@/src/store';
 import { resolveTripCoordinates, TripLocation } from '@/src/trip-locations';
@@ -49,6 +50,7 @@ function useMapPlaces(trips: Trip[]) {
 }
 
 export default function MapScreen() {
+  const insets = useSafeAreaInsets();
   const { trips, setSelectedTripId } = useTravel();
   const { places, loading: placesLoading } = useMapPlaces(trips);
   const map = useRef<MapView>(null);
@@ -97,7 +99,7 @@ export default function MapScreen() {
         <View style={[s.marker, place.completed ? s.completedMarker : s.futureMarker, selected?.id === place.id && s.selectedMarker]}><Ionicons name={place.completed ? 'bookmark' : 'airplane'} size={18} color="#FFFFFF"/></View>
       </Marker>)}
     </MapView>}
-    {!mapFailed && <View pointerEvents="none" style={s.header}><View style={s.titlePill}><Ionicons name="map-outline" size={18} color={colors.text}/><Text style={s.title}>Travel map</Text>{visitedCountries.length ? <Text style={s.visitedCount}>{visitedCountries.length} visited</Text> : null}</View></View>}
+    {!mapFailed && <View pointerEvents="none" style={[s.header, { top: insets.top + 12 }]}><View style={s.titlePill}><Ionicons name="map-outline" size={18} color={colors.text}/><Text style={s.title}>Travel map</Text>{visitedCountries.length ? <Text style={s.visitedCount}>{visitedCountries.length} visited</Text> : null}</View></View>}
     {!mapFailed && placesLoading && <View style={s.loading}><Text style={s.loadingText}>Finding your destinations …</Text></View>}
     {!mapFailed && !placesLoading && !mapReady ? <View style={s.loading}><Text style={s.loadingText}>Opening Apple Maps …</Text></View> : null}
     {!mapFailed && <View style={s.bottomArea}>

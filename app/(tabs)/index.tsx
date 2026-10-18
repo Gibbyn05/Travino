@@ -2,13 +2,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { AutocompleteField, DateField, Field, Sheet } from '@/src/forms';
-import { destinationSuggestions } from '@/src/suggestions';
 import { AccentText, EmptyMoment, PrimaryButton } from '@/src/ui';
 import { colors, fonts } from '@/src/theme';
 import { Trip, useTravel } from '@/src/store';
 import { formatTripDates, parseTravelDate, tripLength } from '@/src/dates';
 import { tripColors, tripIcons, tripPresentation } from '@/src/trip-presentation';
+import { TripPlannerSheet } from '@/src/trip-planner-sheet';
 
 type Inspiration = { title: string; city: string; country: string };
 const inspirations: Inspiration[] = [
@@ -64,7 +63,6 @@ function TripPreview({ title, city, country, icon, color }: { title: string; cit
 export default function HomeScreen() {
   const { profileName, trips, createTrip, setSelectedTripId } = useTravel();
   const [open, setOpen] = useState(false);
-  const [destinationOpen, setDestinationOpen] = useState(false);
   const [title, setTitle] = useState(''); const [city, setCity] = useState(''); const [country, setCountry] = useState(''); const [start, setStart] = useState(''); const [end, setEnd] = useState('');
   const [color, setColor] = useState<string>(tripColors[0]); const [icon, setIcon] = useState<string>(tripIcons[0]); const [inspirationIndex, setInspirationIndex] = useState(0);
   const inspiration = inspirations[inspirationIndex]; const hasTrips = trips.length > 0;
@@ -75,8 +73,8 @@ export default function HomeScreen() {
     return () => clearInterval(timer);
   }, [open]);
 
-  const reset = () => { setOpen(false); setDestinationOpen(false); setTitle(''); setCity(''); setCountry(''); setStart(''); setEnd(''); setColor(tripColors[0]); setIcon(tripIcons[0]); };
-  const save = () => { if (!title.trim() || !city.trim() || !start.trim() || !end.trim()) return; createTrip({ title: title.trim(), city: city.trim(), country: country.trim() || 'Unknown', startDate: start, endDate: end, members: [], icon, color }); reset(); };
+  const reset = () => { setOpen(false); setTitle(''); setCity(''); setCountry(''); setStart(''); setEnd(''); setColor(tripColors[0]); setIcon(tripIcons[0]); };
+  const save = () => { if (!title.trim() || !city.trim() || !start.trim() || !end.trim()) return undefined; return createTrip({ title: title.trim(), city: city.trim(), country: country.trim() || 'Unknown', startDate: start, endDate: end, members: [], icon, color }); };
   const useInspiration = () => { setTitle(inspiration.title); setCity(inspiration.city); setCountry(inspiration.country); };
 
   return <ScrollView style={s.page} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
@@ -89,17 +87,7 @@ export default function HomeScreen() {
     ) : (
       <EmptyMoment compact title="A little room for plans" copy="Your first trip will turn into a calm place for lists, days and memories." actionTitle="Plan a trip" icon="add" onPress={() => setOpen(true)} style={s.empty}/>
     )}
-    <Sheet visible={open} title="Plan a trip" onClose={reset}>
-      <TripPreview title={title} city={city} country={country} icon={icon} color={color}/>
-      <Text style={s.fieldLabel}>Trip name</Text><Field value={title} onChangeText={setTitle} placeholder="For example, Summer in Sicily"/>
-      <Text style={s.fieldLabel}>Colour</Text><View style={s.colorRow}>{tripColors.map((choice) => <Pressable key={choice} accessibilityRole="button" accessibilityLabel="Choose trip colour" accessibilityState={{ selected: color === choice }} onPress={() => setColor(choice)} style={[s.colorDot, { backgroundColor: choice }, color === choice && s.colorDotSelected]}>{color === choice ? <Ionicons name="checkmark" size={17} color="#FFFFFF"/> : null}</Pressable>)}</View>
-      <Text style={s.fieldLabel}>Trip icon</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.iconRow}>{tripIcons.map((choice) => <Pressable key={choice} accessibilityRole="button" accessibilityLabel={`Choose ${choice} icon`} accessibilityState={{ selected: icon === choice }} onPress={() => setIcon(choice)} style={[s.iconChoice, icon === choice && { borderColor: color, backgroundColor: `${color}12` }]}><Ionicons name={choice} size={21} color={icon === choice ? color : colors.muted}/></Pressable>)}</ScrollView>
-      <Pressable accessibilityRole="button" onPress={useInspiration} style={({ pressed }) => [s.inspiration, pressed && s.pressed]}><View style={s.inspirationIcon}><Ionicons name="sparkles-outline" size={19} color={colors.purple}/></View><View style={{ flex: 1 }}><Text style={s.inspirationLabel}>GET INSPIRED</Text><Text style={s.inspirationTitle}>{inspiration.title}</Text></View><Ionicons name="arrow-forward" size={18} color={colors.purple}/></Pressable>
-      <Text style={s.fieldLabel}>Destination</Text><Pressable accessibilityRole="button" onPress={() => setDestinationOpen(true)} style={s.destinationField}><View style={s.destinationFieldIcon}><Ionicons name="location-outline" size={20} color={colors.blue}/></View><View style={{ flex: 1 }}><Text style={[s.destinationValue, !city && s.destinationPlaceholder]}>{city ? [city, country].filter(Boolean).join(', ') : 'Search for a destination'}</Text></View><Ionicons name="chevron-forward" size={19} color={colors.muted}/></Pressable>
-      <Text style={s.fieldLabel}>Dates</Text><View style={s.datePair}><View style={s.dateHalf}><DateField value={start} onChangeText={(date) => { setStart(date); if (end && end <= date) setEnd(''); }} placeholder="Start date" rangeStart={start} rangeEnd={end}/></View><View style={s.dateHalf}><DateField value={end} onChangeText={setEnd} placeholder="End date" minDate={start} rangeStart={start} rangeEnd={end}/></View></View><Text style={s.lengthHint}>{tripLength(start, end) || 'Choose dates to see the length of your trip.'}</Text>
-      <PrimaryButton title="Save trip" icon="checkmark" onPress={save}/>
-    </Sheet>
-    <Sheet visible={destinationOpen} title="Choose a destination" onClose={() => setDestinationOpen(false)}><Text style={s.destinationSheetCopy}>Search for a city, then Travino will use it across your plan and map.</Text><AutocompleteField value={city} onChangeText={setCity} placeholder="City or destination" suggestions={destinationSuggestions} showSuggestionsOnFocus onPick={(suggestion) => { setCity(suggestion.value); setCountry(suggestion.detail ?? country); setDestinationOpen(false); }}/>{city ? <Pressable accessibilityRole="button" onPress={() => setDestinationOpen(false)} style={s.destinationConfirm}><Text style={s.destinationConfirmText}>Use {city}</Text></Pressable> : null}</Sheet>
+    <TripPlannerSheet visible={open} title={title} city={city} country={country} start={start} end={end} color={color} icon={icon} colors={tripColors} icons={tripIcons} inspiration={inspiration.title} onTitleChange={setTitle} onDestinationChange={(nextCity, nextCountry) => { setCity(nextCity); setCountry(nextCountry); }} onStartChange={setStart} onEndChange={setEnd} onColorChange={setColor} onIconChange={setIcon} onInspiration={useInspiration} onCreate={save} onOpenTrip={(id) => { reset(); setSelectedTripId(id); router.push('/trip'); }} onClose={reset}/>
   </ScrollView>;
 }
 

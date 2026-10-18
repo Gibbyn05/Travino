@@ -256,7 +256,7 @@ function Plan() {
         <View style={{ flex: 1 }}><Text style={s.planDayHeading}>{group.heading}</Text><Text style={s.planDayDate}>{group.date}</Text></View>
         <View style={s.planDayCount}><Text style={s.planDayCountText}>{group.items.length}</Text></View>
       </View>
-      <View style={s.planDayActivities}>{group.items.map((item) => <Card key={item.id} style={s.planActivityCard}>
+      <View style={s.planDayActivities}>{group.items.map((item, index) => <Card key={item.id} enterDelay={index * 35} style={s.planActivityCard}>
         <View style={s.planTimeBlock}><Text style={s.planStartTime}>{item.startTime || '—'}</Text>{item.endTime && <Text style={s.planEndTime}>{item.endTime}</Text>}</View>
         <View style={s.planActivityContent}>
           <Text style={s.itemTitle}>{item.title}</Text>
@@ -274,7 +274,7 @@ function Plan() {
       <Field value={end} onChangeText={setEnd} placeholder="End time (optional)"/>
       <Field value={location} onChangeText={setLocation} placeholder="Location (optional)"/>
       <Field value={note} onChangeText={setNote} placeholder="Note (optional)" multiline/>
-      <PrimaryButton title="Save activity" icon="checkmark" onPress={save}/>
+      <PrimaryButton title="Save activity" icon="checkmark" onPress={save} disabled={!title.trim() || !date || !start.trim()}/>
     </Sheet>
   </Section>;
 }
@@ -379,7 +379,7 @@ function Packing() {
       <AutocompleteField value={title} onChangeText={setTitle} placeholder="What are you packing?" suggestions={packingSuggestions} onPick={(item) => setCategory(item.detail ?? 'Other')}/>
       <View style={s.categoryPicker}><Text style={s.categoryPickerLabel}>Category</Text><View style={s.categoryOptions}>{packingCategories.map((item) => <Pressable key={item.name} accessibilityRole="button" accessibilityState={{ selected: category === item.name }} onPress={() => setCategory(item.name)} style={[s.categoryOption, category === item.name && s.categoryOptionSelected]}><Ionicons name={item.icon as any} size={16} color={category === item.name ? colors.blue : colors.muted}/><Text style={[s.categoryOptionText, category === item.name && s.categoryOptionTextSelected]}>{item.name}</Text></Pressable>)}</View></View>
       {isGroupTrip(selectedTrip.members) && <AutocompleteField value={person} onChangeText={setPerson} placeholder="Assigned to (optional)" suggestions={memberSuggestions} showSuggestionsOnFocus/>}
-      <PrimaryButton title="Add item" icon="checkmark" onPress={save}/>
+      <PrimaryButton title="Add item" icon="checkmark" onPress={save} disabled={!title.trim()}/>
     </Sheet>
   </Section>;
 }
@@ -466,11 +466,11 @@ function Wishes() {
   return <Section title="Wishlist">
     <Text style={s.copy}>{isGroupTrip(selectedTrip.members) ? 'Add your reaction to see which ideas the travellers are leaning toward.' : 'Keep a small shortlist of places and experiences you would like to try.'}</Text>
     {syncUnavailable && !!supabase && isGroupTrip(selectedTrip.members) && <Text style={s.syncHint}>Shared reactions will sync when the connection is ready.</Text>}
-    <View style={s.stack}>{selectedTrip.wishes.map((item) => {
+    <View style={s.stack}>{selectedTrip.wishes.map((item, index) => {
       const votes: Record<string, ReactionVote> = { ...(item.reactions || {}), ...(cloudVotes[item.id] || {}) };
       const myVote = votes[voterId || profileName]?.reaction;
       const voters = Object.values(votes);
-      return <Card key={item.id} style={s.wishCard}>
+      return <Card key={item.id} enterDelay={index * 35} style={s.wishCard}>
         <View style={s.wishHeading}>
           <View style={{ flex: 1 }}><Text style={s.itemTitle}>{item.name}</Text><Text style={s.copy}>{item.category}{item.location ? ` · ${item.location}` : ''}</Text></View>
           <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${item.name}`} onPress={() => removeWish(selectedTrip.id, item.id)}><Ionicons name="trash-outline" size={19} color={colors.muted}/></Pressable>
@@ -486,7 +486,7 @@ function Wishes() {
       </Card>;
     })}</View>
     {!selectedTrip.wishes.length ? <EmptyMoment compact title="Keep a small shortlist" copy="Save a place or an experience you would like to try." actionTitle="Add first wish" icon="add" onPress={() => setOpen(true)}/> : <PrimaryButton title="Add another wish" onPress={() => setOpen(true)}/>}<View />
-    <Sheet visible={open} title="New wish" onClose={() => setOpen(false)}><AutocompleteField value={name} onChangeText={setName} placeholder="Name" suggestions={wishSuggestions}/><Field value={category} onChangeText={setCategory} placeholder="Category, for example activity"/><Field value={location} onChangeText={setLocation} placeholder="Location (optional)"/><PrimaryButton title="Save wish" icon="checkmark" onPress={save}/></Sheet>
+    <Sheet visible={open} title="New wish" onClose={() => setOpen(false)}><AutocompleteField value={name} onChangeText={setName} placeholder="Name" suggestions={wishSuggestions}/><Field value={category} onChangeText={setCategory} placeholder="Category, for example activity"/><Field value={location} onChangeText={setLocation} placeholder="Location (optional)"/><PrimaryButton title="Save wish" icon="checkmark" onPress={save} disabled={!name.trim()}/></Sheet>
   </Section>;
 }
 function Memories() { const { selectedTrip, addPhoto } = useTravel(); if (!selectedTrip) return null; return <Section title="Memories"><View style={s.gallery}>{selectedTrip.memories.map((item) => <View key={item.id} style={s.memory}><Image source={{ uri: item.image }} style={s.image}/><Text style={s.copy}>{formatJournalDate(item.date)}</Text></View>)}</View>{!selectedTrip.memories.length ? <EmptyMoment compact title="Save the good bits" copy="Choose a photo when there is a moment worth keeping." actionTitle="Choose first photo" icon="image-outline" onPress={() => addPhoto(selectedTrip.id)}/> : <PrimaryButton title="Choose another photo" icon="image-outline" onPress={() => addPhoto(selectedTrip.id)}/>}</Section>; }

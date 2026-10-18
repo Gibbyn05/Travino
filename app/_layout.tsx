@@ -3,13 +3,14 @@ import { StatusBar } from 'expo-status-bar';
 import { Platform, View } from 'react-native';
 import { useFonts } from '@expo-google-fonts/nunito';
 import { Nunito_800ExtraBold } from '@expo-google-fonts/nunito';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { TravelProvider, useTravel } from '@/src/store';
 import { colors } from '@/src/theme';
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({ Nunito_800ExtraBold });
   if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: colors.background }}/>;
-  return <TravelProvider><StatusBar style="auto"/><AppNavigator/></TravelProvider>;
+  return <SafeAreaProvider><TravelProvider><StatusBar style="auto"/><AppNavigator/></TravelProvider></SafeAreaProvider>;
 }
 
 function AppNavigator() {
