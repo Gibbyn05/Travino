@@ -6,6 +6,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     ...config,
     name: config.name ?? 'Reisefølge',
     slug: config.slug ?? 'reisefolge',
+    plugins: [...(config.plugins ?? []), 'expo-font'],
     extra: {
       ...config.extra,
       eas: { ...config.extra?.eas, ...(projectId ? { projectId } : {}) },
