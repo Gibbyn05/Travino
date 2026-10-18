@@ -9,7 +9,9 @@ export type Activity = { id: string; title: string; date: string; startTime: str
 export type PackingItem = { id: string; title: string; person?: string; category: string; done: boolean };
 export type WishReaction = 'like' | 'meh' | 'dislike';
 export type Wish = { id: string; name: string; category: string; location?: string; note?: string; link?: string; voted: boolean; reactions?: Record<string, { displayName: string; reaction: WishReaction }> };
-export type Memory = { id: string; image: string; date: string; location?: string; text?: string };
+// `caption` is deliberately separate from the older trip-note `text`: every
+// photo can carry its own short scrapbook caption.
+export type Memory = { id: string; image: string; date: string; location?: string; text?: string; caption?: string };
 export type Trip = { id: string; sharedTripId?: string; title: string; city: string; country: string; startDate: string; endDate: string; members: string[]; memberAccountIds?: Record<string, string>; coverImage?: string; icon?: string; color?: string; reminderNotificationIds?: string[]; activities: Activity[]; packing: PackingItem[]; wishes: Wish[]; memories: Memory[] };
 export type DraftTrip = Pick<Trip, 'title' | 'city' | 'country' | 'startDate' | 'endDate' | 'members' | 'coverImage'> & Partial<Pick<Trip, 'sharedTripId' | 'icon' | 'color'>>;
 type StoredState = { profileName: string; profileBio?: string; premium: boolean; trips: Trip[]; selectedTripId?: string; onboarded: boolean };
@@ -19,7 +21,7 @@ const legacyKey = ['@reise', 'folge/state-v2'].join('');
 const uid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const initial: StoredState = { profileName: '', premium: false, trips: [], onboarded: true };
 const stateFrom = (value: unknown): StoredState | null => { if (!value || typeof value !== 'object' || !Array.isArray((value as StoredState).trips)) return null; const state = value as StoredState; return { ...initial, ...state, trips: state.trips.map((trip) => ({ ...trip, coverImage: stockCoverForCountry(trip.country) })) }; };
-type Store = StoredState & { ready: boolean; selectedTrip?: Trip; setSelectedTripId: (id?: string) => void; saveProfile: (name: string, bio?: string) => void; createTrip: (draft: DraftTrip) => string; updateTrip: (id: string, patch: Partial<Trip>) => void; deleteTrip: (id: string) => void; addMember: (tripId: string, name: string, accountId?: string) => void; addActivity: (tripId: string, item: Omit<Activity, 'id'>) => void; updateActivity: (tripId: string, activityId: string, patch: Partial<Activity>) => void; removeActivity: (tripId: string, activityId: string) => void; addPacking: (tripId: string, item: Omit<PackingItem, 'id' | 'done'>) => void; togglePacking: (tripId: string, itemId: string) => void; removePacking: (tripId: string, itemId: string) => void; copyPacking: (fromTripId: string, toTripId: string, categories: string[]) => void; addWish: (tripId: string, item: Omit<Wish, 'id' | 'voted' | 'reactions'>) => void; toggleWish: (tripId: string, wishId: string) => void; setWishReaction: (tripId: string, wishId: string, voterId: string, displayName: string, reaction?: WishReaction) => void; removeWish: (tripId: string, wishId: string) => void; moveWishToPlan: (tripId: string, wishId: string) => void; addPhoto: (tripId: string) => Promise<void>; syncMemoryBookPhotos: () => Promise<number>; setPremium: (premium: boolean) => void; markOnboarded: () => void };
+type Store = StoredState & { ready: boolean; selectedTrip?: Trip; setSelectedTripId: (id?: string) => void; saveProfile: (name: string, bio?: string) => void; createTrip: (draft: DraftTrip) => string; updateTrip: (id: string, patch: Partial<Trip>) => void; deleteTrip: (id: string) => void; addMember: (tripId: string, name: string, accountId?: string) => void; addActivity: (tripId: string, item: Omit<Activity, 'id'>) => void; updateActivity: (tripId: string, activityId: string, patch: Partial<Activity>) => void; removeActivity: (tripId: string, activityId: string) => void; addPacking: (tripId: string, item: Omit<PackingItem, 'id' | 'done'>) => void; togglePacking: (tripId: string, itemId: string) => void; removePacking: (tripId: string, itemId: string) => void; copyPacking: (fromTripId: string, toTripId: string, categories: string[]) => void; addWish: (tripId: string, item: Omit<Wish, 'id' | 'voted' | 'reactions'>) => void; toggleWish: (tripId: string, wishId: string) => void; setWishReaction: (tripId: string, wishId: string, voterId: string, displayName: string, reaction?: WishReaction) => void; removeWish: (tripId: string, wishId: string) => void; moveWishToPlan: (tripId: string, wishId: string) => void; addPhoto: (tripId: string) => Promise<void>; setMemoryCaption: (tripId: string, memoryId: string, caption: string) => void; syncMemoryBookPhotos: () => Promise<number>; setPremium: (premium: boolean) => void; markOnboarded: () => void };
 const TravelContext = createContext<Store | null>(null);
 
 async function syncMemoryPhoto(trip: Trip, memory: Memory, userId: string, contentType?: string) {
@@ -32,9 +34,17 @@ async function syncMemoryPhoto(trip: Trip, memory: Memory, userId: string, conte
     const mime = contentType || (extension === 'jpg' ? 'image/jpeg' : `image/${extension}`);
     const { error: uploadError } = await supabase.storage.from('memory-book').upload(path, blob, { contentType: mime, upsert: true });
     if (uploadError) return false;
-    const { error } = await supabase.from('memory_book_entries').upsert({ user_id: userId, object_path: path, trip_title: trip.title, city: memory.location || trip.city, country: trip.country, taken_on: memory.date, caption: memory.text || '' }, { onConflict: 'object_path' });
+    const { error } = await supabase.from('memory_book_entries').upsert({ user_id: userId, object_path: path, trip_title: trip.title, city: memory.location || trip.city, country: trip.country, taken_on: memory.date, caption: memory.caption ?? memory.text ?? '' }, { onConflict: 'object_path' });
     return !error;
   } catch { return false; }
+}
+
+async function syncMemoryCaption(memory: Memory, userId: string) {
+  if (!supabase) return;
+  const cleanUri = memory.image.split(/[?#]/)[0];
+  const extension = (cleanUri.split('.').pop() || 'jpg').replace(/[^a-z0-9]/gi, '').toLowerCase() || 'jpg';
+  const path = `${userId}/${memory.id.replace(/[^a-z0-9_-]/gi, '_')}.${extension}`;
+  await supabase.from('memory_book_entries').update({ caption: memory.caption ?? '' }).eq('user_id', userId).eq('object_path', path);
 }
 
 export function TravelProvider({ children }: { children: ReactNode }) {
@@ -53,6 +63,15 @@ export function TravelProvider({ children }: { children: ReactNode }) {
     addPacking: (tripId, item) => updateTrip(tripId, { packing: [...(state.trips.find((trip) => trip.id === tripId)?.packing ?? []), { ...item, id: uid(), done: false }] }), togglePacking: (tripId, itemId) => updateTrip(tripId, { packing: (state.trips.find((trip) => trip.id === tripId)?.packing ?? []).map((item) => item.id === itemId ? { ...item, done: !item.done } : item) }), removePacking: (tripId, itemId) => updateTrip(tripId, { packing: (state.trips.find((trip) => trip.id === tripId)?.packing ?? []).filter((item) => item.id !== itemId) }),
     copyPacking: (fromTripId, toTripId, categories) => { const source = state.trips.find((trip) => trip.id === fromTripId); const target = state.trips.find((trip) => trip.id === toTripId); if (source && target) updateTrip(toTripId, { packing: [...target.packing, ...source.packing.filter((item) => categories.includes(item.category)).map((item) => ({ ...item, id: uid(), done: false }))] }); },
     addWish: (tripId, item) => updateTrip(tripId, { wishes: [...(state.trips.find((trip) => trip.id === tripId)?.wishes ?? []), { ...item, id: uid(), voted: false, reactions: {} }] }), toggleWish: (tripId, wishId) => updateTrip(tripId, { wishes: (state.trips.find((trip) => trip.id === tripId)?.wishes ?? []).map((item) => item.id === wishId ? { ...item, voted: !item.voted } : item) }), setWishReaction: (tripId, wishId, voterId, displayName, reaction) => updateTrip(tripId, { wishes: (state.trips.find((trip) => trip.id === tripId)?.wishes ?? []).map((item) => { if (item.id !== wishId) return item; const reactions = { ...(item.reactions ?? {}) }; if (reaction) reactions[voterId] = { displayName, reaction }; else delete reactions[voterId]; return { ...item, reactions }; }) }), removeWish: (tripId, wishId) => updateTrip(tripId, { wishes: (state.trips.find((trip) => trip.id === tripId)?.wishes ?? []).filter((item) => item.id !== wishId) }), moveWishToPlan: (tripId, wishId) => { const wish = state.trips.find((trip) => trip.id === tripId)?.wishes.find((item) => item.id === wishId); if (wish) updateTrip(tripId, { activities: [...(state.trips.find((trip) => trip.id === tripId)?.activities ?? []), { id: uid(), title: wish.name, date: '', startTime: '', location: wish.location, note: wish.note }], wishes: (state.trips.find((trip) => trip.id === tripId)?.wishes ?? []).filter((item) => item.id !== wishId) }); },
+    setMemoryCaption: (tripId, memoryId, caption) => {
+      const trimmed = caption.slice(0, 180);
+      const trip = state.trips.find((item) => item.id === tripId);
+      const memory = trip?.memories.find((item) => item.id === memoryId);
+      if (!trip || !memory || memory.caption === trimmed) return;
+      const updated = { ...memory, caption: trimmed };
+      updateTrip(tripId, { memories: trip.memories.map((item) => item.id === memoryId ? updated : item) });
+      void ensureGuestIdentity().then((user) => user ? syncMemoryCaption(updated, user.id) : undefined).catch(() => undefined);
+    },
     syncMemoryBookPhotos: async () => {
       const client = supabase;
       if (!client) return 0;
