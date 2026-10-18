@@ -28,7 +28,7 @@ type Game = {
   particles: Particle[]; popup: { text: string; at: number } | null; bounceUntil: number; suitcaseTaken: boolean; message: string;
 };
 
-const W = 1200; const H = 675; const FLOOR = 608; const GRAVITY = 1850; const JUMP = 1340; const SPEED = 285; const AIR_SPEED = 360; const PLAYER_W = 76;
+const W = 1200; const H = 675; const FLOOR = 608; const GRAVITY = 1850; const JUMP = 1322; const SPEED = 285; const AIR_SPEED = 360; const PLAYER_W = 76;
 const SUITCASE = { x: 930, y: 563, r: 96 }; const DOOR = { x: 1130, y: 486, r: 74 };
 const BEST = 'travino-suitcase-sprint-best'; const MUTED = 'travino-suitcase-sprint-muted';
 // Coordinates are measured directly from room-background.webp (1200 × 675).
