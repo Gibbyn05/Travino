@@ -1,8 +1,10 @@
-export type Suggestion = { label: string; value: string; detail?: string };
+import { destinationTimeZoneFor } from './travel-info';
+
+export type Suggestion = { label: string; value: string; detail?: string; timeZone?: string };
 
 export const destinationSuggestions: Suggestion[] = [
   ['Phuket', 'Thailand'], ['Bangkok', 'Thailand'], ['Koh Samui', 'Thailand'], ['Bali', 'Indonesia'], ['Tokyo', 'Japan'], ['New York', 'USA'], ['Miami', 'USA'], ['Alicante', 'Spain'], ['Barcelona', 'Spain'], ['Madrid', 'Spain'], ['Mallorca', 'Spain'], ['Malaga', 'Spain'], ['Paris', 'France'], ['Nice', 'France'], ['Rome', 'Italy'], ['Amalfi', 'Italy'], ['Milan', 'Italy'], ['Lisbon', 'Portugal'], ['Madeira', 'Portugal'], ['London', 'United Kingdom'], ['Amsterdam', 'Netherlands'], ['Copenhagen', 'Denmark'], ['Stockholm', 'Sweden'], ['Reykjavik', 'Iceland'], ['Dubai', 'United Arab Emirates'], ['Cape Town', 'South Africa'], ['Sydney', 'Australia'], ['Split', 'Croatia'], ['Santorini', 'Greece'], ['Crete', 'Greece'], ['Berlin', 'Germany'], ['Marrakech', 'Morocco'],
-].map(([city, country]) => ({ label: `${city}, ${country}`, value: city, detail: country }));
+].map(([city, country]) => ({ label: `${city}, ${country}`, value: city, detail: country, timeZone: destinationTimeZoneFor(city, country) }));
 
 const packingItems: [string, string][] = [['Sunglasses', 'Beach & sun'], ['Sunscreen', 'Toiletries'], ['Sun hat', 'Beach & sun'], ['Sunshade', 'Beach & sun'], ['Face sunscreen', 'Toiletries'], ['Passport', 'Documents'], ['Charger', 'Electronics'], ['Charging cable', 'Electronics'], ['Power bank', 'Electronics'], ['Swimwear', 'Clothing'], ['Towel', 'Beach & sun'], ['Toiletry bag', 'Toiletries'], ['Toothbrush', 'Toiletries'], ['Toothpaste', 'Toiletries'], ['Medication', 'Health'], ['Travel insurance', 'Documents'], ['Bank card', 'Documents'], ['Cash', 'Documents'], ['Headphones', 'Electronics'], ['Adapter', 'Electronics'], ['Water bottle', 'Other'], ['Jacket', 'Clothing'], ['Rain jacket', 'Clothing'], ['Sneakers', 'Shoes'], ['Sandals', 'Shoes'], ['Underwear', 'Clothing']];
 export const packingSuggestions: Suggestion[] = packingItems.map(([value, detail]) => ({ label: value, value, detail }));

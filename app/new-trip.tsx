@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AutocompleteField, DateField } from '@/src/forms';
 import { Suggestion, destinationSuggestions } from '@/src/suggestions';
 import { useTravel } from '@/src/store';
+import { destinationTimeZoneFor } from '@/src/travel-info';
 import { colors, fonts } from '@/src/theme';
 import { PrimaryButton } from '@/src/ui';
 import { validTripDates } from '@/src/trip-planning';
@@ -33,7 +34,7 @@ export default function NewTripScreen() {
     }
     creating.current = true;
     Keyboard.dismiss();
-    const id = createTrip({ title: `${destination.value} trip`, city: destination.value, country: destination.detail, startDate: withoutDates ? '' : start, endDate: withoutDates ? '' : end, members: [] });
+    const id = createTrip({ title: `${destination.value} trip`, city: destination.value, country: destination.detail, destinationTimeZone: destination.timeZone ?? destinationTimeZoneFor(destination.value, destination.detail), startDate: withoutDates ? '' : start, endDate: withoutDates ? '' : end, members: [] });
     router.replace({ pathname: '/trip', params: { tab: 'Overview', welcome: id } });
   };
 

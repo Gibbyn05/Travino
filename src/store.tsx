@@ -4,6 +4,7 @@ import { createContext, ReactNode, useContext, useEffect, useMemo, useRef, useSt
 import { stockCoverForCountry } from './country-images';
 import { ensureGuestIdentity, supabase } from './lib/supabase';
 import storage from './lib/persistent-storage';
+import { countryForTimeZone, destinationTimeZoneFor, deviceTimeZone } from './travel-info';
 
 export type Activity = { id: string; title: string; date: string; startTime: string; endTime?: string; location?: string; note?: string; participants?: string[] };
 export type PackingItem = { id: string; title: string; person?: string; category: string; done: boolean };
@@ -12,15 +13,27 @@ export type Wish = { id: string; name: string; category: string; location?: stri
 // `caption` is deliberately separate from the older trip-note `text`: every
 // photo can carry its own short scrapbook caption.
 export type Memory = { id: string; image: string; date: string; location?: string; text?: string; caption?: string };
-export type Trip = { id: string; sharedTripId?: string; title: string; city: string; country: string; startDate: string; endDate: string; members: string[]; memberAccountIds?: Record<string, string>; coverImage?: string; icon?: string; color?: string; reminderNotificationIds?: string[]; activities: Activity[]; packing: PackingItem[]; wishes: Wish[]; memories: Memory[] };
-export type DraftTrip = Pick<Trip, 'title' | 'city' | 'country' | 'startDate' | 'endDate' | 'members' | 'coverImage'> & Partial<Pick<Trip, 'sharedTripId' | 'icon' | 'color'>>;
-type StoredState = { profileName: string; profileBio?: string; premium: boolean; trips: Trip[]; selectedTripId?: string; onboarded: boolean };
+export type Trip = { id: string; sharedTripId?: string; title: string; city: string; country: string; destinationTimeZone?: string; startDate: string; endDate: string; members: string[]; memberAccountIds?: Record<string, string>; coverImage?: string; icon?: string; color?: string; reminderNotificationIds?: string[]; activities: Activity[]; packing: PackingItem[]; wishes: Wish[]; memories: Memory[] };
+export type DraftTrip = Pick<Trip, 'title' | 'city' | 'country' | 'startDate' | 'endDate' | 'members' | 'coverImage'> & Partial<Pick<Trip, 'sharedTripId' | 'icon' | 'color' | 'destinationTimeZone'>>;
+type StoredState = { profileName: string; profileBio?: string; homeTimeZone?: string; homeCountry?: string; premium: boolean; trips: Trip[]; selectedTripId?: string; onboarded: boolean };
 
 const key = '@travino/state-v2';
 const legacyKey = ['@reise', 'folge/state-v2'].join('');
 const uid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-const initial: StoredState = { profileName: '', premium: false, trips: [], onboarded: true };
-const stateFrom = (value: unknown): StoredState | null => { if (!value || typeof value !== 'object' || !Array.isArray((value as StoredState).trips)) return null; const state = value as StoredState; return { ...initial, ...state, trips: state.trips.map((trip) => ({ ...trip, coverImage: stockCoverForCountry(trip.country) })) }; };
+const defaultHomeTimeZone = deviceTimeZone();
+const initial: StoredState = { profileName: '', homeTimeZone: defaultHomeTimeZone, homeCountry: countryForTimeZone(defaultHomeTimeZone), premium: false, trips: [], onboarded: true };
+const stateFrom = (value: unknown): StoredState | null => {
+  if (!value || typeof value !== 'object' || !Array.isArray((value as StoredState).trips)) return null;
+  const state = value as StoredState;
+  const homeTimeZone = state.homeTimeZone ?? defaultHomeTimeZone;
+  return {
+    ...initial,
+    ...state,
+    homeTimeZone,
+    homeCountry: state.homeCountry ?? countryForTimeZone(homeTimeZone),
+    trips: state.trips.map((trip) => ({ ...trip, destinationTimeZone: trip.destinationTimeZone ?? destinationTimeZoneFor(trip.city, trip.country), coverImage: stockCoverForCountry(trip.country) })),
+  };
+};
 type Store = StoredState & { ready: boolean; selectedTrip?: Trip; setSelectedTripId: (id?: string) => void; saveProfile: (name: string, bio?: string) => void; createTrip: (draft: DraftTrip) => string; updateTrip: (id: string, patch: Partial<Trip>) => void; deleteTrip: (id: string) => void; addMember: (tripId: string, name: string, accountId?: string) => void; addActivity: (tripId: string, item: Omit<Activity, 'id'>) => void; updateActivity: (tripId: string, activityId: string, patch: Partial<Activity>) => void; removeActivity: (tripId: string, activityId: string) => void; addPacking: (tripId: string, item: Omit<PackingItem, 'id' | 'done'>) => void; togglePacking: (tripId: string, itemId: string) => void; removePacking: (tripId: string, itemId: string) => void; copyPacking: (fromTripId: string, toTripId: string, categories: string[]) => void; addWish: (tripId: string, item: Omit<Wish, 'id' | 'voted' | 'reactions'>) => void; toggleWish: (tripId: string, wishId: string) => void; setWishReaction: (tripId: string, wishId: string, voterId: string, displayName: string, reaction?: WishReaction) => void; removeWish: (tripId: string, wishId: string) => void; moveWishToPlan: (tripId: string, wishId: string) => void; addPhoto: (tripId: string) => Promise<void>; setMemoryCaption: (tripId: string, memoryId: string, caption: string) => void; syncMemoryBookPhotos: () => Promise<number>; setPremium: (premium: boolean) => void; markOnboarded: () => void };
 const TravelContext = createContext<Store | null>(null);
 
