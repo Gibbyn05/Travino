@@ -132,8 +132,9 @@ export default function ProfileScreen() {
       <Card style={s.detailCard}><View style={s.detailIcon}><Ionicons name="airplane-outline" size={23} color={colors.blue}/></View><View style={{ flex: 1 }}><Text style={s.detailTitle}>{trips.filter((trip) => trip.id !== 'spain-2026').length} saved {trips.filter((trip) => trip.id !== 'spain-2026').length === 1 ? 'trip' : 'trips'}</Text><Text style={s.copy}>Your plans stay yours unless you invite someone along.</Text></View></Card>
       {selectedTrip && selectedTrip.id !== 'spain-2026' && <Pressable onPress={() => deleteTrip(selectedTrip.id)} style={({ pressed }) => [s.deleteRow, pressed && s.pressed]}><Ionicons name="trash-outline" size={19} color={colors.pink}/><Text style={s.deleteText}>Delete “{selectedTrip.title}”</Text></Pressable>}
     </Section>
+    <Section title="App"><Pressable accessibilityRole="button" accessibilityLabel="Preview onboarding" onPress={() => router.push({ pathname: '/onboarding', params: { preview: '1' } } as any)} style={({ pressed }) => [s.previewRow, pressed && s.pressed]}><View style={s.previewIcon}><Ionicons name="eye-outline" size={20} color={colors.blue}/></View><View style={{ flex: 1 }}><Text style={s.editText}>Preview onboarding</Text><Text style={s.copy}>Review the welcome flow without changing your profile or trips.</Text></View><Ionicons name="chevron-forward" size={18} color={colors.muted}/></Pressable></Section>
     <Section title="Premium"><Card style={s.detailCard}><View style={s.premiumIcon}><Ionicons name="sparkles-outline" size={22} color={colors.purple}/></View><View style={{ flex: 1 }}><Text style={s.detailTitle}>Purchases are not configured</Text><Text style={s.copy}>Map and app features are open while App Store and RevenueCat are set up.</Text></View></Card></Section>
-    <Sheet visible={open} title="Edit profile" onClose={() => setOpen(false)}><Field value={name} onChangeText={setName} placeholder="Your name"/><Field value={bio} onChangeText={setBio} placeholder="A little about you" multiline/><PrimaryButton title="Save profile" icon="checkmark" onPress={save}/></Sheet>
+    <Sheet visible={open} title="Edit profile" onClose={() => setOpen(false)}><Text style={s.fieldLabel}>Name</Text><Field value={name} onChangeText={setName} placeholder="Your name"/><Text style={s.fieldLabel}>About you</Text><Field value={bio} onChangeText={setBio} placeholder="A little about you" multiline/><Text style={s.profileHint}>Your name and introduction help accepted friends recognize you when you share a memory book.</Text><PrimaryButton title="Save profile" icon="checkmark" onPress={save}/></Sheet>
   </ScrollView>;
 }
 
@@ -149,6 +150,8 @@ const s = StyleSheet.create({
   memoryBookRow: { marginTop: 14, minHeight: 76, paddingHorizontal: 17, paddingVertical: 12, borderRadius: 20, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', gap: 13 },
   memoryBookIcon: { height: 42, width: 42, borderRadius: 15, backgroundColor: colors.purpleSoft, alignItems: 'center', justifyContent: 'center' },
   editText: { color: colors.text, fontSize: 15, fontWeight: '600' }, pressed: { opacity: .7 },
+  previewRow: { minHeight: 76, paddingHorizontal: 17, paddingVertical: 12, borderRadius: 20, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', gap: 13 },
+  previewIcon: { height: 42, width: 42, borderRadius: 15, backgroundColor: colors.blueSoft, alignItems: 'center', justifyContent: 'center' },
   privacyCard: { marginTop: 12, flexDirection: 'row', gap: 12, alignItems: 'center', paddingVertical: 15 },
   privacyIcon: { height: 40, width: 40, borderRadius: 14, backgroundColor: colors.blueSoft, alignItems: 'center', justifyContent: 'center' },
   detailCard: { flexDirection: 'row', gap: 13, alignItems: 'flex-start' },
@@ -157,4 +160,6 @@ const s = StyleSheet.create({
   detailTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 15, fontWeight: '700', letterSpacing: -.1 },
   deleteRow: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 8, padding: 10, marginTop: 3 },
   deleteText: { color: colors.pink, fontSize: 14, fontWeight: '600' },
+  fieldLabel: { color: colors.text, fontSize: 13, fontWeight: '600', marginBottom: 7, marginLeft: 2 },
+  profileHint: { color: colors.muted, fontSize: 12, lineHeight: 18, marginTop: -1, marginBottom: 18 },
 });

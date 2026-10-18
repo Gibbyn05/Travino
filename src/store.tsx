@@ -1,10 +1,10 @@
-import AsyncStorage from 'expo-sqlite/kv-store';
 import * as ImagePicker from 'expo-image-picker';
 import { Alert } from 'react-native';
 import { createContext, ReactNode, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { stockCoverForCountry } from './country-images';
 import { ensureGuestIdentity, supabase } from './lib/supabase';
 import { registerForPushNotifications } from './notifications';
+import storage from './lib/persistent-storage';
 
 export type Activity = { id: string; title: string; date: string; startTime: string; endTime?: string; location?: string; note?: string; participants?: string[] };
 export type PackingItem = { id: string; title: string; person?: string; category: string; done: boolean };
@@ -40,13 +40,13 @@ async function syncMemoryPhoto(trip: Trip, memory: Memory, userId: string, conte
 export function TravelProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<StoredState>(initial); const [ready, setReady] = useState(false);
   const remoteWrites = useRef(Promise.resolve());
-  useEffect(() => { let active = true; const load = async () => { let next = initial; try { const raw = await AsyncStorage.getItem(key); const local = raw ? stateFrom(JSON.parse(raw)) : null; if (local) next = local; } catch { /* Start with an empty state if the local cache is unreadable. */ } try { const client = supabase; if (client) { const user = await ensureGuestIdentity().catch(() => null); if (user) { const { data } = await client.from('travel_states').select('payload').eq('user_id', user.id).maybeSingle(); const remote = stateFrom(data?.payload); if (remote) next = remote; else await client.from('travel_states').upsert({ user_id: user.id, payload: next, updated_at: new Date().toISOString() }); } } } catch { /* The local state remains usable if the database is temporarily unavailable. */ } if (active) { setState(next); await AsyncStorage.setItem(key, JSON.stringify(next)).catch(() => undefined); setReady(true); } }; load().catch(() => { if (active) setReady(true); }); return () => { active = false; }; }, []);
+  useEffect(() => { let active = true; const load = async () => { let next = initial; try { const raw = await storage.getItem(key); const local = raw ? stateFrom(JSON.parse(raw)) : null; if (local) next = local; } catch { /* Start with an empty state if the local cache is unreadable. */ } try { const client = supabase; if (client) { const user = await ensureGuestIdentity().catch(() => null); if (user) { const { data } = await client.from('travel_states').select('payload').eq('user_id', user.id).maybeSingle(); const remote = stateFrom(data?.payload); if (remote) next = remote; else await client.from('travel_states').upsert({ user_id: user.id, payload: next, updated_at: new Date().toISOString() }); } } } catch { /* The local state remains usable if the database is temporarily unavailable. */ } if (active) { setState(next); await storage.setItem(key, JSON.stringify(next)).catch(() => undefined); setReady(true); } }; load().catch(() => { if (active) setReady(true); }); return () => { active = false; }; }, []);
   useEffect(() => {
     if (!ready || !state.onboarded || !supabase) return;
     registerForPushNotifications().catch(() => undefined);
   }, [ready, state.onboarded]);
   const persistRemote = (next: StoredState) => { const client = supabase; if (!client || !ready) return; remoteWrites.current = remoteWrites.current.catch(() => undefined).then(async () => { const user = await ensureGuestIdentity(); if (!user) return; const { error } = await client.from('travel_states').upsert({ user_id: user.id, payload: next, updated_at: new Date().toISOString() }); if (error) throw error; }).catch(() => undefined); };
-  const change = (update: (current: StoredState) => StoredState) => setState((current) => { const next = update(current); AsyncStorage.setItem(key, JSON.stringify(next)).catch(() => undefined); persistRemote(next); return next; });
+  const change = (update: (current: StoredState) => StoredState) => setState((current) => { const next = update(current); storage.setItem(key, JSON.stringify(next)).catch(() => undefined); persistRemote(next); return next; });
   const updateTrip = (id: string, patch: Partial<Trip>) => change((s) => ({ ...s, trips: s.trips.map((trip) => trip.id === id ? { ...trip, ...patch } : trip) }));
   const selectedTrip = state.trips.find((trip) => trip.id === state.selectedTripId) ?? state.trips[0];
   const value = useMemo<Store>(() => ({ ...state, ready, selectedTrip,
