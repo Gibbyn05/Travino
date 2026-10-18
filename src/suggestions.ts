@@ -31,7 +31,7 @@ const activityIdeasByCountry: Record<string, string[]> = {
   switzerland: ['Take a scenic mountain train', 'Ride a cable car to a viewpoint', 'Hike an alpine trail', 'Visit a lakeside village', 'Take a boat across the lake'],
   germany: ['Explore the old town', 'Visit a local food market', 'Take a river cruise', 'Join a local history tour', 'Visit a nearby castle'],
   netherlands: ['Take a canal cruise', 'Cycle through the city', 'Visit a local market', 'Explore a historic neighbourhood', 'Take a day trip to a nearby village'],
-  'south korea': ['Explore a traditional market', 'Try a Korean cooking class', 'Visit a palace or temple', 'Join a street food tour', 'Sing karaoke with the group'],
+  'south korea': ['Explore a traditional market', 'Try a Korean cooking class', 'Visit a palace or temple', 'Join a street food tour', 'Sing karaoke at a local bar'],
   india: ['Join a local food tour', 'Visit a historic fort or palace', 'Explore a colourful market', 'Take a cooking class', 'Watch the sunset from a viewpoint'],
   'united arab emirates': ['Take a desert safari', 'Explore a traditional souk', 'Join a local food tour', 'Take a dhow cruise', 'Watch the sunset from a viewpoint'],
   'south africa': ['Join a wildlife safari', 'Visit a local food market', 'Take a coastal walk', 'Explore a nearby wine region', 'Watch the sunset by the sea'],

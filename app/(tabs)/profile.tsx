@@ -75,7 +75,7 @@ export default function ProfileScreen() {
           if (error) throw error;
         }
       } catch {
-        Alert.alert('Saved on this device', 'Your profile is saved here. Connect the updated Supabase database to sync it with friends.');
+        Alert.alert('Saved on this device', 'Your profile is safe here and will sync when the connection is ready.');
       }
     }
     setOpen(false);
@@ -83,7 +83,7 @@ export default function ProfileScreen() {
 
   const setBookVisibility = async (next: boolean) => {
     if (!supabase || !sharingReady) {
-      Alert.alert('Sharing is not set up yet', 'Apply the latest Supabase migration before making your memory book available to friends.');
+      Alert.alert('Sharing is taking a moment', 'Try again later when your connection is ready.');
       return;
     }
     if (next) {
@@ -114,15 +114,15 @@ export default function ProfileScreen() {
       <Pressable accessibilityRole="button" accessibilityLabel="Edit profile" onPress={() => { setName(profileName); setBio(profileBio); setOpen(true); }} style={s.pencil}><Ionicons name="pencil" size={18} color={colors.blue}/></Pressable>
     </Card>
     <View style={s.stats}>
-      <Card style={s.stat}><View style={s.statIcon}><Ionicons name="earth-outline" size={20} color={colors.blue}/></View><Text style={s.statNumber}>{countriesVisited}</Text><Text style={s.statLabel}>countries visited</Text></Card>
-      <Card style={s.stat}><View style={[s.statIcon, { backgroundColor: colors.purpleSoft }]}><Ionicons name="sunny-outline" size={20} color={colors.purple}/></View><Text style={s.statNumber}>{daysAway}</Text><Text style={s.statLabel}>days away</Text></Card>
+      <Card style={s.stat}><View style={s.statIcon}><Ionicons name="earth-outline" size={20} color={colors.blue}/></View><Text style={s.statNumber}>{countriesVisited}</Text><Text style={s.statLabel}>{countriesVisited === 1 ? 'country visited' : 'countries visited'}</Text></Card>
+      <Card style={s.stat}><View style={[s.statIcon, { backgroundColor: colors.purpleSoft }]}><Ionicons name="sunny-outline" size={20} color={colors.purple}/></View><Text style={s.statNumber}>{daysAway}</Text><Text style={s.statLabel}>{daysAway === 1 ? 'day away' : 'days away'}</Text></Card>
     </View>
     <Pressable onPress={() => router.push('/memory-book' as any)} style={({ pressed }) => [s.memoryBookRow, pressed && s.pressed]}>
       <View style={s.memoryBookIcon}><Ionicons name="book-outline" size={21} color={colors.purple}/></View>
       <View style={{ flex: 1 }}><Text style={s.editText}>Memory book</Text><Text style={s.copy}>{memoryCount ? `${memoryCount} ${memoryCount === 1 ? 'photo' : 'photos'} from your trips` : 'A place for your favourite travel moments'}</Text></View>
       <Ionicons name="chevron-forward" size={18} color={colors.muted}/>
     </Pressable>
-    <Pressable onPress={() => router.push('/friends' as any)} style={({ pressed }) => [s.editRow, pressed && s.pressed]}><View style={s.editIcon}><Ionicons name="people-outline" size={20} color={colors.blue}/></View><View style={{ flex: 1 }}><Text style={s.editText}>Friends</Text><Text style={s.copy}>Share your travel memories, together</Text></View><Ionicons name="chevron-forward" size={18} color={colors.muted}/></Pressable>
+    <Pressable onPress={() => router.push('/friends' as any)} style={({ pressed }) => [s.editRow, pressed && s.pressed]}><View style={s.editIcon}><Ionicons name="people-outline" size={20} color={colors.blue}/></View><View style={{ flex: 1 }}><Text style={s.editText}>Friends</Text><Text style={s.copy}>Share your travel memories with friends</Text></View><Ionicons name="chevron-forward" size={18} color={colors.muted}/></Pressable>
     <Card style={s.privacyCard}>
       <View style={s.privacyIcon}><Ionicons name="lock-closed-outline" size={20} color={colors.blue}/></View>
       <View style={{ flex: 1 }}><Text style={s.detailTitle}>Memory book sharing</Text><Text style={s.copy}>{memoryBookPublic ? 'Visible to your friends only' : 'Private — only you can see it'}</Text></View>
@@ -133,7 +133,7 @@ export default function ProfileScreen() {
       {selectedTrip && selectedTrip.id !== 'spain-2026' && <Pressable onPress={() => deleteTrip(selectedTrip.id)} style={({ pressed }) => [s.deleteRow, pressed && s.pressed]}><Ionicons name="trash-outline" size={19} color={colors.pink}/><Text style={s.deleteText}>Delete “{selectedTrip.title}”</Text></Pressable>}
     </Section>
     <Section title="App"><Pressable accessibilityRole="button" accessibilityLabel="Preview onboarding" onPress={() => router.push({ pathname: '/onboarding', params: { preview: '1' } } as any)} style={({ pressed }) => [s.previewRow, pressed && s.pressed]}><View style={s.previewIcon}><Ionicons name="eye-outline" size={20} color={colors.blue}/></View><View style={{ flex: 1 }}><Text style={s.editText}>Preview onboarding</Text><Text style={s.copy}>Review the welcome flow without changing your profile or trips.</Text></View><Ionicons name="chevron-forward" size={18} color={colors.muted}/></Pressable></Section>
-    <Section title="Premium"><Card style={s.detailCard}><View style={s.premiumIcon}><Ionicons name="sparkles-outline" size={22} color={colors.purple}/></View><View style={{ flex: 1 }}><Text style={s.detailTitle}>Purchases are not configured</Text><Text style={s.copy}>Map and app features are open while App Store and RevenueCat are set up.</Text></View></Card></Section>
+    <Section title="Travino"><Card style={s.detailCard}><View style={s.premiumIcon}><Ionicons name="sparkles-outline" size={22} color={colors.purple}/></View><View style={{ flex: 1 }}><Text style={s.detailTitle}>Travino is growing gently</Text><Text style={s.copy}>Everything here is open while we keep shaping the first version for travellers.</Text></View></Card></Section>
     <Sheet visible={open} title="Edit profile" onClose={() => setOpen(false)}><Text style={s.fieldLabel}>Name</Text><Field value={name} onChangeText={setName} placeholder="Your name"/><Text style={s.fieldLabel}>About you</Text><Field value={bio} onChangeText={setBio} placeholder="A little about you" multiline/><Text style={s.profileHint}>Your name and introduction help accepted friends recognize you when you share a memory book.</Text><PrimaryButton title="Save profile" icon="checkmark" onPress={save}/></Sheet>
   </ScrollView>;
 }

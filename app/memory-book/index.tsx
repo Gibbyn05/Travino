@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Card, DestinationCover, PageTitle, PrimaryButton } from '@/src/ui';
+import { DestinationCover, EmptyMoment, PageTitle } from '@/src/ui';
 import { colors, fonts } from '@/src/theme';
 import { Trip, useTravel } from '@/src/store';
 import { stockCoverForCountry } from '@/src/country-images';
@@ -37,7 +37,7 @@ export default function MemoryBookIndex() {
         </DestinationCover>
         <View style={s.bookFooter}><Text style={s.footerText}>{book.trips.length} {book.trips.length === 1 ? 'trip' : 'trips'} · {book.photoCount} {book.photoCount === 1 ? 'memory' : 'memories'}</Text><Ionicons name="arrow-forward" size={18} color={colors.blue}/></View>
       </Pressable>;
-    })}</View> : <Card style={s.empty}><View style={s.emptyIcon}><Ionicons name="book-outline" size={26} color={colors.purple}/></View><Text style={s.emptyTitle}>Your first chapter is waiting</Text><Text style={s.emptyCopy}>Create a trip and add a few photos to start your travel journal.</Text><PrimaryButton title="Go to trips" icon="airplane-outline" onPress={() => router.push('/trip')}/></Card>}
+    })}</View> : <EmptyMoment style={s.empty} title="Your first chapter is waiting" copy="Create a trip, then keep a few photos from the days you want to remember." actionTitle="Plan a trip" icon="airplane-outline" onPress={() => router.push('/')}/>}
   </ScrollView>;
 }
 
@@ -56,8 +56,5 @@ const s = StyleSheet.create({
   bookFooter: { minHeight: 52, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 17 },
   footerText: { color: colors.muted, fontSize: 13, fontWeight: '500' },
   pressed: { opacity: .86, transform: [{ scale: .99 }] },
-  empty: { alignItems: 'center', gap: 10, padding: 23, backgroundColor: colors.purpleSoft, borderColor: '#E8DFFF' },
-  emptyIcon: { width: 52, height: 52, borderRadius: 18, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' },
-  emptyTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 19, fontWeight: '700', textAlign: 'center' },
-  emptyCopy: { color: colors.muted, fontSize: 14, lineHeight: 21, textAlign: 'center', marginBottom: 7 },
+  empty: { backgroundColor: colors.purpleSoft, borderColor: '#E8DFFF' },
 });

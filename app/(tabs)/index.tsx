@@ -1,103 +1,113 @@
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AutocompleteField, DateField, Field, Sheet } from '@/src/forms';
 import { destinationSuggestions } from '@/src/suggestions';
-import { AccentText, DestinationCover, PrimaryButton } from '@/src/ui';
+import { AccentText, EmptyMoment, PrimaryButton } from '@/src/ui';
 import { colors, fonts } from '@/src/theme';
-import { useTravel } from '@/src/store';
+import { Trip, useTravel } from '@/src/store';
+import { formatTripDates, parseTravelDate, tripLength } from '@/src/dates';
+import { tripColors, tripIcons, tripPresentation } from '@/src/trip-presentation';
+
+type Inspiration = { title: string; city: string; country: string };
+const inspirations: Inspiration[] = [
+  { title: 'Exploring the Amalfi Coast', city: 'Amalfi', country: 'Italy' },
+  { title: 'A long weekend in Lisbon', city: 'Lisbon', country: 'Portugal' },
+  { title: 'Slow days in Kyoto', city: 'Kyoto', country: 'Japan' },
+  { title: 'Island time in Mallorca', city: 'Mallorca', country: 'Spain' },
+];
+
+function tripCountdown(trip: Pick<Trip, 'startDate' | 'endDate'>) {
+  const start = parseTravelDate(trip.startDate);
+  const end = parseTravelDate(trip.endDate);
+  if (!start || !end) return 'Dates to be confirmed';
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  if (end < today) return 'A trip to remember';
+  const days = Math.round((start.getTime() - today.getTime()) / 86_400_000);
+  if (days > 1) return `Starts in ${days} days`;
+  if (days === 1) return '1 day to go';
+  if (days === 0) return 'Leaving today';
+  const day = Math.max(1, Math.round((today.getTime() - start.getTime()) / 86_400_000) + 1);
+  return `Day ${day}`;
+}
+
+function Ticket({ trip, onOpen }: { trip: Trip; onOpen: () => void }) {
+  const presentation = tripPresentation(trip);
+  const packed = trip.packing.filter((item) => item.done).length;
+  const total = trip.packing.length;
+  const progress = total ? Math.round(packed / total * 100) : 0;
+  return <Pressable accessibilityRole="button" accessibilityLabel={`Open ${trip.title}`} onPress={onOpen} style={({ pressed }) => [s.ticket, pressed && s.pressed]}>
+    <View style={[s.ticketTop, { backgroundColor: `${presentation.color}18` }]}>
+      <View style={[s.ticketIcon, { backgroundColor: presentation.color }]}><Ionicons name={presentation.icon} size={21} color="#FFFFFF"/></View>
+      <View style={{ flex: 1 }}><Text style={s.ticketDestination} numberOfLines={1}>{trip.city || trip.country}</Text><Text style={s.ticketCountry} numberOfLines={1}>{trip.country || 'Destination to be confirmed'}</Text></View>
+      <Ionicons name="arrow-forward" size={18} color={presentation.color}/>
+    </View>
+    <View style={s.ticketBody}>
+      <Text style={s.ticketTitle} numberOfLines={1}>{trip.title}</Text>
+      <Text style={[s.ticketCountdown, { color: presentation.color }]}>{tripCountdown(trip)}</Text>
+      <Text style={s.ticketDates}>{formatTripDates(trip.startDate, trip.endDate)}</Text>
+      <View style={s.ticketRule}/>
+      <View style={s.packHead}><Text style={s.packLabel}>PACKED</Text><Text style={s.packValue}>{total ? `${packed} of ${total}` : 'Not started'}</Text></View>
+      <View style={s.packTrack}><View style={[s.packFill, { width: `${progress}%` as `${number}%`, backgroundColor: presentation.color }]}/></View>
+    </View>
+  </Pressable>;
+}
+
+function TripPreview({ title, city, country, icon, color }: { title: string; city: string; country: string; icon: string; color: string }) {
+  return <View style={[s.preview, { backgroundColor: `${color}16`, borderColor: `${color}38` }]}>
+    <View style={[s.previewIcon, { backgroundColor: color }]}><Ionicons name={icon as any} size={28} color="#FFFFFF"/></View>
+    <View style={{ flex: 1 }}><Text style={s.previewEyebrow}>YOUR TRIP</Text><Text style={s.previewTitle} numberOfLines={1}>{title || 'A trip worth remembering'}</Text><Text style={s.previewDestination} numberOfLines={1}>{[city, country].filter(Boolean).join(', ') || 'Choose a destination'}</Text></View>
+  </View>;
+}
 
 export default function HomeScreen() {
   const { profileName, trips, createTrip, setSelectedTripId } = useTravel();
   const [open, setOpen] = useState(false);
-  const [title, setTitle] = useState('');
-  const [city, setCity] = useState('');
-  const [country, setCountry] = useState('');
-  const [start, setStart] = useState('');
-  const [end, setEnd] = useState('');
-  const save = () => {
-    if (!title.trim() || !city.trim() || !start.trim() || !end.trim()) return;
-    createTrip({ title, city, country: country || 'Unknown', startDate: start, endDate: end, members: [] });
-    setOpen(false); setTitle(''); setCity(''); setCountry(''); setStart(''); setEnd('');
-  };
+  const [destinationOpen, setDestinationOpen] = useState(false);
+  const [title, setTitle] = useState(''); const [city, setCity] = useState(''); const [country, setCountry] = useState(''); const [start, setStart] = useState(''); const [end, setEnd] = useState('');
+  const [color, setColor] = useState<string>(tripColors[0]); const [icon, setIcon] = useState<string>(tripIcons[0]); const [inspirationIndex, setInspirationIndex] = useState(0);
+  const inspiration = inspirations[inspirationIndex]; const hasTrips = trips.length > 0;
+
+  useEffect(() => {
+    if (!open) return;
+    const timer = setInterval(() => setInspirationIndex((index) => (index + 1) % inspirations.length), 4600);
+    return () => clearInterval(timer);
+  }, [open]);
+
+  const reset = () => { setOpen(false); setDestinationOpen(false); setTitle(''); setCity(''); setCountry(''); setStart(''); setEnd(''); setColor(tripColors[0]); setIcon(tripIcons[0]); };
+  const save = () => { if (!title.trim() || !city.trim() || !start.trim() || !end.trim()) return; createTrip({ title: title.trim(), city: city.trim(), country: country.trim() || 'Unknown', startDate: start, endDate: end, members: [], icon, color }); reset(); };
+  const useInspiration = () => { setTitle(inspiration.title); setCity(inspiration.city); setCountry(inspiration.country); };
+
   return <ScrollView style={s.page} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
-    <View style={s.topRow}>
-      <Text style={s.greeting}>Hi {profileName || 'traveller'}!</Text>
-      <View style={s.profileDot}><Text style={s.profileInitial}>{(profileName || 'T').slice(0, 1).toUpperCase()}</Text></View>
-    </View>
-    <View style={s.heroCopy}>
-      <Text style={s.heroEyebrow}>TRAVEL, TOGETHER</Text>
-      <Text style={s.heading}>Plan your</Text>
-      <Text style={s.gradientHeading}><Text style={{ color: colors.blue }}>next</Text><Text style={{ color: '#8EA9F8' }}> adventure</Text></Text>
-      <Text style={s.heroDescription}>Keep your itinerary, memories and travel crew in one happy place.</Text>
-    </View>
-    <LinearGradient colors={['#FFFFFF', '#F7F8FF', '#EDF8FF']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.createCard}>
-      <View style={s.characters} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-        <Character style={s.characterPink}/><Character style={s.characterYellow}/><Character style={s.characterBlue}/><Character style={s.characterPurple}/>
-        <Ionicons name="sparkles" size={14} color="#FFC451" style={s.characterSparkle}/>
-      </View>
-      <View style={s.createText}><Text style={s.microCopy}>YOUR FIRST STEP</Text><Text style={s.createTitle}>Where shall we go?</Text><Text style={s.createCopy}>Pick a destination. We’ll help with the rest.</Text></View>
-      <View style={s.createButton}><PrimaryButton title="Start a new trip" icon="add" onPress={() => setOpen(true)}/></View>
-    </LinearGradient>
-    <View style={s.sectionHead}><AccentText text={trips.length ? 'Your trips' : 'Your next adventure'} style={s.sectionTitle}/>{trips.length > 0 && <Ionicons name="arrow-forward" size={18} color={colors.text}/>}</View>
-    {trips.length === 0 ? <View style={s.empty}><View style={s.emptyIcon}><Ionicons name="airplane-outline" size={28} color={colors.blue}/></View><Text style={s.emptyTitle}>Where to next?</Text><Text style={s.emptyCopy}>Create a trip to keep all your plans together.</Text></View> : <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.list}>{trips.map((trip) => <Pressable key={trip.id} onPress={() => { setSelectedTripId(trip.id); router.push('/trip'); }} style={({ pressed }) => [s.tripCard, pressed && { opacity: .85 }]}>
-      <DestinationCover country={trip.country} uri={trip.coverImage} style={s.tripImage} imageStyle={s.tripImageRadius}/>
-      <View style={s.tripMeta}><View style={{ flex: 1 }}><Text style={s.tripTitle}>{trip.title}</Text><Text style={s.tripLocation}>{trip.city}, {trip.country}</Text><Text style={s.tripDate}>{trip.startDate} – {trip.endDate}</Text></View><View style={s.tripArrow}><Ionicons name="arrow-forward" size={19} color={colors.blue}/></View></View>
-    </Pressable>)}</ScrollView>}
-    <Sheet visible={open} title="New trip" onClose={() => setOpen(false)}>
-      <Field value={title} onChangeText={setTitle} placeholder="Trip name"/>
-      <AutocompleteField value={city} onChangeText={setCity} placeholder="City or destination" suggestions={destinationSuggestions} onPick={(suggestion) => setCountry(suggestion.detail ?? country)}/>
-      <Field value={country} onChangeText={setCountry} placeholder="Country"/>
-      <DateField value={start} onChangeText={(date) => { setStart(date); if (end && end <= date) setEnd(''); }} placeholder="Start date"/>
-      <DateField value={end} onChangeText={setEnd} placeholder="End date" minDate={start}/>
+    <View style={s.topRow}><Text style={s.greeting}>Hi {profileName || 'traveller'}!</Text><Pressable accessibilityRole="button" accessibilityLabel="Open profile" onPress={() => router.push('/profile')} hitSlop={8} style={({ pressed }) => [s.profileDot, pressed && s.pressed]}><Text style={s.profileInitial}>{(profileName || 'T').slice(0, 1).toUpperCase()}</Text></Pressable></View>
+    <View style={s.heroCopy}><Text style={s.heroEyebrow}>YOUR TRAVEL JOURNAL</Text><Text style={s.heading}>Plan your</Text><Text style={s.gradientHeading}><Text style={{ color: colors.blue }}>next</Text><Text style={{ color: '#8EA9F8' }}> adventure</Text></Text><Text style={s.heroDescription}>Keep the small plans, good days and favourite moments close.</Text></View>
+    {!hasTrips ? <View style={s.createCard}><View style={s.routeLine} pointerEvents="none"><View style={s.routeDot}/><View style={s.routeDash}/><Ionicons name="airplane" size={19} color="#FFFFFF"/><View style={s.routeDash}/><View style={[s.routeDot, s.routeDotEnd]}/></View><View style={s.createText}><Text style={s.microCopy}>YOUR FIRST STEP</Text><Text style={s.createTitle}>Where shall we go?</Text><Text style={s.createCopy}>Pick a destination. Keep the details that matter.</Text></View><View style={s.createButton}><PrimaryButton title="Start a new trip" icon="add" onPress={() => setOpen(true)}/></View></View> : null}
+    <View style={[s.sectionHead, hasTrips && s.sectionHeadWithTrips]}><AccentText text={hasTrips ? 'Your trips' : 'Your next adventure'} style={s.sectionTitle}/>{hasTrips ? <Pressable accessibilityRole="button" accessibilityLabel="Start a new trip" onPress={() => setOpen(true)} hitSlop={8} style={({ pressed }) => [s.newTripButton, pressed && s.pressed]}><Ionicons name="add" size={22} color="#FFFFFF"/></Pressable> : null}</View>
+    {hasTrips ? (
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.list}>{trips.map((trip) => <Ticket key={trip.id} trip={trip} onOpen={() => { setSelectedTripId(trip.id); router.push('/trip'); }}/>)}</ScrollView>
+    ) : (
+      <EmptyMoment compact title="A little room for plans" copy="Your first trip will turn into a calm place for lists, days and memories." actionTitle="Plan a trip" icon="add" onPress={() => setOpen(true)} style={s.empty}/>
+    )}
+    <Sheet visible={open} title="Plan a trip" onClose={reset}>
+      <TripPreview title={title} city={city} country={country} icon={icon} color={color}/>
+      <Text style={s.fieldLabel}>Trip name</Text><Field value={title} onChangeText={setTitle} placeholder="For example, Summer in Sicily"/>
+      <Text style={s.fieldLabel}>Colour</Text><View style={s.colorRow}>{tripColors.map((choice) => <Pressable key={choice} accessibilityRole="button" accessibilityLabel="Choose trip colour" accessibilityState={{ selected: color === choice }} onPress={() => setColor(choice)} style={[s.colorDot, { backgroundColor: choice }, color === choice && s.colorDotSelected]}>{color === choice ? <Ionicons name="checkmark" size={17} color="#FFFFFF"/> : null}</Pressable>)}</View>
+      <Text style={s.fieldLabel}>Trip icon</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.iconRow}>{tripIcons.map((choice) => <Pressable key={choice} accessibilityRole="button" accessibilityLabel={`Choose ${choice} icon`} accessibilityState={{ selected: icon === choice }} onPress={() => setIcon(choice)} style={[s.iconChoice, icon === choice && { borderColor: color, backgroundColor: `${color}12` }]}><Ionicons name={choice} size={21} color={icon === choice ? color : colors.muted}/></Pressable>)}</ScrollView>
+      <Pressable accessibilityRole="button" onPress={useInspiration} style={({ pressed }) => [s.inspiration, pressed && s.pressed]}><View style={s.inspirationIcon}><Ionicons name="sparkles-outline" size={19} color={colors.purple}/></View><View style={{ flex: 1 }}><Text style={s.inspirationLabel}>GET INSPIRED</Text><Text style={s.inspirationTitle}>{inspiration.title}</Text></View><Ionicons name="arrow-forward" size={18} color={colors.purple}/></Pressable>
+      <Text style={s.fieldLabel}>Destination</Text><Pressable accessibilityRole="button" onPress={() => setDestinationOpen(true)} style={s.destinationField}><View style={s.destinationFieldIcon}><Ionicons name="location-outline" size={20} color={colors.blue}/></View><View style={{ flex: 1 }}><Text style={[s.destinationValue, !city && s.destinationPlaceholder]}>{city ? [city, country].filter(Boolean).join(', ') : 'Search for a destination'}</Text></View><Ionicons name="chevron-forward" size={19} color={colors.muted}/></Pressable>
+      <Text style={s.fieldLabel}>Dates</Text><View style={s.datePair}><View style={s.dateHalf}><DateField value={start} onChangeText={(date) => { setStart(date); if (end && end <= date) setEnd(''); }} placeholder="Start date" rangeStart={start} rangeEnd={end}/></View><View style={s.dateHalf}><DateField value={end} onChangeText={setEnd} placeholder="End date" minDate={start} rangeStart={start} rangeEnd={end}/></View></View><Text style={s.lengthHint}>{tripLength(start, end) || 'Choose dates to see the length of your trip.'}</Text>
       <PrimaryButton title="Save trip" icon="checkmark" onPress={save}/>
     </Sheet>
+    <Sheet visible={destinationOpen} title="Choose a destination" onClose={() => setDestinationOpen(false)}><Text style={s.destinationSheetCopy}>Search for a city, then Travino will use it across your plan and map.</Text><AutocompleteField value={city} onChangeText={setCity} placeholder="City or destination" suggestions={destinationSuggestions} showSuggestionsOnFocus onPick={(suggestion) => { setCity(suggestion.value); setCountry(suggestion.detail ?? country); setDestinationOpen(false); }}/>{city ? <Pressable accessibilityRole="button" onPress={() => setDestinationOpen(false)} style={s.destinationConfirm}><Text style={s.destinationConfirmText}>Use {city}</Text></Pressable> : null}</Sheet>
   </ScrollView>;
 }
 
-function Character({ style }: { style: object }) {
-  return <View style={[s.character, style]}><View style={s.eyes}><View style={s.eye}><View style={s.pupil}/></View><View style={s.eye}><View style={s.pupil}/></View></View><View style={s.mouth}><View style={s.teeth}/></View></View>;
-}
-
 const s = StyleSheet.create({
-  page: { flex: 1, backgroundColor: colors.background }, content: { paddingHorizontal: 16, paddingTop: 68, paddingBottom: 44 },
-  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 25 },
-  greeting: { color: colors.muted, fontSize: 16, fontWeight: '400' },
-  profileDot: { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.purpleSoft, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
-  profileInitial: { color: colors.purple, fontSize: 17, fontWeight: '700' },
-  heroCopy: { marginBottom: 28 },
-  heroEyebrow: { color: colors.blue, fontSize: 11, fontWeight: '800', letterSpacing: 1.25, marginBottom: 8 },
-  heading: { color: colors.text, fontFamily: fonts.heading, fontSize: 43, fontWeight: '700', letterSpacing: 0, lineHeight: 49 },
-  gradientHeading: { fontFamily: fonts.heading, fontSize: 43, fontWeight: '700', letterSpacing: 0, lineHeight: 51 },
-  heroDescription: { color: colors.muted, fontSize: 15, lineHeight: 22, marginTop: 10, maxWidth: 315 },
-  createCard: { borderWidth: 1, borderColor: '#D7E8FF', borderRadius: 24, minHeight: 180, padding: 20, overflow: 'hidden' },
-  createText: { alignItems: 'center' }, microCopy: { color: colors.blue, fontSize: 10, fontWeight: '800', letterSpacing: 1.05, marginBottom: 7 },
-  createTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 23, lineHeight: 30, letterSpacing: 0, textAlign: 'center' },
-  createCopy: { color: colors.muted, fontSize: 14, lineHeight: 21, textAlign: 'center', marginTop: 6 },
-  characters: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 9, paddingVertical: 9, marginBottom: 16, alignSelf: 'center' },
-  character: { width: 44, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center', shadowColor: colors.text, shadowOpacity: .09, shadowRadius: 7, shadowOffset: { width: 0, height: 4 } },
-  eyes: { flexDirection: 'row', gap: 5 },
-  eye: { width: 12, height: 14, borderRadius: 8, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
-  pupil: { width: 6, height: 7, borderRadius: 4, backgroundColor: '#243869' },
-  mouth: { width: 18, height: 11, borderTopLeftRadius: 2, borderTopRightRadius: 2, borderBottomLeftRadius: 12, borderBottomRightRadius: 12, backgroundColor: '#243869', marginTop: 4, overflow: 'hidden', alignItems: 'center' },
-  teeth: { width: 14, height: 4, backgroundColor: '#FFFFFF', borderBottomLeftRadius: 3, borderBottomRightRadius: 3 },
-  characterSparkle: { position: 'absolute', right: -17, top: 0 },
-  characterPink: { backgroundColor: '#F170A4', transform: [{ rotate: '-9deg' }] },
-  characterYellow: { backgroundColor: '#FFC451', transform: [{ translateY: -5 }, { rotate: '5deg' }] },
-  characterBlue: { backgroundColor: colors.blueBright, transform: [{ translateY: -5 }, { rotate: '-5deg' }] },
-  characterPurple: { backgroundColor: colors.purple, transform: [{ rotate: '9deg' }] },
-  createButton: { marginTop: 20 },
-  sectionHead: { marginTop: 34, marginBottom: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sectionTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 22, fontWeight: '700', letterSpacing: -.35 },
-  empty: { minHeight: 210, borderWidth: 1, borderColor: colors.border, borderRadius: 24, alignItems: 'center', justifyContent: 'center', padding: 25, backgroundColor: colors.surface },
-  emptyIcon: { width: 52, height: 52, borderRadius: 18, backgroundColor: colors.blueSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 13 },
-  emptyTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 17, fontWeight: '700' }, emptyCopy: { color: colors.muted, fontSize: 13, lineHeight: 19, textAlign: 'center', marginTop: 6 },
-  list: { gap: 13, paddingRight: 24, paddingBottom: 8 }, tripCard: { width: 228, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 22, padding: 6, shadowColor: colors.text, shadowOpacity: .04, shadowRadius: 12, shadowOffset: { width: 0, height: 5 } },
-  tripImage: { height: 150, borderRadius: 17, overflow: 'hidden' }, tripImageRadius: { borderRadius: 17 },
-  tripMeta: { paddingHorizontal: 10, paddingTop: 15, paddingBottom: 11, flexDirection: 'row', alignItems: 'center' },
-  tripTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 17, fontWeight: '700', letterSpacing: -.2 },
-  tripLocation: { color: colors.muted, fontSize: 13, marginTop: 3 }, tripDate: { color: colors.blue, fontSize: 12, fontWeight: '500', marginTop: 6 },
-  tripArrow: { width: 35, height: 35, borderRadius: 18, backgroundColor: colors.blueSoft, alignItems: 'center', justifyContent: 'center' },
+  page: { flex: 1, backgroundColor: colors.background }, content: { paddingHorizontal: 16, paddingTop: 68, paddingBottom: 44 }, topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 25 }, greeting: { color: colors.muted, fontSize: 16, fontWeight: '400' }, profileDot: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.purpleSoft, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }, profileInitial: { color: colors.purple, fontSize: 17, fontWeight: '700' }, heroCopy: { marginBottom: 28 }, heroEyebrow: { color: colors.blue, fontSize: 11, fontWeight: '800', letterSpacing: 1.25, marginBottom: 8 }, heading: { color: colors.text, fontFamily: fonts.heading, fontSize: 43, fontWeight: '700', letterSpacing: 0, lineHeight: 49 }, gradientHeading: { fontFamily: fonts.heading, fontSize: 43, fontWeight: '700', letterSpacing: 0, lineHeight: 51 }, heroDescription: { color: colors.muted, fontSize: 15, lineHeight: 22, marginTop: 10, maxWidth: 315 },
+  createCard: { borderWidth: 1, borderColor: '#BEDCFF', borderRadius: 28, minHeight: 206, padding: 22, overflow: 'hidden', backgroundColor: '#EAF4FF', shadowColor: colors.blue, shadowOpacity: .12, shadowRadius: 18, shadowOffset: { width: 0, height: 9 }, elevation: 3 }, createText: { alignItems: 'center' }, microCopy: { color: colors.blue, fontSize: 10, fontWeight: '800', letterSpacing: 1.05, marginBottom: 7 }, createTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 23, lineHeight: 30, textAlign: 'center' }, createCopy: { color: colors.muted, fontSize: 14, lineHeight: 21, textAlign: 'center', marginTop: 6 }, routeLine: { height: 30, flexDirection: 'row', alignItems: 'center', alignSelf: 'center', gap: 8, marginBottom: 14 }, routeDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#6DAAFF' }, routeDotEnd: { backgroundColor: colors.purple }, routeDash: { width: 45, borderTopWidth: 2, borderColor: '#8EBBFF', borderStyle: 'dashed' }, createButton: { marginTop: 20 },
+  sectionHead: { marginTop: 34, marginBottom: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, sectionHeadWithTrips: { marginTop: 6 }, sectionTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 22, fontWeight: '700', letterSpacing: -.35 }, newTripButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.blue, shadowColor: colors.blue, shadowOpacity: .2, shadowRadius: 9, shadowOffset: { width: 0, height: 4 } }, empty: { minHeight: 210 },
+  list: { gap: 13, paddingRight: 24, paddingBottom: 8 }, ticket: { width: 262, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 22, overflow: 'hidden', shadowColor: colors.text, shadowOpacity: .06, shadowRadius: 13, shadowOffset: { width: 0, height: 6 }, elevation: 2 }, ticketTop: { minHeight: 81, padding: 15, flexDirection: 'row', alignItems: 'center', gap: 11 }, ticketIcon: { width: 44, height: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center' }, ticketDestination: { color: colors.text, fontSize: 16, fontWeight: '700' }, ticketCountry: { color: colors.muted, fontSize: 12, marginTop: 2 }, ticketBody: { padding: 15, paddingTop: 14 }, ticketTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 18, fontWeight: '700' }, ticketCountdown: { fontSize: 13, fontWeight: '700', marginTop: 8 }, ticketDates: { color: colors.muted, fontSize: 12, marginTop: 4 }, ticketRule: { borderTopWidth: 1, borderStyle: 'dashed', borderTopColor: colors.border, marginVertical: 13 }, packHead: { flexDirection: 'row', justifyContent: 'space-between' }, packLabel: { color: colors.muted, fontSize: 10, fontWeight: '700', letterSpacing: .9 }, packValue: { color: colors.text, fontSize: 11, fontWeight: '700' }, packTrack: { height: 6, borderRadius: 5, overflow: 'hidden', backgroundColor: '#EEF0F4', marginTop: 7 }, packFill: { height: '100%', borderRadius: 5 },
+  preview: { minHeight: 116, borderWidth: 1, borderRadius: 22, padding: 17, flexDirection: 'row', alignItems: 'center', gap: 13, marginBottom: 22 }, previewIcon: { width: 56, height: 56, borderRadius: 19, alignItems: 'center', justifyContent: 'center' }, previewEyebrow: { color: colors.muted, fontSize: 10, fontWeight: '700', letterSpacing: 1 }, previewTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 19, fontWeight: '700', marginTop: 4 }, previewDestination: { color: colors.muted, fontSize: 13, marginTop: 3 }, fieldLabel: { color: colors.text, fontSize: 13, fontWeight: '700', marginLeft: 2, marginBottom: 8 }, colorRow: { flexDirection: 'row', gap: 12, marginBottom: 20, paddingHorizontal: 2 }, colorDot: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' }, colorDotSelected: { borderWidth: 3, borderColor: '#FFFFFF', shadowColor: colors.text, shadowOpacity: .22, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 3 }, iconRow: { gap: 10, paddingBottom: 20, paddingRight: 10 }, iconChoice: { width: 47, height: 47, borderRadius: 16, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface }, inspiration: { minHeight: 72, borderRadius: 18, paddingHorizontal: 14, backgroundColor: colors.purpleSoft, flexDirection: 'row', alignItems: 'center', gap: 11, marginBottom: 22 }, inspirationIcon: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' }, inspirationLabel: { color: colors.purple, fontSize: 10, fontWeight: '700', letterSpacing: .85 }, inspirationTitle: { color: colors.text, fontSize: 14, fontWeight: '700', marginTop: 3 },
+  destinationField: { minHeight: 58, borderWidth: 1, borderColor: colors.border, borderRadius: 16, backgroundColor: colors.surface, paddingHorizontal: 15, marginBottom: 20, flexDirection: 'row', alignItems: 'center', gap: 11 }, destinationFieldIcon: { width: 31, height: 31, borderRadius: 11, backgroundColor: colors.blueSoft, alignItems: 'center', justifyContent: 'center' }, destinationValue: { color: colors.text, fontSize: 16, fontWeight: '500' }, destinationPlaceholder: { color: colors.muted, fontWeight: '400' }, datePair: { flexDirection: 'row', gap: 10 }, dateHalf: { flex: 1 }, lengthHint: { color: colors.muted, fontSize: 12, lineHeight: 18, marginTop: -4, marginBottom: 18, marginLeft: 2 }, destinationSheetCopy: { color: colors.muted, fontSize: 14, lineHeight: 20, marginBottom: 16 }, destinationConfirm: { minHeight: 52, borderRadius: 999, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.blue }, destinationConfirmText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' }, pressed: { opacity: .78 },
 });

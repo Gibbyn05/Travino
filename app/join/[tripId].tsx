@@ -7,6 +7,7 @@ import { ensureGuestIdentity, supabase } from '@/src/lib/supabase';
 import { colors, fonts } from '@/src/theme';
 import { AccentText, PrimaryButton } from '@/src/ui';
 import { useTravel } from '@/src/store';
+import { formatTripDates } from '@/src/dates';
 
 export default function JoinTrip() {
   const { tripId, invite: rawInvite } = useLocalSearchParams<{ tripId: string; invite?: string }>();
@@ -32,7 +33,7 @@ export default function JoinTrip() {
   return <View style={s.page}>
     <Text style={s.eyebrow}>Travino</Text>
     <AccentText text={trip ? `Join ${trip.title}` : 'This invite is unavailable'} style={s.title}/>
-    {trip && <><Text style={s.copy}>{trip.city}, {trip.country} · {trip.startDate} – {trip.endDate}</Text><Text style={s.copy}>Enter your name to join the trip.</Text><Field value={name} onChangeText={setName} placeholder="Your name"/><PrimaryButton title="Join trip" icon="person-add-outline" onPress={join}/></>}
+    {trip && <><Text style={s.copy}>{trip.city}, {trip.country} · {formatTripDates(trip.startDate, trip.endDate)}</Text><Text style={s.copy}>Enter your name to join the trip.</Text><Field value={name} onChangeText={setName} placeholder="Your name"/><PrimaryButton title="Join trip" icon="person-add-outline" onPress={join}/></>}
   </View>;
 }
 

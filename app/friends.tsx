@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { Field, Sheet } from '@/src/forms';
-import { AccentText, Card, PageTitle, PrimaryButton } from '@/src/ui';
+import { AccentText, Card, EmptyMoment, PageTitle, PrimaryButton } from '@/src/ui';
 import { colors, fonts } from '@/src/theme';
 import { ensureGuestIdentity, supabase } from '@/src/lib/supabase';
 import { useTravel } from '@/src/store';
@@ -31,22 +31,22 @@ export default function FriendsScreen() {
       const { data, error } = await supabase.rpc('my_friendships');
       if (error) throw error;
       setRelationships((data || []) as SocialProfile[]);
-    } catch (error: any) {
-      Alert.alert('Friends are not ready yet', error?.message || 'Apply the latest Supabase migration and try again.');
+    } catch {
+      Alert.alert('Friends are taking a moment', 'Try again when you are online.');
     } finally { setLoading(false); }
   }, [profileName]);
 
   useEffect(() => { refresh(); }, [refresh]);
 
   const addFriend = async () => {
-    if (!supabase) { Alert.alert('Supabase is not configured', 'Connect the app to Supabase to add friends.'); return; }
+    if (!supabase) { Alert.alert('Friends are taking a moment', 'Try again a little later.'); return; }
     setBusyId('add');
     try {
       const { error } = await supabase.rpc('add_friend_by_code', { p_friend_code: inputCode.trim() });
       if (error) throw error;
       setOpen(false); setInputCode(''); await refresh();
       Alert.alert('Friend request sent', 'They’ll appear here when the request is accepted.');
-    } catch (error: any) { Alert.alert('Could not add friend', error?.message || 'Check the code and try again.'); }
+    } catch { Alert.alert('Could not add friend', 'Check the code and try again.'); }
     finally { setBusyId(''); }
   };
 
@@ -57,7 +57,7 @@ export default function FriendsScreen() {
       const { error } = await supabase.rpc('respond_to_friend_request', { p_friendship_id: friendshipId, p_accept: accept });
       if (error) throw error;
       await refresh();
-    } catch (error: any) { Alert.alert('Could not update request', error?.message || 'Please try again.'); }
+    } catch { Alert.alert('Could not update request', 'Please try again.'); }
     finally { setBusyId(''); }
   };
 
@@ -65,7 +65,7 @@ export default function FriendsScreen() {
     { text: 'Cancel', style: 'cancel' },
     { text: 'Remove', style: 'destructive', onPress: async () => {
       const { error } = await supabase!.rpc('remove_friend', { p_profile_id: friend.profile_id });
-      if (error) Alert.alert('Could not remove friend', error.message); else refresh();
+      if (error) Alert.alert('Could not remove friend', 'Please try again.'); else refresh();
     } },
   ]);
 
@@ -87,7 +87,7 @@ export default function FriendsScreen() {
     {loading && <ActivityIndicator color={colors.blue} style={{ marginTop: 24 }}/>}
     {!loading && incoming.length > 0 && <View style={s.section}><AccentText text="Friend requests" style={s.sectionTitle}/>{incoming.map((friend) => <FriendRow key={friend.friendship_id} friend={friend} busy={busyId === friend.friendship_id} onAccept={() => respond(friend.friendship_id, true)} onReject={() => respond(friend.friendship_id, false)}/>)}</View>}
     {!loading && outgoing.length > 0 && <View style={s.section}><AccentText text="Sent requests" style={s.sectionTitle}/>{outgoing.map((friend) => <View key={friend.friendship_id} style={s.row}><Avatar name={friend.display_name}/><View style={{ flex: 1 }}><Text style={s.friendName}>{friend.display_name}</Text><Text style={s.friendDetail}>Waiting for a reply</Text></View><Ionicons name="time-outline" size={19} color={colors.muted}/></View>)}</View>}
-    {!loading && <View style={s.section}><AccentText text="Your friends" style={s.sectionTitle}/>{accepted.length ? accepted.map((friend) => <FriendRow key={friend.friendship_id} friend={friend} onOpen={() => router.push({ pathname: '/friends/[userId]', params: { userId: friend.profile_id } } as any)} onRemove={() => removeFriend(friend)}/>) : <Card style={s.empty}><View style={s.emptyIcon}><Ionicons name="people-outline" size={24} color={colors.purple}/></View><Text style={s.emptyTitle}>Your travel circle starts here</Text><Text style={s.cardCopy}>Add a friend with their code. When both of you are connected, you can share your memory books.</Text></Card>}</View>}
+    {!loading && <View style={s.section}><AccentText text="Your friends" style={s.sectionTitle}/>{accepted.length ? accepted.map((friend) => <FriendRow key={friend.friendship_id} friend={friend} onOpen={() => router.push({ pathname: '/friends/[userId]', params: { userId: friend.profile_id } } as any)} onRemove={() => removeFriend(friend)}/>) : <EmptyMoment compact style={s.empty} title="Your travel circle starts here" copy="Add a friend with their code when you want to share a memory book." actionTitle="Add a friend" icon="person-add-outline" onPress={() => setOpen(true)}/>}</View>}
     <Text style={s.privacyNote}><Ionicons name="lock-closed-outline" size={13} color={colors.muted}/> Memory books are private by default. Even public books are visible only to accepted friends.</Text>
     <Sheet visible={open} title="Add a friend" onClose={() => setOpen(false)}><Text style={s.sheetCopy}>Enter their Travino friend code. You can find it on their Friends page.</Text><Field value={inputCode} onChangeText={setInputCode} placeholder="Friend code"/><PrimaryButton title={busyId === 'add' ? 'Sending…' : 'Send request'} icon="paper-plane-outline" onPress={addFriend}/></Sheet>
   </ScrollView>;
@@ -108,6 +108,6 @@ const s = StyleSheet.create({
   section: { marginTop: 27, gap: 10 }, sectionTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 19, fontWeight: '700', letterSpacing: -.2, marginBottom: 2 },
   row: { minHeight: 69, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 19, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, flexDirection: 'row', alignItems: 'center', gap: 11 }, avatar: { height: 42, width: 42, borderRadius: 15, backgroundColor: colors.purpleSoft, alignItems: 'center', justifyContent: 'center' }, avatarText: { color: colors.purple, fontSize: 17, fontWeight: '700' }, friendName: { color: colors.text, fontSize: 14, fontWeight: '700' }, friendDetail: { color: colors.muted, fontSize: 11, marginTop: 3 },
   bookButton: { width: 36, height: 36, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.blueSoft }, moreButton: { width: 28, height: 36, alignItems: 'center', justifyContent: 'center' }, requestActions: { flexDirection: 'row', gap: 6, alignItems: 'center' }, accept: { borderRadius: 13, paddingHorizontal: 12, paddingVertical: 9, backgroundColor: colors.blue }, acceptText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' }, reject: { borderRadius: 13, paddingHorizontal: 10, paddingVertical: 9, backgroundColor: '#F3F4F7' }, rejectText: { color: colors.muted, fontSize: 12, fontWeight: '600' },
-  empty: { alignItems: 'center', padding: 20, backgroundColor: colors.purpleSoft, borderColor: '#E8DFFF' }, emptyIcon: { width: 46, height: 46, borderRadius: 15, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', marginBottom: 9 }, emptyTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 16, fontWeight: '700' },
+  empty: { alignItems: 'stretch', backgroundColor: colors.purpleSoft, borderColor: '#E8DFFF' },
   privacyNote: { color: colors.muted, fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 24 }, sheetCopy: { color: colors.muted, fontSize: 14, lineHeight: 21, marginTop: -9, marginBottom: 15 },
 });

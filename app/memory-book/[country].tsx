@@ -2,29 +2,20 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { AccentText, Card, DestinationCover, PrimaryButton } from '@/src/ui';
+import { AccentText, CapybaraMoment, DestinationCover, EmptyMoment } from '@/src/ui';
 import { colors, fonts } from '@/src/theme';
 import { Memory, Trip, useTravel } from '@/src/store';
 import { stockCoverForCountry } from '@/src/country-images';
+import { formatJournalDate, formatTripDates, parseTravelDate, tripCompanionCopy } from '@/src/dates';
 
 const normalise = (value: string) => value.trim().toLocaleLowerCase('en-US');
-const parseDate = (value: string) => {
-  const iso = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  const dotted = value.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
-  const date = iso ? new Date(+iso[1], +iso[2] - 1, +iso[3]) : dotted ? new Date(+dotted[3], +dotted[2] - 1, +dotted[1]) : new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
-};
-const journalDate = (value: string) => {
-  const date = parseDate(value);
-  return date ? new Intl.DateTimeFormat('en', { month: 'long', day: 'numeric', year: 'numeric' }).format(date) : value;
-};
 
 export default function CountryMemoryBook() {
   const { country: routeCountry } = useLocalSearchParams<{ country: string }>();
   const { trips, setSelectedTripId } = useTravel();
   const country = Array.isArray(routeCountry) ? routeCountry[0] : routeCountry;
   const countryTrips = trips.filter((trip) => normalise(trip.country) === normalise(country ?? ''))
-    .sort((a, b) => (parseDate(a.startDate)?.getTime() ?? 0) - (parseDate(b.startDate)?.getTime() ?? 0));
+    .sort((a, b) => (parseTravelDate(a.startDate)?.getTime() ?? 0) - (parseTravelDate(b.startDate)?.getTime() ?? 0));
   const photos = countryTrips.reduce((total, trip) => total + trip.memories.length, 0);
   const cover = countryTrips.flatMap((trip) => trip.memories)[0]?.image || countryTrips[0]?.coverImage || stockCoverForCountry(countryTrips[0]?.country || country || '');
   const addPhotosTo = (trip: Trip) => {
@@ -53,36 +44,31 @@ export default function CountryMemoryBook() {
 
       {countryTrips.map((trip, tripIndex) => <JourneyChapter key={trip.id} trip={trip} index={tripIndex + 1} onAddPhotos={() => addPhotosTo(trip)}/>)}
       <View style={s.lastPage}><View style={s.lastPageRule}/><Ionicons name="airplane-outline" size={18} color={colors.purple}/><Text style={s.lastPageText}>THE STORY CONTINUES</Text><View style={s.lastPageRule}/></View>
-    </> : <Card style={s.empty}>
-      <View style={s.emptyIcon}><Ionicons name="book-outline" size={25} color={colors.purple}/></View>
-      <Text style={s.emptyTitle}>This book isn’t here yet</Text>
-      <Text style={s.emptyCopy}>Create a trip to {country || 'this place'} to begin collecting memories.</Text>
-      <PrimaryButton title="Back to memory books" icon="arrow-back" onPress={() => router.replace('/memory-book' as never)}/>
-    </Card>}
+    </> : <EmptyMoment style={s.empty} title="This book isn’t here yet" copy={`Create a trip to ${country || 'this place'} to begin collecting memories.`} actionTitle="Back to memory books" icon="arrow-back" onPress={() => router.replace('/memory-book' as never)}/>}
   </ScrollView>;
 }
 
 function JourneyChapter({ trip, index, onAddPhotos }: { trip: Trip; index: number; onAddPhotos: () => void }) {
-  const memories = [...trip.memories].sort((a, b) => (parseDate(a.date)?.getTime() ?? 0) - (parseDate(b.date)?.getTime() ?? 0));
+  const memories = [...trip.memories].sort((a, b) => (parseTravelDate(a.date)?.getTime() ?? 0) - (parseTravelDate(b.date)?.getTime() ?? 0));
   const featured = memories[0];
   const rest = memories.slice(1);
   return <View style={s.chapter}>
     <View style={s.chapterHeader}>
       <View style={s.chapterMarker}><Text style={s.chapterNumber}>{String(index).padStart(2, '0')}</Text></View>
-      <View style={{ flex: 1 }}><Text style={s.chapterEyebrow}>CHAPTER {String(index).padStart(2, '0')}  ·  {trip.startDate} — {trip.endDate}</Text><AccentText text={trip.city} style={s.chapterTitle}/><Text style={s.chapterSubtitle}>{trip.title}{trip.members.length ? ` · with ${trip.members.join(' & ')}` : ''}</Text></View>
+      <View style={{ flex: 1 }}><Text style={s.chapterEyebrow}>CHAPTER {String(index).padStart(2, '0')}  ·  {formatTripDates(trip.startDate, trip.endDate)}</Text><AccentText text={trip.city} style={s.chapterTitle}/><Text style={s.chapterSubtitle}>{trip.title}{trip.members.length ? ` · ${tripCompanionCopy(trip.members)}` : ''}</Text></View>
     </View>
     {featured ? <>
       <View style={s.featuredPolaroid}>
         <Image source={{ uri: featured.image }} style={s.featuredImage}/>
         <View style={s.featuredCaption}>
-          <Text style={s.photoDate}>{journalDate(featured.date)}</Text>
+          <Text style={s.photoDate}>{formatJournalDate(featured.date)}</Text>
           <Text style={s.photoLocation}>{featured.location || trip.city}</Text>
           {featured.text ? <Text style={s.photoNote}>{featured.text}</Text> : null}
         </View>
       </View>
       {!!rest.length && <View style={s.smallMoments}>{rest.map((memory, photoIndex) => <Polaroid key={memory.id} memory={memory} city={trip.city} tilt={photoIndex % 2 === 0 ? -1.2 : 1.2}/>)}</View>}
     </> : <View style={s.chapterEmpty}>
-      <Ionicons name="camera-outline" size={22} color={colors.purple}/>
+      <CapybaraMoment size={48}/>
       <View style={{ flex: 1 }}><Text style={s.emptyMomentTitle}>This chapter is waiting for its first photo.</Text><Text style={s.photoNote}>Add a picture and a little memory will find its place here.</Text></View>
     </View>}
     <Pressable accessibilityRole="button" onPress={onAddPhotos} style={({ pressed }) => [s.addMomentButton, pressed && s.pressed]}><Ionicons name="add" size={17} color={colors.blue}/><Text style={s.addMomentText}>{memories.length ? 'Add another moment' : 'Add photos to this chapter'}</Text></Pressable>
@@ -93,7 +79,7 @@ function JourneyChapter({ trip, index, onAddPhotos }: { trip: Trip; index: numbe
 function Polaroid({ memory, city, tilt }: { memory: Memory; city: string; tilt: number }) {
   return <View style={[s.polaroid, { transform: [{ rotate: `${tilt}deg` }] }]}>
     <Image source={{ uri: memory.image }} style={s.smallPhoto}/>
-    <Text style={s.photoDate}>{journalDate(memory.date)}</Text>
+    <Text style={s.photoDate}>{formatJournalDate(memory.date)}</Text>
     <Text style={s.smallLocation} numberOfLines={1}>{memory.location || city}</Text>
     {memory.text ? <Text style={s.smallNote} numberOfLines={2}>{memory.text}</Text> : null}
   </View>;
@@ -109,5 +95,5 @@ const s = StyleSheet.create({
   smallMoments: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 13, marginTop: 16 }, polaroid: { flex: 1, backgroundColor: '#FFFFFF', padding: 7, paddingBottom: 12, borderRadius: 3, borderWidth: 1, borderColor: '#F0ECE6', shadowColor: '#493F34', shadowOpacity: .08, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 1 }, smallPhoto: { width: '100%', height: 127, backgroundColor: '#EEE9E1', borderRadius: 2 }, smallLocation: { color: colors.text, fontFamily: fonts.heading, fontSize: 13, marginTop: 4 }, smallNote: { color: '#77746F', fontSize: 10, lineHeight: 14, marginTop: 3 },
   chapterEmpty: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 17, backgroundColor: '#F4F0E9', borderRadius: 15 }, emptyMomentTitle: { color: colors.text, fontSize: 13, fontWeight: '600' }, addMomentButton: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 7, paddingVertical: 10, marginTop: 6 }, addMomentText: { color: colors.blue, fontSize: 12, fontWeight: '600' }, chapterEnd: { height: 1, backgroundColor: '#E9E2D8', marginTop: 17 },
   lastPage: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, marginTop: 31 }, lastPageRule: { width: 32, height: 1, backgroundColor: '#DED5C9' }, lastPageText: { color: '#8B8379', fontSize: 9, fontWeight: '700', letterSpacing: 1.3 },
-  empty: { alignItems: 'center', gap: 10, padding: 23, backgroundColor: '#F4F0E9', borderColor: '#E9E2D8' }, emptyIcon: { width: 52, height: 52, borderRadius: 18, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' }, emptyTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 21, textAlign: 'center' }, emptyCopy: { color: colors.muted, fontSize: 13, lineHeight: 20, textAlign: 'center', marginBottom: 7 }, pressed: { opacity: .76 },
+  empty: { backgroundColor: '#F4F0E9', borderColor: '#E9E2D8' }, pressed: { opacity: .76 },
 });

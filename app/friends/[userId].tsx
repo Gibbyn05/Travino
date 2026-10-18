@@ -5,6 +5,7 @@ import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Tex
 import { Card, PageTitle } from '@/src/ui';
 import { colors, fonts } from '@/src/theme';
 import { supabase } from '@/src/lib/supabase';
+import { formatJournalDate } from '@/src/dates';
 
 type SharedProfile = { id: string; display_name: string; bio: string; memory_book_public: boolean };
 type SharedMemory = { id: string; object_path: string; trip_title: string; city: string; country: string; taken_on: string | null; caption: string; image?: string };
@@ -57,7 +58,7 @@ export default function FriendMemoryBook() {
         <Text style={s.subheading}>{memories.length} {memories.length === 1 ? 'memory' : 'memories'}{countries.length ? ` · ${countries.join(', ')}` : ''}</Text>
         <View style={s.gallery}>{memories.map((memory) => <View key={memory.id} style={s.photoCard}>
           <Image source={{ uri: memory.image }} style={s.photo}/>
-          <View style={s.caption}><Text style={s.location} numberOfLines={1}>{[memory.city, memory.country].filter(Boolean).join(', ') || memory.trip_title}</Text><Text style={s.date}>{memory.taken_on || memory.trip_title}</Text>{memory.caption ? <Text style={s.copy}>{memory.caption}</Text> : null}</View>
+          <View style={s.caption}><Text style={s.location} numberOfLines={1}>{[memory.city, memory.country].filter(Boolean).join(', ') || memory.trip_title}</Text><Text style={s.date}>{memory.taken_on ? formatJournalDate(memory.taken_on) : memory.trip_title}</Text>{memory.caption ? <Text style={s.copy}>{memory.caption}</Text> : null}</View>
         </View>)}</View>
       </> : <Card style={s.locked}><View style={s.lockIcon}><Ionicons name="images-outline" size={23} color={colors.purple}/></View><Text style={s.lockedTitle}>The pages are ready</Text><Text style={s.copy}>There aren’t any shared photos in this memory book yet.</Text></Card>}
     </> : null}

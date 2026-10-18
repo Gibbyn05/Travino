@@ -11,12 +11,12 @@ export const colors = {
   // Soft map fills derived from the app's blue, purple, and pink accents.
   visitedCountryPalette: ['#DCEBFF', '#E6DCFF', '#FFE0EC', '#D5EFFF', '#EEE6FF', '#FFD6E6', '#D8F3E4', '#FFF0C7', '#DDF2F6', '#FFE3D4'],
   navy: '#1D1D28', teal: '#1670EF', mist: '#EFF8FF', sand: '#FFF5E8', coral: '#F53D88',
-  background: '#FDFDFD', surface: '#FFFFFF', text: '#1D1D28', muted: '#717680', border: '#E9EAEB',
+  background: '#FCF8F1', surface: '#FFFEFB', text: '#1D1D28', muted: '#717680', border: '#EAE2D8',
   ink: '#1D1D28', paper: '#FFFFFF', sun: '#FFF3D6', orange: '#1670EF', lime: '#EDE5FF',
   darkBackground: '#1D1D28', darkSurface: '#353448',
 };
 
-export const radius = { card: 24, pill: 999, small: 16, hero: 28 };
+export const radius = { card: 18, pill: 999, small: 14, hero: 24 };
 
 // Nunito stays rounded and warm, with wider, calmer letter shapes than Fredoka.
 // Body copy stays in the platform system font.
