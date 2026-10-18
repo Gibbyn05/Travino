@@ -1,6 +1,6 @@
 {
   "installCommand": "npm ci",
-  "buildCommand": "EXPO_NO_TELEMETRY=1 npx expo export --platform web",
+  "buildCommand": "EXPO_NO_TELEMETRY=1 npx expo export --platform web && node scripts/add-web-meta.cjs",
   "outputDirectory": "dist",
   "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }

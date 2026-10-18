@@ -13,7 +13,7 @@
       ["expo-image-picker", { "photosPermission": "Travino bruker bilder du velger til minnene dine." }]
     ],
     "ios": { "supportsTablet": true, "bundleIdentifier": "no.reisefolge.app" },
-    "web": { "bundler": "metro", "output": "single" },
+    "web": { "bundler": "metro", "output": "single", "favicon": "./public/favicon.png" },
     "experiments": { "typedRoutes": true }
   }
 }
