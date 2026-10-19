@@ -7,8 +7,10 @@ export type Weather = {
   high?: number;
   low?: number;
   timezone?: string;
-  forecast: { date: string; high: number; low: number; icon: Weather['icon'] }[];
+  forecast: { date: string; high: number; low: number; icon: Weather['icon']; condition: string }[];
 };
+
+export const WEATHER_FORECAST_DAYS = 10;
 
 const weatherCode = (code: number): Pick<Weather, 'condition' | 'icon'> => {
   if (code === 0) return { condition: 'Clear', icon: 'sunny-outline' };
@@ -42,7 +44,7 @@ export async function fetchWeather(city: string, country: string, signal?: Abort
   if (!geocoding.ok) throw new Error('Could not find destination');
   const place = (await geocoding.json()).results?.[0];
   if (!place) throw new Error('Could not find destination');
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${place.latitude}&longitude=${place.longitude}&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min&forecast_days=7&timezone=auto`;
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${place.latitude}&longitude=${place.longitude}&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min&forecast_days=${WEATHER_FORECAST_DAYS}&timezone=auto`;
   const response = await fetchWithWeatherTimeout(url, signal);
   if (!response.ok) throw new Error('Could not get weather right now');
   const data = await response.json();
@@ -50,7 +52,7 @@ export async function fetchWeather(city: string, country: string, signal?: Abort
     date,
     high: Math.round(data.daily?.temperature_2m_max?.[index]),
     low: Math.round(data.daily?.temperature_2m_min?.[index]),
-    icon: weatherCode(data.daily?.weather_code?.[index]).icon,
+    ...weatherCode(data.daily?.weather_code?.[index]),
   }));
   return { temperature: Math.round(data.current.temperature_2m), apparentTemperature: Math.round(data.current.apparent_temperature), wind: Math.round(data.current.wind_speed_10m), ...weatherCode(data.current.weather_code), high: Math.round(data.daily?.temperature_2m_max?.[0]), low: Math.round(data.daily?.temperature_2m_min?.[0]), timezone: data.timezone, forecast };
 }

@@ -10,6 +10,7 @@ import { TripDatesSheet } from '@/src/trip-dates-sheet';
 import { TripDetailsSheet } from '@/src/trip-details-sheet';
 import { useTravel, WishReaction } from '@/src/store';
 import { fetchWeather, Weather } from '@/src/weather';
+import { destinationToday, tripForecastDayLabel, tripWeatherPlan } from '@/src/trip-weather';
 import { activitySuggestionsForDestination, packingCategorySuggestions, packingSuggestions, suggestedPackingCategory, wishSuggestions } from '@/src/suggestions';
 import { inviteUrl } from '@/src/invites';
 import { ensureGuestIdentity, supabase } from '@/src/lib/supabase';
@@ -115,11 +116,71 @@ function AddTripFriendSheet({ visible, onClose, tripId, tripTitle, existingNames
   </Sheet>;
 }
 function Empty() { const router = useRouter(); return <View style={s.empty}><EmptyMoment title="Your next trip starts here" copy="Pick a place and Travino will keep the plans, lists and memories close." actionTitle="Plan a trip" icon="add" onPress={() => router.push('/new-trip' as never)}/></View>; }
-function useWeather(city: string, country: string) { const [weather, setWeather] = useState<Weather | null>(null); const [error, setError] = useState(false); const [loading, setLoading] = useState(true); useEffect(() => { const controller = new AbortController(); setLoading(true); setError(false); fetchWeather(city, country, controller.signal).then((value) => { setWeather(value); setLoading(false); }).catch((reason) => { if (reason.name !== 'AbortError') { setError(true); setLoading(false); } }); return () => controller.abort(); }, [city, country]); return { weather, error, loading }; }
+function useWeather(city: string, country: string) {
+  const [weather, setWeather] = useState<Weather | null>(null);
+  const [error, setError] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    // Refresh while the app is open, including once the trip moves into the
+    // provider's ten-day forecast window.
+    const refreshIn = 6 * 60 * 60 * 1000;
+    const timer = setTimeout(() => setRefreshKey((value) => value + 1), refreshIn);
+    return () => clearTimeout(timer);
+  }, [refreshKey]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setLoading(true);
+    setError(false);
+    fetchWeather(city, country, controller.signal)
+      .then((value) => { setWeather(value); setLoading(false); })
+      .catch((reason) => { if (reason.name !== 'AbortError') { setError(true); setLoading(false); } });
+    return () => controller.abort();
+  }, [city, country, refreshKey]);
+
+  return { weather, error, loading };
+}
 function useCurrencyRate(currency?: string) { const [rate, setRate] = useState<number | null>(null); useEffect(() => { if (!currency || currency === 'NOK') { setRate(currency === 'NOK' ? 1 : null); return; } let active = true; fetch('https://open.er-api.com/v6/latest/NOK').then((response) => response.ok ? response.json() : null).then((payload) => { const value = Number(payload?.rates?.[currency]); if (active) setRate(Number.isFinite(value) ? value : null); }).catch(() => { if (active) setRate(null); }); return () => { active = false; }; }, [currency]); return rate; }
 function readableCountdown(value: string) { const parts = value.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/); const start = parts ? new Date(Number(parts[3]), Number(parts[2]) - 1, Number(parts[1])) : new Date(value); if (Number.isNaN(start.getTime())) return null; const today = new Date(); today.setHours(0, 0, 0, 0); start.setHours(0, 0, 0, 0); const days = Math.round((start.getTime() - today.getTime()) / 86400000); return days < 0 ? 'Trip completed' : days === 0 ? 'Leaving today' : `${days} ${days === 1 ? 'day' : 'days'} to go`; }
-function dayName(value: string, index: number) { if (index === 0) return 'Today'; const date = new Date(`${value}T12:00:00`); return new Intl.DateTimeFormat('en', { weekday: 'short' }).format(date); }
-function WeatherCard({ city, weather, error, loading }: { city: string; weather: Weather | null; error: boolean; loading: boolean }) { return <Card style={s.weatherCard}><View style={s.weatherHeader}><View style={s.weatherCurrent}><View style={s.weatherIcon}><Ionicons name={weather?.icon ?? 'partly-sunny-outline'} size={25} color={colors.blue}/></View><View><Text style={s.weatherTitle}>Weather in {city}</Text><Text style={s.copy}>{loading ? 'Getting the week ahead …' : error ? 'The forecast will be back soon.' : `${weather?.condition} · Feels like ${weather?.apparentTemperature}°`}</Text></View></View>{weather ? <Text style={s.temperatureValue}>{weather.temperature}°</Text> : null}</View>{weather?.forecast?.length ? <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.forecastStrip}>{weather.forecast.map((day, index) => <View key={day.date} style={s.forecastDay}><Text style={s.forecastLabel}>{dayName(day.date, index)}</Text><Ionicons name={day.icon} size={18} color={index === 0 ? colors.blue : colors.muted}/><Text style={s.forecastTemp}>{day.high}°</Text><Text style={s.forecastLow}>{day.low}°</Text></View>)}</ScrollView> : null}</Card>; }
+function WeatherCard({ city, startDate, endDate, weather, error, loading }: { city: string; startDate: string; endDate: string; weather: Weather | null; error: boolean; loading: boolean }) {
+  const plan = tripWeatherPlan(weather, startDate, endDate);
+  const today = destinationToday(weather?.timezone);
+  const active = plan.kind === 'active';
+  const subtitle = loading
+    ? 'Checking the forecast for your travel dates…'
+    : error
+      ? 'The forecast will be back soon.'
+      : active && weather
+        ? `${weather.condition} · Feels like ${weather.apparentTemperature}°`
+        : plan.kind === 'upcoming'
+          ? 'Forecast for your travel dates'
+          : plan.message;
+
+  return <Card style={s.weatherCard}>
+    <View style={s.weatherHeader}>
+      <View style={s.weatherCurrent}>
+        <View style={s.weatherIcon}><Ionicons name={active && weather ? weather.icon : 'calendar-outline'} size={25} color={colors.blue}/></View>
+        <View style={{ flex: 1 }}>
+          <Text style={s.weatherTitle}>{active ? `Today in ${city}` : `Weather for ${city}`}</Text>
+          <Text style={s.copy}>{subtitle}</Text>
+        </View>
+      </View>
+      {!loading && !error && active && weather ? <Text style={s.temperatureValue}>{weather.temperature}°</Text> : null}
+    </View>
+    {!loading && !error && plan.days.length ? <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.forecastStrip}>
+      {plan.days.map((day) => <View key={day.date} style={s.forecastDay}>
+        <Text style={s.forecastLabel}>{tripForecastDayLabel(day.date, today)}</Text>
+        <Ionicons name={day.icon} size={18} color={day.date === today ? colors.blue : colors.muted}/>
+        <Text style={s.forecastTemp}>{day.high}°</Text>
+        <Text style={s.forecastLow}>{day.low}°</Text>
+      </View>)}
+    </ScrollView> : null}
+    {!loading && !error && plan.message && plan.days.length ? <Text style={s.weatherNote}>{plan.message}</Text> : null}
+    {!loading && !error && plan.packingTip ? <Text style={s.weatherTip}>{plan.packingTip}</Text> : null}
+  </Card>;
+}
 function activityMoment(dateValue: string, timeValue: string) {
   const iso = dateValue.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
   const dotted = dateValue.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
@@ -174,7 +235,7 @@ function Overview({ onOpenPlan, onEditDates, onEditDetails, onInvite, onOpenAddF
     }
   };
   return <>
-    <WeatherCard city={selectedTrip.city} {...weatherState}/>
+    <WeatherCard city={selectedTrip.city} startDate={selectedTrip.startDate} endDate={selectedTrip.endDate} {...weatherState}/>
     <Card style={{ marginTop: 16 }}><Text style={s.copy}>{formatTripDates(selectedTrip.startDate, selectedTrip.endDate)}</Text><Pressable accessibilityRole="button" onPress={onEditDates} style={s.editDates}><Ionicons name="calendar-outline" size={17} color={colors.blue}/><Text style={s.editDatesText}>{selectedTrip.startDate ? 'Change dates' : 'Add travel dates'}</Text><Ionicons name="arrow-forward" size={17} color={colors.blue}/></Pressable><Pressable accessibilityRole="button" onPress={onEditDetails} style={s.editDates}><Ionicons name="create-outline" size={17} color={colors.blue}/><Text style={s.editDatesText}>Edit trip name & style</Text></Pressable></Card>
     <TravelInfo country={selectedTrip.country} city={selectedTrip.city} tripStartDate={selectedTrip.startDate} destinationTimeZone={selectedTrip.destinationTimeZone}/>
     <View style={s.inviteBlock}><PrimaryButton title={isGroupTrip(selectedTrip.members) ? 'Invite travellers' : 'Invite someone'} icon="person-add-outline" onPress={onInvite}/>{!isGroupTrip(selectedTrip.members) ? <Pressable accessibilityRole="button" onPress={onOpenAddFriend} style={s.addFriendLink}><Ionicons name="people-outline" size={18} color={colors.blue}/><Text style={s.addFriendText}>Bring a friend along</Text><Ionicons name="chevron-forward" size={17} color={colors.muted}/></Pressable> : null}</View>
@@ -583,7 +644,7 @@ Object.assign(s, StyleSheet.create({
   itemTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 16, fontWeight: '700', letterSpacing: -.15 },
   packGroupTitle: { color: colors.purple, fontSize: 12, fontWeight: '700', letterSpacing: .2, paddingHorizontal: 4, marginTop: 5 },
   pack: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 14, backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, paddingHorizontal: 15, paddingVertical: 13, shadowOpacity: 0, elevation: 0 },
-  weatherCard: { backgroundColor: '#FBFDFF', borderColor: '#D9EAFF', marginTop: 2, padding: 17 }, weatherHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }, weatherCurrent: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 11 }, weatherIcon: { width: 42, height: 42, borderRadius: 15, backgroundColor: colors.blueSoft, alignItems: 'center', justifyContent: 'center' }, forecastStrip: { gap: 7, paddingTop: 17, paddingRight: 4 }, forecastDay: { width: 52, minHeight: 88, alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 15, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, paddingVertical: 8 }, forecastLabel: { color: colors.muted, fontSize: 10, fontWeight: '600' }, forecastTemp: { color: colors.text, fontSize: 13, fontWeight: '700' }, forecastLow: { color: colors.muted, fontSize: 11 },
+  weatherCard: { backgroundColor: '#FBFDFF', borderColor: '#D9EAFF', marginTop: 2, padding: 17 }, weatherHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }, weatherCurrent: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 11 }, weatherIcon: { width: 42, height: 42, borderRadius: 15, backgroundColor: colors.blueSoft, alignItems: 'center', justifyContent: 'center' }, forecastStrip: { gap: 7, paddingTop: 17, paddingRight: 4 }, forecastDay: { width: 58, minHeight: 88, alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 15, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, paddingVertical: 8 }, forecastLabel: { color: colors.muted, fontSize: 10, fontWeight: '600' }, forecastTemp: { color: colors.text, fontSize: 13, fontWeight: '700' }, forecastLow: { color: colors.muted, fontSize: 11 }, weatherNote: { color: colors.muted, fontSize: 13, lineHeight: 19, marginTop: 13 }, weatherTip: { color: colors.navy, fontSize: 13, lineHeight: 19, fontWeight: '800', marginTop: 11 },
   weatherTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 16, fontWeight: '700' },
   temperatureValue: { color: colors.blue, fontSize: 32, fontWeight: '700', letterSpacing: -1.4 },
   infoRow: { gap: 10, paddingRight: 8 }, infoCard: { width: 174, minHeight: 136, borderRadius: 18, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, padding: 14 }, infoIcon: { width: 34, height: 34, borderRadius: 12, backgroundColor: colors.blueSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 11 }, currencyIcon: { backgroundColor: colors.purpleSoft }, plugIcon: { backgroundColor: '#FFF1E8' }, infoLabel: { color: colors.muted, fontSize: 10, fontWeight: '700', letterSpacing: .7 }, infoValue: { color: colors.text, fontFamily: fonts.heading, fontSize: 14, lineHeight: 19, fontWeight: '700', marginTop: 5 }, infoCopy: { color: colors.muted, fontSize: 11, lineHeight: 16, marginTop: 4 },
