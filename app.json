@@ -2,7 +2,7 @@
   "expo": {
     "name": "Travino",
     "slug": "reisefolge",
-    "scheme": "reisefolge",
+    "scheme": "travino",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",

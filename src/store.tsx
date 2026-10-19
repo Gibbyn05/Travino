@@ -1,9 +1,10 @@
 import * as ImagePicker from 'expo-image-picker';
-import { Alert } from 'react-native';
+import { Alert, AppState } from 'react-native';
 import { createContext, ReactNode, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { stockCoverForCountry } from './country-images';
 import { ensureGuestIdentity, supabase } from './lib/supabase';
 import storage from './lib/persistent-storage';
+import { flushQueuedMessages } from './friend-chat';
 import { countryForTimeZone, deviceTimeZone, resolvedDestinationTimeZone, resolvedHomeTimeZone } from './travel-info';
 
 export type Activity = { id: string; title: string; date: string; startTime: string; endTime?: string; location?: string; note?: string; participants?: string[] };
@@ -97,11 +98,35 @@ async function removeMemoryFromCloud(memory: Memory, userId: string) {
   ]);
 }
 
+async function flushDirectMessageOutbox() {
+  const client = supabase;
+  if (!client) return;
+  const user = await ensureGuestIdentity().catch(() => null);
+  if (!user) return;
+  await flushQueuedMessages(user.id, async (message) => {
+    const { data, error } = await client.rpc('send_direct_message', {
+      p_friendship_id: message.friendship_id,
+      p_recipient_id: message.recipient_id,
+      p_client_id: message.client_id,
+      p_body: message.body,
+    });
+    return error || !data ? null : data;
+  });
+}
+
 export function TravelProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<StoredState>(initial); const [ready, setReady] = useState(false);
   const remoteWrites = useRef(Promise.resolve());
   useEffect(() => { let active = true; const load = async () => { let next = initial; let client = supabase; let remoteUser: { id: string } | null = null; let migrateRemote = false; try { const raw = await storage.getItem(key) || await storage.getItem(legacyKey); const local = raw ? stateFrom(JSON.parse(raw)) : null; if (local) next = local; } catch { /* Start with an empty state if the local cache is unreadable. */ } try { if (client) { const user = await ensureGuestIdentity().catch(() => null); if (user) { remoteUser = user; const { data } = await client.from('travel_states').select('payload').eq('user_id', user.id).maybeSingle(); const remote = stateFrom(data?.payload); if (remote) { next = remote; migrateRemote = timeZoneFieldsNeedMigration(data?.payload, remote); } else await client.from('travel_states').upsert({ user_id: user.id, payload: next, updated_at: new Date().toISOString() }); } } } catch { /* The local state remains usable if the database is temporarily unavailable. */ } if (active) { setState(next); await storage.setItem(key, JSON.stringify(next)).catch(() => undefined); if (migrateRemote && client && remoteUser) await client.from('travel_states').upsert({ user_id: remoteUser.id, payload: next, updated_at: new Date().toISOString() }); setReady(true); } }; load().catch(() => { if (active) setReady(true); }); return () => { active = false; }; }, []);
   const persistRemote = (next: StoredState) => { const client = supabase; if (!client || !ready) return; remoteWrites.current = remoteWrites.current.catch(() => undefined).then(async () => { const user = await ensureGuestIdentity(); if (!user) return; const { error } = await client.from('travel_states').upsert({ user_id: user.id, payload: next, updated_at: new Date().toISOString() }); if (error) throw error; }).catch(() => undefined); };
+  useEffect(() => {
+    if (!ready || !supabase) return;
+    const flush = () => { void flushDirectMessageOutbox(); };
+    flush();
+    const interval = setInterval(flush, 15_000);
+    const appState = AppState.addEventListener('change', (nextState) => { if (nextState === 'active') flush(); });
+    return () => { clearInterval(interval); appState.remove(); };
+  }, [ready]);
   const change = (update: (current: StoredState) => StoredState) => setState((current) => { const next = update(current); storage.setItem(key, JSON.stringify(next)).catch(() => undefined); persistRemote(next); return next; });
   const updateTrip = (id: string, patch: Partial<Trip>) => change((s) => ({ ...s, trips: s.trips.map((trip) => {
     if (trip.id !== id) return trip;

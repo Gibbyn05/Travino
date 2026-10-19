@@ -22,7 +22,7 @@ type Spread = { id: string; left: BookPage; right: BookPage };
 
 export function journalPalette(index: number) { return coverPalette[index % coverPalette.length]; }
 
-export function JournalBook({ trip, index, isPublic, onPress, onChangeVisibility }: { trip: Trip; index: number; isPublic: boolean; onPress: () => void; onChangeVisibility: () => void }) {
+export function JournalBook({ trip, index, isPublic, onPress, onChangeVisibility, readOnly = false }: { trip: Trip; index: number; isPublic: boolean; onPress: () => void; onChangeVisibility?: () => void; readOnly?: boolean }) {
   const palette = journalPalette(index);
   const destination = [trip.city, trip.country].filter(Boolean).join(', ');
   return <Pressable accessibilityRole="button" accessibilityLabel={`Open ${trip.title}, ${destination}`} onPress={onPress} style={({ pressed }) => [bookStyles.pressable, pressed && bookStyles.pressed]}>
@@ -34,14 +34,16 @@ export function JournalBook({ trip, index, isPublic, onPress, onChangeVisibility
       <Text numberOfLines={2} style={[bookStyles.coverDestination, { color: palette.ink }]}>{destination || 'A new place'}</Text>
       <View style={bookStyles.pageBlock}/>
       <View style={bookStyles.bookmark}/>
-      <Pressable accessibilityRole="button" accessibilityLabel={`${isPublic ? 'Public' : 'Private'} memory book. Change sharing.`} onPress={(event) => { event.stopPropagation(); onChangeVisibility(); }} hitSlop={8} style={bookStyles.visibilityBadge}><Ionicons name={isPublic ? 'globe-outline' : 'lock-closed'} size={13} color={palette.cover}/></Pressable>
+      {readOnly || !onChangeVisibility
+        ? <View accessibilityLabel={isPublic ? 'Public memory book' : 'Private memory book'} style={bookStyles.visibilityBadge}><Ionicons name={isPublic ? 'globe-outline' : 'lock-closed'} size={13} color={palette.cover}/></View>
+        : <Pressable accessibilityRole="button" accessibilityLabel={`${isPublic ? 'Public' : 'Private'} memory book. Change sharing.`} onPress={(event) => { event.stopPropagation(); onChangeVisibility(); }} hitSlop={8} style={bookStyles.visibilityBadge}><Ionicons name={isPublic ? 'globe-outline' : 'lock-closed'} size={13} color={palette.cover}/></Pressable>}
     </View>
     <Text numberOfLines={1} style={bookStyles.title}>{trip.title}</Text>
     <Text numberOfLines={1} style={bookStyles.destination}>{destination}</Text>
   </Pressable>;
 }
 
-export function MemoryJournal({ trip, coverIndex, isPublic, onAddMemory, onSaveCaption, onSaveLayout, onRemoveMemory, onChangeVisibility }: { trip: Trip; coverIndex: number; isPublic: boolean; onAddMemory: (page?: number) => void; onSaveCaption: (memoryId: string, caption: string) => void; onSaveLayout: (memoryId: string, layout: MemoryLayout) => void; onRemoveMemory: (memoryId: string) => void; onChangeVisibility: () => void }) {
+export function MemoryJournal({ trip, coverIndex, isPublic, onAddMemory, onSaveCaption, onSaveLayout, onRemoveMemory, onChangeVisibility, readOnly = false }: { trip: Trip; coverIndex: number; isPublic: boolean; onAddMemory?: (page?: number) => void; onSaveCaption?: (memoryId: string, caption: string) => void; onSaveLayout?: (memoryId: string, layout: MemoryLayout) => void; onRemoveMemory?: (memoryId: string) => void; onChangeVisibility?: () => void; readOnly?: boolean }) {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const spreadWidth = Math.min(width - 32, 520);
@@ -65,6 +67,9 @@ export function MemoryJournal({ trip, coverIndex, isPublic, onAddMemory, onSaveC
   const current = pages[safePageIndex];
   const palette = journalPalette(coverIndex);
   const readerBackground = palette.cover;
+  const saveCaption = onSaveCaption ?? (() => undefined);
+  const saveLayout = onSaveLayout ?? (() => undefined);
+  const removeMemory = onRemoveMemory ?? (() => undefined);
   const revealCaption = useCallback(() => requestAnimationFrame(() => stageScroll.current?.scrollTo({ y: 128, animated: !reduceMotion })), [reduceMotion]);
 
   useEffect(() => {
@@ -194,7 +199,7 @@ export function MemoryJournal({ trip, coverIndex, isPublic, onAddMemory, onSaveC
     <View style={journalStyles.header}>
       <Pressable accessibilityRole="button" accessibilityLabel="Close journal" onPress={close} style={journalStyles.headerButton}><Ionicons name="chevron-back" size={22} color="#FFF8EB"/></Pressable>
       <View style={journalStyles.headerText}><Text numberOfLines={1} style={journalStyles.headerTitle}>{trip.title}</Text><Text numberOfLines={1} style={journalStyles.headerPlace}>{[trip.city, trip.country].filter(Boolean).join(', ')}</Text></View>
-      <Pressable accessibilityRole="button" accessibilityLabel={`This book is ${isPublic ? 'public to friends' : 'private'}. Change sharing.`} onPress={onChangeVisibility} style={journalStyles.headerButton}><Ionicons name={isPublic ? 'globe-outline' : 'lock-closed'} size={18} color="#FFF8EB"/></Pressable>
+      {readOnly ? <View accessibilityLabel="Read-only public memory book" style={journalStyles.headerSpacer}><Ionicons name="globe-outline" size={18} color="#FFF8EB"/></View> : <Pressable accessibilityRole="button" accessibilityLabel={`This book is ${isPublic ? 'public to friends' : 'private'}. Change sharing.`} onPress={() => onChangeVisibility?.()} style={journalStyles.headerButton}><Ionicons name={isPublic ? 'globe-outline' : 'lock-closed'} size={18} color="#FFF8EB"/></Pressable>}
     </View>
 
     <ScrollView ref={stageScroll} style={journalStyles.stageScroll} contentContainerStyle={journalStyles.stageScrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} directionalLockEnabled scrollEnabled={captionEditorOpen}>
@@ -202,8 +207,8 @@ export function MemoryJournal({ trip, coverIndex, isPublic, onAddMemory, onSaveC
       <Animated.View style={[journalStyles.openBook, { width: spreadWidth, opacity: openProgress, transform: [{ scale: bookScale }] }]} accessibilityLabel={currentLabel} accessibilityRole="summary" {...responder.panHandlers}>
         <PageEdges side="left" count={safePageIndex}/><PageEdges side="right" count={Math.max(pages.length - safePageIndex - 1, 0)}/>
         <View style={journalStyles.viewport}>
-          <View style={journalStyles.spreadLayer}><JournalSpread spread={current} onSaveCaption={onSaveCaption} onSaveLayout={onSaveLayout} onRemoveMemory={onRemoveMemory} onCaptionFocus={revealCaption} onCaptionEditingChange={setCaptionEditorOpen} layoutEditing={layoutEditing}/></View>
-          {turnSnapshot && <Animated.View pointerEvents="none" style={[journalStyles.turnSnapshotLayer, { opacity: snapshotOpacity, transform: [{ translateX: dragX }] }]}><FrozenJournalSpread spread={turnSnapshot} onSaveCaption={onSaveCaption} onSaveLayout={onSaveLayout} onRemoveMemory={onRemoveMemory} onCaptionFocus={revealCaption} onCaptionEditingChange={setCaptionEditorOpen} layoutEditing={false}/></Animated.View>}
+          <View style={journalStyles.spreadLayer}><JournalSpread spread={current} onSaveCaption={saveCaption} onSaveLayout={saveLayout} onRemoveMemory={removeMemory} onCaptionFocus={revealCaption} onCaptionEditingChange={setCaptionEditorOpen} layoutEditing={!readOnly && layoutEditing} readOnly={readOnly}/></View>
+          {turnSnapshot && <Animated.View pointerEvents="none" style={[journalStyles.turnSnapshotLayer, { opacity: snapshotOpacity, transform: [{ translateX: dragX }] }]}><FrozenJournalSpread spread={turnSnapshot} onSaveCaption={saveCaption} onSaveLayout={saveLayout} onRemoveMemory={removeMemory} onCaptionFocus={revealCaption} onCaptionEditingChange={setCaptionEditorOpen} layoutEditing={false} readOnly={readOnly}/></Animated.View>}
         </View>
         {safePageIndex > 0 && <Pressable accessibilityRole="button" accessibilityLabel="Previous page" onPress={() => turn(-1)} style={[journalStyles.edgeTap, journalStyles.leftEdgeTap]}/>}
         {safePageIndex < pages.length - 1 && <Pressable accessibilityRole="button" accessibilityLabel="Next page" onPress={() => turn(1)} style={[journalStyles.edgeTap, journalStyles.rightEdgeTap]}/>}
@@ -213,29 +218,29 @@ export function MemoryJournal({ trip, coverIndex, isPublic, onAddMemory, onSaveC
     </ScrollView>
 
     <View style={journalStyles.pageHint}><Text style={journalStyles.pageHintText}>{pages.length ? `${safePageIndex + 1} / ${pages.length}` : 'First page'}</Text><Text style={journalStyles.swipeHint}>{reduceMotion ? 'Swipe to browse' : 'Swipe to turn a page'}</Text></View>
-    <View style={journalStyles.toolbar}>
+    {!readOnly && <View style={journalStyles.toolbar}>
       <Pressable accessibilityRole="button" accessibilityLabel={layoutEditing ? 'Finish editing page' : 'Edit page layout'} onPress={() => setLayoutEditing((value) => !value)} style={[journalStyles.toolButton, layoutEditing && journalStyles.toolButtonActive]}><Ionicons name={layoutEditing ? 'checkmark' : 'pencil'} size={21} color={layoutEditing ? '#FFFFFF' : colors.blue}/></Pressable>
-      <Pressable accessibilityRole="button" accessibilityLabel="Add a photo after this spread" onPress={() => onAddMemory(addAfterCurrent)} style={journalStyles.toolButton}><Ionicons name="add" size={26} color={colors.blue}/></Pressable>
-    </View>
+      <Pressable accessibilityRole="button" accessibilityLabel="Add a photo after this spread" onPress={() => onAddMemory?.(addAfterCurrent)} style={journalStyles.toolButton}><Ionicons name="add" size={26} color={colors.blue}/></Pressable>
+    </View>}
   </KeyboardAvoidingView>;
 }
 
-function JournalSpread({ spread, onSaveCaption, onSaveLayout, onRemoveMemory, onCaptionFocus, onCaptionEditingChange, layoutEditing }: { spread?: Spread; onSaveCaption: (memoryId: string, caption: string) => void; onSaveLayout: (memoryId: string, layout: MemoryLayout) => void; onRemoveMemory: (memoryId: string) => void; onCaptionFocus: () => void; onCaptionEditingChange: (open: boolean) => void; layoutEditing: boolean }) {
-  return <View style={journalStyles.spread}><ScrapPage side="left" page={spread?.left} onSaveCaption={onSaveCaption} onSaveLayout={onSaveLayout} onRemoveMemory={onRemoveMemory} onCaptionFocus={onCaptionFocus} onCaptionEditingChange={onCaptionEditingChange} layoutEditing={layoutEditing}/><View style={journalStyles.crease}/><ScrapPage side="right" page={spread?.right} onSaveCaption={onSaveCaption} onSaveLayout={onSaveLayout} onRemoveMemory={onRemoveMemory} onCaptionFocus={onCaptionFocus} onCaptionEditingChange={onCaptionEditingChange} layoutEditing={layoutEditing}/></View>;
+function JournalSpread({ spread, onSaveCaption, onSaveLayout, onRemoveMemory, onCaptionFocus, onCaptionEditingChange, layoutEditing, readOnly }: { spread?: Spread; onSaveCaption: (memoryId: string, caption: string) => void; onSaveLayout: (memoryId: string, layout: MemoryLayout) => void; onRemoveMemory: (memoryId: string) => void; onCaptionFocus: () => void; onCaptionEditingChange: (open: boolean) => void; layoutEditing: boolean; readOnly: boolean }) {
+  return <View style={journalStyles.spread}><ScrapPage side="left" page={spread?.left} onSaveCaption={onSaveCaption} onSaveLayout={onSaveLayout} onRemoveMemory={onRemoveMemory} onCaptionFocus={onCaptionFocus} onCaptionEditingChange={onCaptionEditingChange} layoutEditing={layoutEditing} readOnly={readOnly}/><View style={journalStyles.crease}/><ScrapPage side="right" page={spread?.right} onSaveCaption={onSaveCaption} onSaveLayout={onSaveLayout} onRemoveMemory={onRemoveMemory} onCaptionFocus={onCaptionFocus} onCaptionEditingChange={onCaptionEditingChange} layoutEditing={layoutEditing} readOnly={readOnly}/></View>;
 }
 
 const FrozenJournalSpread = memo(JournalSpread);
 
-function ScrapPage({ side, page, onSaveCaption, onSaveLayout, onRemoveMemory, onCaptionFocus, onCaptionEditingChange, layoutEditing }: { side: 'left' | 'right'; page?: BookPage; onSaveCaption: (memoryId: string, caption: string) => void; onSaveLayout: (memoryId: string, layout: MemoryLayout) => void; onRemoveMemory: (memoryId: string) => void; onCaptionFocus: () => void; onCaptionEditingChange: (open: boolean) => void; layoutEditing: boolean }) {
+function ScrapPage({ side, page, onSaveCaption, onSaveLayout, onRemoveMemory, onCaptionFocus, onCaptionEditingChange, layoutEditing, readOnly }: { side: 'left' | 'right'; page?: BookPage; onSaveCaption: (memoryId: string, caption: string) => void; onSaveLayout: (memoryId: string, layout: MemoryLayout) => void; onRemoveMemory: (memoryId: string) => void; onCaptionFocus: () => void; onCaptionEditingChange: (open: boolean) => void; layoutEditing: boolean; readOnly: boolean }) {
   const [size, setSize] = useState({ width: 0, height: 0 });
   return <View style={[journalStyles.paper, side === 'left' ? journalStyles.leftPaper : journalStyles.rightPaper]}>
     <View onLayout={(event) => setSize(event.nativeEvent.layout)} style={journalStyles.collageCanvas}>
-      {page?.memory ? <MemoryPhoto memory={page.memory} canvas={size} onSaveCaption={onSaveCaption} onSaveLayout={onSaveLayout} onRemoveMemory={onRemoveMemory} onCaptionFocus={onCaptionFocus} onCaptionEditingChange={onCaptionEditingChange} layoutEditing={layoutEditing}/> : <View style={journalStyles.blankPage}><CapybaraMoment size={48}/><Text style={journalStyles.blankCopy}>The next memory will start a fresh page.</Text></View>}
+      {page?.memory ? <MemoryPhoto memory={page.memory} canvas={size} onSaveCaption={onSaveCaption} onSaveLayout={onSaveLayout} onRemoveMemory={onRemoveMemory} onCaptionFocus={onCaptionFocus} onCaptionEditingChange={onCaptionEditingChange} layoutEditing={layoutEditing} readOnly={readOnly}/> : <View style={journalStyles.blankPage}><CapybaraMoment size={48}/><Text style={journalStyles.blankCopy}>The next memory will start a fresh page.</Text></View>}
     </View>
   </View>;
 }
 
-function MemoryPhoto({ memory, canvas, onSaveCaption, onSaveLayout, onRemoveMemory, onCaptionFocus, onCaptionEditingChange, layoutEditing }: { memory: Memory; canvas: { width: number; height: number }; onSaveCaption: (memoryId: string, caption: string) => void; onSaveLayout: (memoryId: string, layout: MemoryLayout) => void; onRemoveMemory: (memoryId: string) => void; onCaptionFocus: () => void; onCaptionEditingChange: (open: boolean) => void; layoutEditing: boolean }) {
+function MemoryPhoto({ memory, canvas, onSaveCaption, onSaveLayout, onRemoveMemory, onCaptionFocus, onCaptionEditingChange, layoutEditing, readOnly }: { memory: Memory; canvas: { width: number; height: number }; onSaveCaption: (memoryId: string, caption: string) => void; onSaveLayout: (memoryId: string, layout: MemoryLayout) => void; onRemoveMemory: (memoryId: string) => void; onCaptionFocus: () => void; onCaptionEditingChange: (open: boolean) => void; layoutEditing: boolean; readOnly: boolean }) {
   const [caption, setCaption] = useState(memory.caption ?? '');
   const [editing, setEditing] = useState(false);
   const start = useRef<MemoryLayout | null>(null);
@@ -267,7 +272,9 @@ function MemoryPhoto({ memory, canvas, onSaveCaption, onSaveLayout, onRemoveMemo
   return <View style={[journalStyles.photoSlot, { width: photoWidth, height: photoHeight, left: effective.x * canvas.width - photoWidth / 2, top: effective.y * canvas.height - photoHeight / 2 }]}>
     <View style={journalStyles.photo}>
       <View style={journalStyles.imageFrame}><Image source={{ uri: memory.image }} resizeMode="contain" style={journalStyles.photoImage}/></View>
-      {editing
+      {readOnly
+        ? <View style={journalStyles.captionNote}><Text numberOfLines={1} style={[journalStyles.captionText, !caption.trim() && journalStyles.captionPlaceholder]}>{caption.trim() || 'A memory worth keeping'}</Text></View>
+        : editing
         ? <View style={journalStyles.captionNote}><TextInput autoFocus value={caption} onChangeText={setCaption} onFocus={onCaptionFocus} onBlur={finishEditing} onSubmitEditing={finishEditing} placeholder="Write a caption" placeholderTextColor="#A99A89" maxLength={180} multiline={false} returnKeyType="done" style={journalStyles.captionInput} accessibilityLabel="Photo caption"/></View>
         : <Pressable accessibilityRole="button" accessibilityLabel="Edit photo caption" onPress={beginEditing} style={journalStyles.captionNote}><Text numberOfLines={1} style={[journalStyles.captionText, !caption.trim() && journalStyles.captionPlaceholder]}>{caption.trim() || 'Write a caption'}</Text></Pressable>}
     </View>
