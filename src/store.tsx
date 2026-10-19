@@ -12,9 +12,8 @@ export type WishReaction = 'like' | 'meh' | 'dislike';
 export type Wish = { id: string; name: string; category: string; location?: string; note?: string; link?: string; voted: boolean; reactions?: Record<string, { displayName: string; reaction: WishReaction }> };
 // `caption` is deliberately separate from the older trip-note `text`: every
 // photo can carry its own short scrapbook caption.
-export type MemoryLayout = { x: number; y: number; scale: number; rotation: number };
-// `bookPage` is a zero-based scrapbook page. Older memories without it keep
-// their original two-photos-per-page layout until the owner moves or adds one.
+export type MemoryLayout = { x: number; y: number; scale: number; rotation: number; pageStyle?: 'single' };
+// `bookPage` is a zero-based scrapbook page. Each memory owns exactly one page.
 export type Memory = { id: string; image: string; date: string; location?: string; text?: string; caption?: string; bookPage?: number; layout?: MemoryLayout };
 export type MemoryBookVisibility = 'public' | 'private';
 export type Trip = { id: string; sharedTripId?: string; title: string; city: string; country: string; destinationTimeZone?: string; startDate: string; endDate: string; members: string[]; memberAccountIds?: Record<string, string>; coverImage?: string; icon?: string; color?: string; reminderNotificationIds?: string[]; memoryBookVisibility?: MemoryBookVisibility; activities: Activity[]; packing: PackingItem[]; wishes: Wish[]; memories: Memory[] };
@@ -142,16 +141,19 @@ export function TravelProvider({ children }: { children: ReactNode }) {
       void syncMemoryBooks(nextTrips, state.memoryBooksPublicByDefault).catch(() => undefined);
     },
     syncMemoryBookPhotos: () => syncMemoryBooks(state.trips, state.memoryBooksPublicByDefault),
-    addPhoto: async (tripId, page = 0) => {
+    addPhoto: async (tripId, afterPage) => {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permission.granted) return;
       const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: .8, allowsMultipleSelection: true, selectionLimit: 0 });
       if (result.canceled) return;
       const trip = state.trips.find((item) => item.id === tripId);
+      const existing = trip?.memories ?? [];
+      const orderedExisting = [...existing].map((memory, sourceIndex) => ({ memory, sourceIndex })).sort((a, b) => (a.memory.bookPage ?? a.sourceIndex) - (b.memory.bookPage ?? b.sourceIndex) || a.sourceIndex - b.sourceIndex);
+      const insertionPage = afterPage ?? Math.max(-1, orderedExisting.length - 1);
       const user = await ensureGuestIdentity().catch(() => null);
       let sharingFailures = 0;
-      const addedMemories = await Promise.all(result.assets.map(async (asset) => {
-        const memory: Memory = { id: uid(), image: asset.uri, date: new Date().toISOString().slice(0, 10), location: trip?.city, bookPage: page };
+      const addedMemories = await Promise.all(result.assets.map(async (asset, index) => {
+        const memory: Memory = { id: uid(), image: asset.uri, date: new Date().toISOString().slice(0, 10), location: trip?.city, bookPage: insertionPage + index + 1 };
         // Keep the local copy usable offline and store a private cloud copy for
         // the owner's friends-only memory book when Supabase is enabled.
         if (supabase && user && trip) {
@@ -159,7 +161,8 @@ export function TravelProvider({ children }: { children: ReactNode }) {
         }
         return memory;
       }));
-      updateTrip(tripId, { memories: [...addedMemories, ...(state.trips.find((trip) => trip.id === tripId)?.memories ?? [])] });
+      const normalizedExisting = orderedExisting.map(({ memory }, index) => ({ ...memory, bookPage: index >= insertionPage + 1 ? index + addedMemories.length : index }));
+      updateTrip(tripId, { memories: [...normalizedExisting, ...addedMemories] });
       if (sharingFailures > 0) Alert.alert('Photos saved on this device', `${sharingFailures} ${sharingFailures === 1 ? 'photo could not' : 'photos could not'} be shared just yet. Try again when you are online.`);
     },
   }), [state, ready, selectedTrip]);
