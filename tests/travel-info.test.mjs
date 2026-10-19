@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { countryInfoFor, plugCompatibility, timeDifferenceForTrip } from '../src/travel-info.ts';
+import { countryInfoFor, plugCompatibility, resolvedDestinationTimeZone, resolvedHomeTimeZone, timeDifferenceForTrip } from '../src/travel-info.ts';
 
 const oslo = 'Europe/Oslo';
 
@@ -22,6 +22,13 @@ test('European, US and half-hour destinations calculate their actual offsets', (
 test('unknown time zones never pretend to be the same time', () => {
   assert.equal(timeDifferenceForTrip(undefined, oslo, '2026-07-14'), null);
   assert.equal(timeDifferenceForTrip('Not/AZone', oslo, '2026-07-14'), null);
+});
+
+test('legacy destination zones copied from home are repaired from the picked place', () => {
+  assert.equal(resolvedHomeTimeZone('Europe/Oslo', 'Norway'), 'Europe/Oslo');
+  assert.equal(resolvedDestinationTimeZone('Phuket', 'Thailand', 'Europe/Oslo', oslo), 'Asia/Bangkok');
+  assert.equal(resolvedDestinationTimeZone('Bangkok', 'Thailand', undefined, oslo), 'Asia/Bangkok');
+  assert.equal(resolvedDestinationTimeZone('Unknown city', 'Unknown country', undefined, oslo), undefined);
 });
 
 test('plug compatibility covers Thailand, Spain, the UK, USA and Japan from Norway', () => {

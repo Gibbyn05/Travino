@@ -64,8 +64,28 @@ export function deviceTimeZone() {
   } catch { return undefined; }
 }
 
-function isValidTimeZone(timeZone: string) {
+export function isValidTimeZone(timeZone: string) {
   try { new Intl.DateTimeFormat('en-GB', { timeZone }).format(); return true; } catch { return false; }
+}
+
+// A picked place is the destination authority. A persisted zone is kept when it
+// came from a precise geocoder result, except for an older bad value that was
+// copied from the home zone. That legacy value made Norway and Thailand compare
+// as Europe/Oslo and incorrectly show the same time.
+export function resolvedDestinationTimeZone(city: string, country: string, persistedTimeZone?: string, homeTimeZone?: string) {
+  const placeTimeZone = destinationTimeZoneFor(city, country);
+  const savedTimeZone = persistedTimeZone && isValidTimeZone(persistedTimeZone) ? persistedTimeZone : undefined;
+  if (placeTimeZone && (!savedTimeZone || (savedTimeZone === homeTimeZone && placeTimeZone !== homeTimeZone))) return placeTimeZone;
+  return savedTimeZone ?? placeTimeZone;
+}
+
+// Use an explicit home country when one exists. Otherwise keep the stored
+// device zone, falling back to the current device zone only when it is valid.
+export function resolvedHomeTimeZone(persistedTimeZone?: string, homeCountry?: string, currentDeviceTimeZone = deviceTimeZone()) {
+  const countryTimeZone = homeCountry ? destinationTimeZoneFor('', homeCountry) : undefined;
+  if (countryTimeZone) return countryTimeZone;
+  if (persistedTimeZone && isValidTimeZone(persistedTimeZone)) return persistedTimeZone;
+  return currentDeviceTimeZone && isValidTimeZone(currentDeviceTimeZone) ? currentDeviceTimeZone : undefined;
 }
 
 function dateAtTripStart(value: string) {
