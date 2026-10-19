@@ -31,6 +31,13 @@ const memoryObjectPath = (memory: Memory, userId: string) => {
 };
 const defaultHomeTimeZone = deviceTimeZone();
 const initial: StoredState = { profileName: '', homeTimeZone: defaultHomeTimeZone, homeCountry: countryForTimeZone(defaultHomeTimeZone), premium: false, memoryBooksPublicByDefault: false, trips: [], onboarded: true };
+const timeZoneFieldsNeedMigration = (raw: unknown, hydrated: StoredState) => {
+  if (!raw || typeof raw !== 'object') return false;
+  const saved = raw as Partial<StoredState>;
+  if (saved.homeTimeZone !== hydrated.homeTimeZone || saved.homeCountry !== hydrated.homeCountry) return true;
+  const savedTrips = Array.isArray(saved.trips) ? saved.trips : [];
+  return hydrated.trips.some((trip, index) => savedTrips[index]?.destinationTimeZone !== trip.destinationTimeZone);
+};
 const stateFrom = (value: unknown): StoredState | null => {
   if (!value || typeof value !== 'object' || !Array.isArray((value as StoredState).trips)) return null;
   const state = value as StoredState;
@@ -93,7 +100,7 @@ async function removeMemoryFromCloud(memory: Memory, userId: string) {
 export function TravelProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<StoredState>(initial); const [ready, setReady] = useState(false);
   const remoteWrites = useRef(Promise.resolve());
-  useEffect(() => { let active = true; const load = async () => { let next = initial; try { const raw = await storage.getItem(key) || await storage.getItem(legacyKey); const local = raw ? stateFrom(JSON.parse(raw)) : null; if (local) next = local; } catch { /* Start with an empty state if the local cache is unreadable. */ } try { const client = supabase; if (client) { const user = await ensureGuestIdentity().catch(() => null); if (user) { const { data } = await client.from('travel_states').select('payload').eq('user_id', user.id).maybeSingle(); const remote = stateFrom(data?.payload); if (remote) next = remote; else await client.from('travel_states').upsert({ user_id: user.id, payload: next, updated_at: new Date().toISOString() }); } } } catch { /* The local state remains usable if the database is temporarily unavailable. */ } if (active) { setState(next); await storage.setItem(key, JSON.stringify(next)).catch(() => undefined); setReady(true); } }; load().catch(() => { if (active) setReady(true); }); return () => { active = false; }; }, []);
+  useEffect(() => { let active = true; const load = async () => { let next = initial; let client = supabase; let remoteUser: { id: string } | null = null; let migrateRemote = false; try { const raw = await storage.getItem(key) || await storage.getItem(legacyKey); const local = raw ? stateFrom(JSON.parse(raw)) : null; if (local) next = local; } catch { /* Start with an empty state if the local cache is unreadable. */ } try { if (client) { const user = await ensureGuestIdentity().catch(() => null); if (user) { remoteUser = user; const { data } = await client.from('travel_states').select('payload').eq('user_id', user.id).maybeSingle(); const remote = stateFrom(data?.payload); if (remote) { next = remote; migrateRemote = timeZoneFieldsNeedMigration(data?.payload, remote); } else await client.from('travel_states').upsert({ user_id: user.id, payload: next, updated_at: new Date().toISOString() }); } } } catch { /* The local state remains usable if the database is temporarily unavailable. */ } if (active) { setState(next); await storage.setItem(key, JSON.stringify(next)).catch(() => undefined); if (migrateRemote && client && remoteUser) await client.from('travel_states').upsert({ user_id: remoteUser.id, payload: next, updated_at: new Date().toISOString() }); setReady(true); } }; load().catch(() => { if (active) setReady(true); }); return () => { active = false; }; }, []);
   const persistRemote = (next: StoredState) => { const client = supabase; if (!client || !ready) return; remoteWrites.current = remoteWrites.current.catch(() => undefined).then(async () => { const user = await ensureGuestIdentity(); if (!user) return; const { error } = await client.from('travel_states').upsert({ user_id: user.id, payload: next, updated_at: new Date().toISOString() }); if (error) throw error; }).catch(() => undefined); };
   const change = (update: (current: StoredState) => StoredState) => setState((current) => { const next = update(current); storage.setItem(key, JSON.stringify(next)).catch(() => undefined); persistRemote(next); return next; });
   const updateTrip = (id: string, patch: Partial<Trip>) => change((s) => ({ ...s, trips: s.trips.map((trip) => {
