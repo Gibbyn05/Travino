@@ -83,7 +83,7 @@ export default function ProfileScreen() {
   const previousLevel = useRef<number | null>(null);
   const celebrationOpacity = useRef(new Animated.Value(0)).current;
   const memoryCount = trips.reduce((total, trip) => total + trip.memories.length, 0);
-  const completedTrips = useMemo(() => completedTripCount(trips.filter((trip) => trip.id !== 'spain-2026')), [trips]);
+  const completedTrips = useMemo(() => completedTripCount(trips), [trips]);
   const travelLevel = useMemo(() => levelForCompletedTrips(completedTrips), [completedTrips]);
   const selectedFrame = useMemo(() => frameForProfile(travelLevel.level, profileFrameId), [profileFrameId, travelLevel.level]);
   const selectedAccessory = useMemo(() => TRAVELLER_ACCESSORIES.find((item) => item.id === profileAccessoryId), [profileAccessoryId]);
