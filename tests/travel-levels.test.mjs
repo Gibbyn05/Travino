@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { completedTripCount, isCompletedTrip, levelForCompletedTrips } from '../src/travel-levels.ts';
+import { completedTripCount, frameForProfile, isCompletedTrip, levelForCompletedTrips, PROFILE_FRAMES } from '../src/travel-levels.ts';
 
 const expected = [
   [0, 1, 'Rookie Traveler', 'Weekend Wanderer', 3],
@@ -30,4 +30,13 @@ test('only passed or manually completed trips count, never cancelled or planned 
   assert.equal(isCompletedTrip({ endDate: '2026-10-01', completionState: 'cancelled' }, today), false);
   assert.equal(isCompletedTrip({ endDate: '2026-11-01', completionState: 'completed' }, today), true);
   assert.equal(completedTripCount([{ endDate: '2026-10-18' }, { endDate: '2026-11-01' }, { endDate: '2026-10-01', completionState: 'cancelled' }], today), 1);
+});
+
+test('profile frames use the current level by default and reject locked selections', () => {
+  assert.equal(frameForProfile(1).id, 'classic');
+  assert.equal(frameForProfile(2).id, 'sunset');
+  assert.equal(frameForProfile(2, 'ocean').id, 'ocean');
+  assert.equal(frameForProfile(2, 'legend').id, 'sunset');
+  assert.equal(frameForProfile(10, 'legend').id, 'legend');
+  assert.equal(PROFILE_FRAMES.find((frame) => frame.id === 'seasoned')?.animated, true);
 });
