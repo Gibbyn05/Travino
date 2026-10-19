@@ -12,16 +12,26 @@ export type WishReaction = 'like' | 'meh' | 'dislike';
 export type Wish = { id: string; name: string; category: string; location?: string; note?: string; link?: string; voted: boolean; reactions?: Record<string, { displayName: string; reaction: WishReaction }> };
 // `caption` is deliberately separate from the older trip-note `text`: every
 // photo can carry its own short scrapbook caption.
-export type Memory = { id: string; image: string; date: string; location?: string; text?: string; caption?: string };
-export type Trip = { id: string; sharedTripId?: string; title: string; city: string; country: string; destinationTimeZone?: string; startDate: string; endDate: string; members: string[]; memberAccountIds?: Record<string, string>; coverImage?: string; icon?: string; color?: string; reminderNotificationIds?: string[]; activities: Activity[]; packing: PackingItem[]; wishes: Wish[]; memories: Memory[] };
+export type MemoryLayout = { x: number; y: number; scale: number; rotation: number };
+// `bookPage` is a zero-based scrapbook page. Older memories without it keep
+// their original two-photos-per-page layout until the owner moves or adds one.
+export type Memory = { id: string; image: string; date: string; location?: string; text?: string; caption?: string; bookPage?: number; layout?: MemoryLayout };
+export type MemoryBookVisibility = 'public' | 'private';
+export type Trip = { id: string; sharedTripId?: string; title: string; city: string; country: string; destinationTimeZone?: string; startDate: string; endDate: string; members: string[]; memberAccountIds?: Record<string, string>; coverImage?: string; icon?: string; color?: string; reminderNotificationIds?: string[]; memoryBookVisibility?: MemoryBookVisibility; activities: Activity[]; packing: PackingItem[]; wishes: Wish[]; memories: Memory[] };
 export type DraftTrip = Pick<Trip, 'title' | 'city' | 'country' | 'startDate' | 'endDate' | 'members' | 'coverImage'> & Partial<Pick<Trip, 'sharedTripId' | 'icon' | 'color' | 'destinationTimeZone'>>;
-type StoredState = { profileName: string; profileBio?: string; homeTimeZone?: string; homeCountry?: string; premium: boolean; trips: Trip[]; selectedTripId?: string; onboarded: boolean };
+type StoredState = { profileName: string; profileBio?: string; homeTimeZone?: string; homeCountry?: string; premium: boolean; memoryBooksPublicByDefault: boolean; trips: Trip[]; selectedTripId?: string; onboarded: boolean };
 
 const key = '@travino/state-v2';
 const legacyKey = ['@reise', 'folge/state-v2'].join('');
 const uid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+export const memoryBookIsPublic = (trip: Pick<Trip, 'memoryBookVisibility'>, publicByDefault: boolean) => trip.memoryBookVisibility ? trip.memoryBookVisibility === 'public' : publicByDefault;
+const memoryObjectPath = (memory: Memory, userId: string) => {
+  const cleanUri = memory.image.split(/[?#]/)[0];
+  const extension = (cleanUri.split('.').pop() || 'jpg').replace(/[^a-z0-9]/gi, '').toLowerCase() || 'jpg';
+  return `${userId}/${memory.id.replace(/[^a-z0-9_-]/gi, '_')}.${extension}`;
+};
 const defaultHomeTimeZone = deviceTimeZone();
-const initial: StoredState = { profileName: '', homeTimeZone: defaultHomeTimeZone, homeCountry: countryForTimeZone(defaultHomeTimeZone), premium: false, trips: [], onboarded: true };
+const initial: StoredState = { profileName: '', homeTimeZone: defaultHomeTimeZone, homeCountry: countryForTimeZone(defaultHomeTimeZone), premium: false, memoryBooksPublicByDefault: false, trips: [], onboarded: true };
 const stateFrom = (value: unknown): StoredState | null => {
   if (!value || typeof value !== 'object' || !Array.isArray((value as StoredState).trips)) return null;
   const state = value as StoredState;
@@ -34,30 +44,51 @@ const stateFrom = (value: unknown): StoredState | null => {
     trips: state.trips.map((trip) => ({ ...trip, destinationTimeZone: trip.destinationTimeZone ?? destinationTimeZoneFor(trip.city, trip.country), coverImage: stockCoverForCountry(trip.country) })),
   };
 };
-type Store = StoredState & { ready: boolean; selectedTrip?: Trip; setSelectedTripId: (id?: string) => void; saveProfile: (name: string, bio?: string) => void; createTrip: (draft: DraftTrip) => string; updateTrip: (id: string, patch: Partial<Trip>) => void; deleteTrip: (id: string) => void; addMember: (tripId: string, name: string, accountId?: string) => void; addActivity: (tripId: string, item: Omit<Activity, 'id'>) => void; updateActivity: (tripId: string, activityId: string, patch: Partial<Activity>) => void; removeActivity: (tripId: string, activityId: string) => void; addPacking: (tripId: string, item: Omit<PackingItem, 'id' | 'done'>) => void; togglePacking: (tripId: string, itemId: string) => void; removePacking: (tripId: string, itemId: string) => void; copyPacking: (fromTripId: string, toTripId: string, categories: string[]) => void; addWish: (tripId: string, item: Omit<Wish, 'id' | 'voted' | 'reactions'>) => void; toggleWish: (tripId: string, wishId: string) => void; setWishReaction: (tripId: string, wishId: string, voterId: string, displayName: string, reaction?: WishReaction) => void; removeWish: (tripId: string, wishId: string) => void; moveWishToPlan: (tripId: string, wishId: string) => void; addPhoto: (tripId: string) => Promise<void>; setMemoryCaption: (tripId: string, memoryId: string, caption: string) => void; syncMemoryBookPhotos: () => Promise<number>; setPremium: (premium: boolean) => void; markOnboarded: () => void };
+type Store = StoredState & { ready: boolean; selectedTrip?: Trip; setSelectedTripId: (id?: string) => void; saveProfile: (name: string, bio?: string) => void; createTrip: (draft: DraftTrip) => string; updateTrip: (id: string, patch: Partial<Trip>) => void; deleteTrip: (id: string) => void; addMember: (tripId: string, name: string, accountId?: string) => void; addActivity: (tripId: string, item: Omit<Activity, 'id'>) => void; updateActivity: (tripId: string, activityId: string, patch: Partial<Activity>) => void; removeActivity: (tripId: string, activityId: string) => void; addPacking: (tripId: string, item: Omit<PackingItem, 'id' | 'done'>) => void; togglePacking: (tripId: string, itemId: string) => void; removePacking: (tripId: string, itemId: string) => void; copyPacking: (fromTripId: string, toTripId: string, categories: string[]) => void; addWish: (tripId: string, item: Omit<Wish, 'id' | 'voted' | 'reactions'>) => void; toggleWish: (tripId: string, wishId: string) => void; setWishReaction: (tripId: string, wishId: string, voterId: string, displayName: string, reaction?: WishReaction) => void; removeWish: (tripId: string, wishId: string) => void; moveWishToPlan: (tripId: string, wishId: string) => void; addPhoto: (tripId: string, page?: number) => Promise<void>; setMemoryCaption: (tripId: string, memoryId: string, caption: string) => void; setMemoryLayout: (tripId: string, memoryId: string, layout: MemoryLayout) => void; removeMemory: (tripId: string, memoryId: string) => void; setMemoryBooksPublicByDefault: (isPublic: boolean) => void; setTripMemoryBookVisibility: (tripId: string, visibility?: MemoryBookVisibility) => void; syncMemoryBookPhotos: () => Promise<number>; setPremium: (premium: boolean) => void; markOnboarded: () => void };
 const TravelContext = createContext<Store | null>(null);
 
-async function syncMemoryPhoto(trip: Trip, memory: Memory, userId: string, contentType?: string) {
+async function syncMemoryPhoto(trip: Trip, memory: Memory, userId: string, bookPublic: boolean, contentType?: string) {
   if (!supabase) return false;
   const cleanUri = memory.image.split(/[?#]/)[0];
   const extension = (cleanUri.split('.').pop() || 'jpg').replace(/[^a-z0-9]/gi, '').toLowerCase() || 'jpg';
-  const path = `${userId}/${memory.id.replace(/[^a-z0-9_-]/gi, '_')}.${extension}`;
+  const path = memoryObjectPath(memory, userId);
   try {
     const blob = await (await fetch(memory.image)).blob();
     const mime = contentType || (extension === 'jpg' ? 'image/jpeg' : `image/${extension}`);
     const { error: uploadError } = await supabase.storage.from('memory-book').upload(path, blob, { contentType: mime, upsert: true });
     if (uploadError) return false;
-    const { error } = await supabase.from('memory_book_entries').upsert({ user_id: userId, object_path: path, trip_title: trip.title, city: memory.location || trip.city, country: trip.country, taken_on: memory.date, caption: memory.caption ?? memory.text ?? '' }, { onConflict: 'object_path' });
+    const { error } = await supabase.from('memory_book_entries').upsert({ user_id: userId, object_path: path, trip_id: trip.id, trip_title: trip.title, city: memory.location || trip.city, country: trip.country, taken_on: memory.date, caption: memory.caption ?? memory.text ?? '', book_public: bookPublic }, { onConflict: 'object_path' });
     return !error;
   } catch { return false; }
 }
 
+async function syncMemoryBooks(trips: Trip[], publicByDefault: boolean) {
+  if (!supabase) return 0;
+  const user = await ensureGuestIdentity().catch(() => null);
+  if (!user) return trips.reduce((total, trip) => total + trip.memories.length, 0);
+  let failures = 0;
+  for (const trip of trips) for (const memory of trip.memories) if (!await syncMemoryPhoto(trip, memory, user.id, memoryBookIsPublic(trip, publicByDefault))) failures += 1;
+  return failures;
+}
+
+async function syncMemoryBookDefault(userId: string, isPublic: boolean) {
+  if (!supabase) return;
+  await supabase.from('profiles').update({ memory_book_public: isPublic }).eq('id', userId);
+}
+
 async function syncMemoryCaption(memory: Memory, userId: string) {
   if (!supabase) return;
-  const cleanUri = memory.image.split(/[?#]/)[0];
-  const extension = (cleanUri.split('.').pop() || 'jpg').replace(/[^a-z0-9]/gi, '').toLowerCase() || 'jpg';
-  const path = `${userId}/${memory.id.replace(/[^a-z0-9_-]/gi, '_')}.${extension}`;
+  const path = memoryObjectPath(memory, userId);
   await supabase.from('memory_book_entries').update({ caption: memory.caption ?? '' }).eq('user_id', userId).eq('object_path', path);
+}
+
+async function removeMemoryFromCloud(memory: Memory, userId: string) {
+  if (!supabase) return;
+  const path = memoryObjectPath(memory, userId);
+  await Promise.all([
+    supabase.from('memory_book_entries').delete().eq('user_id', userId).eq('object_path', path),
+    supabase.storage.from('memory-book').remove([path]),
+  ]);
 }
 
 export function TravelProvider({ children }: { children: ReactNode }) {
@@ -85,16 +116,33 @@ export function TravelProvider({ children }: { children: ReactNode }) {
       updateTrip(tripId, { memories: trip.memories.map((item) => item.id === memoryId ? updated : item) });
       void ensureGuestIdentity().then((user) => user ? syncMemoryCaption(updated, user.id) : undefined).catch(() => undefined);
     },
-    syncMemoryBookPhotos: async () => {
-      const client = supabase;
-      if (!client) return 0;
-      const user = await ensureGuestIdentity().catch(() => null);
-      if (!user) return state.trips.reduce((total, trip) => total + trip.memories.length, 0);
-      let failures = 0;
-      for (const trip of state.trips) for (const memory of trip.memories) if (!await syncMemoryPhoto(trip, memory, user.id)) failures += 1;
-      return failures;
+    setMemoryLayout: (tripId, memoryId, layout) => {
+      const trip = state.trips.find((item) => item.id === tripId);
+      if (!trip) return;
+      updateTrip(tripId, { memories: trip.memories.map((item) => item.id === memoryId ? { ...item, layout } : item) });
     },
-    addPhoto: async (tripId) => {
+    removeMemory: (tripId, memoryId) => {
+      const trip = state.trips.find((item) => item.id === tripId);
+      const memory = trip?.memories.find((item) => item.id === memoryId);
+      if (!trip || !memory) return;
+      updateTrip(tripId, { memories: trip.memories.filter((item) => item.id !== memoryId) });
+      void ensureGuestIdentity().then((user) => user ? removeMemoryFromCloud(memory, user.id) : undefined).catch(() => undefined);
+    },
+    setMemoryBooksPublicByDefault: (isPublic) => {
+      change((current) => ({ ...current, memoryBooksPublicByDefault: isPublic }));
+      void ensureGuestIdentity().then(async (user) => {
+        if (!user) return;
+        await syncMemoryBookDefault(user.id, isPublic);
+        await syncMemoryBooks(state.trips, isPublic);
+      }).catch(() => undefined);
+    },
+    setTripMemoryBookVisibility: (tripId, visibility) => {
+      const nextTrips = state.trips.map((trip) => trip.id === tripId ? { ...trip, memoryBookVisibility: visibility } : trip);
+      change((current) => ({ ...current, trips: current.trips.map((trip) => trip.id === tripId ? { ...trip, memoryBookVisibility: visibility } : trip) }));
+      void syncMemoryBooks(nextTrips, state.memoryBooksPublicByDefault).catch(() => undefined);
+    },
+    syncMemoryBookPhotos: () => syncMemoryBooks(state.trips, state.memoryBooksPublicByDefault),
+    addPhoto: async (tripId, page = 0) => {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permission.granted) return;
       const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: .8, allowsMultipleSelection: true, selectionLimit: 0 });
@@ -103,11 +151,11 @@ export function TravelProvider({ children }: { children: ReactNode }) {
       const user = await ensureGuestIdentity().catch(() => null);
       let sharingFailures = 0;
       const addedMemories = await Promise.all(result.assets.map(async (asset) => {
-        const memory = { id: uid(), image: asset.uri, date: new Date().toISOString().slice(0, 10), location: trip?.city };
+        const memory: Memory = { id: uid(), image: asset.uri, date: new Date().toISOString().slice(0, 10), location: trip?.city, bookPage: page };
         // Keep the local copy usable offline and store a private cloud copy for
         // the owner's friends-only memory book when Supabase is enabled.
         if (supabase && user && trip) {
-          if (!await syncMemoryPhoto(trip, memory, user.id, asset.mimeType || undefined)) sharingFailures += 1;
+          if (!await syncMemoryPhoto(trip, memory, user.id, memoryBookIsPublic(trip, state.memoryBooksPublicByDefault), asset.mimeType || undefined)) sharingFailures += 1;
         }
         return memory;
       }));

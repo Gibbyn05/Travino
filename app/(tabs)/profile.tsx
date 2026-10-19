@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Field, Sheet } from '@/src/forms';
 import { Card, PageTitle, PrimaryButton, Section } from '@/src/ui';
 import { colors, fonts } from '@/src/theme';
@@ -18,12 +18,10 @@ function parseTripDate(value: string): Date | null {
 const dayStamp = (date: Date) => Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
 
 export default function ProfileScreen() {
-  const { profileName, profileBio = '', saveProfile, trips, selectedTrip, deleteTrip, syncMemoryBookPhotos } = useTravel();
+  const { profileName, profileBio = '', saveProfile, trips, selectedTrip, deleteTrip, memoryBooksPublicByDefault, setMemoryBooksPublicByDefault } = useTravel();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(profileName);
   const [bio, setBio] = useState(profileBio);
-  const [memoryBookPublic, setMemoryBookPublic] = useState(false);
-  const [sharingReady, setSharingReady] = useState(false);
   const memoryCount = trips.reduce((total, trip) => total + trip.memories.length, 0);
   const { countriesVisited, daysAway } = useMemo(() => {
     const localToday = new Date();
@@ -42,23 +40,6 @@ export default function ProfileScreen() {
     }
     return { countriesVisited: visited.size, daysAway: tripDays.size };
   }, [trips]);
-
-  useEffect(() => {
-    let active = true;
-    const loadVisibility = async () => {
-      if (!supabase) return;
-      try {
-        const user = await ensureGuestIdentity();
-        if (!user) return;
-        const { data: own, error } = await supabase.rpc('ensure_my_profile', { p_display_name: profileName || 'Traveler' });
-        if (error) throw error;
-        if (active && own) setMemoryBookPublic(Boolean(own.memory_book_public));
-        if (active && own) setSharingReady(true);
-      } catch { /* Show sharing as unavailable until the database migration is installed. */ }
-    };
-    loadVisibility();
-    return () => { active = false; };
-  }, [profileName]);
 
   const save = async () => {
     const cleanName = name.trim();
@@ -81,31 +62,6 @@ export default function ProfileScreen() {
     setOpen(false);
   };
 
-  const setBookVisibility = async (next: boolean) => {
-    if (!supabase || !sharingReady) {
-      Alert.alert('Sharing is taking a moment', 'Try again later when your connection is ready.');
-      return;
-    }
-    if (next) {
-      const failedUploads = await syncMemoryBookPhotos();
-      if (failedUploads > 0) {
-        Alert.alert('Some photos could not be shared', 'Your memory book is still private. Check your connection and try again.');
-        return;
-      }
-    }
-    const previous = memoryBookPublic;
-    setMemoryBookPublic(next);
-    try {
-      const user = await ensureGuestIdentity();
-      if (!user) throw new Error('Sign in is required');
-      const { error } = await supabase.from('profiles').update({ memory_book_public: next }).eq('id', user.id).select('id').single();
-      if (error) throw error;
-    } catch {
-      setMemoryBookPublic(previous);
-      Alert.alert('Could not update sharing', 'Please try again once your connection is available.');
-    }
-  };
-
   return <ScrollView style={s.page} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
     <PageTitle eyebrow="Your travel profile">Profile</PageTitle>
     <Card style={s.profile}>
@@ -124,9 +80,12 @@ export default function ProfileScreen() {
     </Pressable>
     <Pressable onPress={() => router.push('/friends' as any)} style={({ pressed }) => [s.editRow, pressed && s.pressed]}><View style={s.editIcon}><Ionicons name="people-outline" size={20} color={colors.blue}/></View><View style={{ flex: 1 }}><Text style={s.editText}>Friends</Text><Text style={s.copy}>Share your travel memories with friends</Text></View><Ionicons name="chevron-forward" size={18} color={colors.muted}/></Pressable>
     <Card style={s.privacyCard}>
-      <View style={s.privacyIcon}><Ionicons name="lock-closed-outline" size={20} color={colors.blue}/></View>
-      <View style={{ flex: 1 }}><Text style={s.detailTitle}>Memory book sharing</Text><Text style={s.copy}>{memoryBookPublic ? 'Visible to your friends only' : 'Private — only you can see it'}</Text></View>
-      <Switch value={memoryBookPublic} onValueChange={setBookVisibility} trackColor={{ false: '#E2E8EF', true: colors.blue }} thumbColor="#FFFFFF" accessibilityLabel="Share memory book with friends"/>
+      <View style={s.privacyIcon}><Ionicons name={memoryBooksPublicByDefault ? 'globe-outline' : 'lock-closed-outline'} size={20} color={colors.blue}/></View>
+      <View style={{ flex: 1 }}><Text style={s.detailTitle}>Memory books</Text><Text style={s.copy}>{memoryBooksPublicByDefault ? 'All public to accepted friends by default' : 'All private by default'}</Text><Text style={s.privacyHint}>A book can use its own setting from the shelf.</Text></View>
+      <View style={s.visibilityChoices}>
+        <Pressable accessibilityRole="button" onPress={() => setMemoryBooksPublicByDefault(false)} style={[s.visibilityChoice, !memoryBooksPublicByDefault && s.visibilityChoiceActive]}><Ionicons name="lock-closed-outline" size={14} color={!memoryBooksPublicByDefault ? '#FFFFFF' : colors.muted}/><Text style={[s.visibilityChoiceText, !memoryBooksPublicByDefault && s.visibilityChoiceTextActive]}>All private</Text></Pressable>
+        <Pressable accessibilityRole="button" onPress={() => setMemoryBooksPublicByDefault(true)} style={[s.visibilityChoice, memoryBooksPublicByDefault && s.visibilityChoiceActive]}><Ionicons name="globe-outline" size={14} color={memoryBooksPublicByDefault ? '#FFFFFF' : colors.muted}/><Text style={[s.visibilityChoiceText, memoryBooksPublicByDefault && s.visibilityChoiceTextActive]}>All public</Text></Pressable>
+      </View>
     </Card>
     <Section title="Your journeys">
       <Card style={s.detailCard}><View style={s.detailIcon}><Ionicons name="airplane-outline" size={23} color={colors.blue}/></View><View style={{ flex: 1 }}><Text style={s.detailTitle}>{trips.filter((trip) => trip.id !== 'spain-2026').length} saved {trips.filter((trip) => trip.id !== 'spain-2026').length === 1 ? 'trip' : 'trips'}</Text><Text style={s.copy}>Your plans stay yours unless you invite someone along.</Text></View></Card>
@@ -154,6 +113,7 @@ const s = StyleSheet.create({
   previewIcon: { height: 42, width: 42, borderRadius: 15, backgroundColor: colors.blueSoft, alignItems: 'center', justifyContent: 'center' },
   privacyCard: { marginTop: 12, flexDirection: 'row', gap: 12, alignItems: 'center', paddingVertical: 15 },
   privacyIcon: { height: 40, width: 40, borderRadius: 14, backgroundColor: colors.blueSoft, alignItems: 'center', justifyContent: 'center' },
+  privacyHint: { color: colors.muted, fontSize: 11, lineHeight: 16, marginTop: 4 }, visibilityChoices: { gap: 6, alignItems: 'flex-end' }, visibilityChoice: { minHeight: 30, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, borderRadius: 12, backgroundColor: '#EEF0F3' }, visibilityChoiceActive: { backgroundColor: colors.blue }, visibilityChoiceText: { color: colors.muted, fontSize: 10, fontWeight: '700' }, visibilityChoiceTextActive: { color: '#FFFFFF' },
   detailCard: { flexDirection: 'row', gap: 13, alignItems: 'flex-start' },
   detailIcon: { height: 42, width: 42, borderRadius: 15, backgroundColor: colors.blueSoft, alignItems: 'center', justifyContent: 'center' },
   premiumIcon: { height: 42, width: 42, borderRadius: 15, backgroundColor: colors.purpleSoft, alignItems: 'center', justifyContent: 'center' },

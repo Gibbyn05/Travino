@@ -4,7 +4,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, Easing, Image, KeyboardAvoidingView, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { CapybaraMoment } from '@/src/ui';
 import { colors, fonts } from '@/src/theme';
-import { Memory, Trip } from '@/src/store';
+import { Memory, MemoryLayout, Trip } from '@/src/store';
 import { formatJournalDate, parseTravelDate } from '@/src/dates';
 
 const coverPalette = [
@@ -17,11 +17,12 @@ const coverPalette = [
 ];
 
 type CoverArt = keyof typeof Ionicons.glyphMap;
-type Spread = { id: string; day: string; place: string; memories: Memory[] };
+type BookPage = { id: string; pageIndex: number; day: string; place: string; memories: Memory[] };
+type Spread = { id: string; left: BookPage; right: BookPage };
 
 export function journalPalette(index: number) { return coverPalette[index % coverPalette.length]; }
 
-export function JournalBook({ trip, index, onPress }: { trip: Trip; index: number; onPress: () => void }) {
+export function JournalBook({ trip, index, isPublic, onPress, onChangeVisibility }: { trip: Trip; index: number; isPublic: boolean; onPress: () => void; onChangeVisibility: () => void }) {
   const palette = journalPalette(index);
   const destination = [trip.city, trip.country].filter(Boolean).join(', ');
   return <Pressable accessibilityRole="button" accessibilityLabel={`Open ${trip.title}, ${destination}`} onPress={onPress} style={({ pressed }) => [bookStyles.pressable, pressed && bookStyles.pressed]}>
@@ -33,13 +34,14 @@ export function JournalBook({ trip, index, onPress }: { trip: Trip; index: numbe
       <Text numberOfLines={2} style={[bookStyles.coverDestination, { color: palette.ink }]}>{destination || 'A new place'}</Text>
       <View style={bookStyles.pageBlock}/>
       <View style={bookStyles.bookmark}/>
+      <Pressable accessibilityRole="button" accessibilityLabel={`${isPublic ? 'Public' : 'Private'} memory book. Change sharing.`} onPress={(event) => { event.stopPropagation(); onChangeVisibility(); }} hitSlop={8} style={bookStyles.visibilityBadge}><Ionicons name={isPublic ? 'globe-outline' : 'lock-closed'} size={13} color={palette.cover}/></Pressable>
     </View>
     <Text numberOfLines={1} style={bookStyles.title}>{trip.title}</Text>
     <Text numberOfLines={1} style={bookStyles.destination}>{destination}</Text>
   </Pressable>;
 }
 
-export function MemoryJournal({ trip, coverIndex, onAddMemory, onSaveCaption }: { trip: Trip; coverIndex: number; onAddMemory: () => void; onSaveCaption: (memoryId: string, caption: string) => void }) {
+export function MemoryJournal({ trip, coverIndex, isPublic, onAddMemory, onSaveCaption, onSaveLayout, onRemoveMemory, onChangeVisibility }: { trip: Trip; coverIndex: number; isPublic: boolean; onAddMemory: (page?: number) => void; onSaveCaption: (memoryId: string, caption: string) => void; onSaveLayout: (memoryId: string, layout: MemoryLayout) => void; onRemoveMemory: (memoryId: string) => void; onChangeVisibility: () => void }) {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const spreadWidth = Math.min(width - 32, 520);
@@ -187,7 +189,7 @@ export function MemoryJournal({ trip, coverIndex, onAddMemory, onSaveCaption }: 
   const leftPageRotation = dragX.interpolate({ inputRange: [0, spreadWidth], outputRange: ['0deg', '68deg'], extrapolate: 'clamp' });
   const forwardLift = dragX.interpolate({ inputRange: [-spreadWidth, -4, 0], outputRange: [.94, 0, 0], extrapolate: 'clamp' });
   const backLift = dragX.interpolate({ inputRange: [0, 4, spreadWidth], outputRange: [0, 0, .94], extrapolate: 'clamp' });
-  const currentLabel = current ? `${current.day}, ${current.place}, ${current.memories.length} ${current.memories.length === 1 ? 'photo' : 'photos'}${current.memories[0]?.text ? `, ${current.memories[0].text}` : ''}` : 'Journal with no memories yet';
+  const currentLabel = current ? `${current.left.day || current.right.day || 'A scrapbook page'}, ${current.left.memories.length + current.right.memories.length} photos` : 'Journal with no memories yet';
   const visibleSpread = frozenSpread ?? current;
 
   return <KeyboardAvoidingView style={journalStyles.page} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -195,7 +197,7 @@ export function MemoryJournal({ trip, coverIndex, onAddMemory, onSaveCaption }: 
     <View style={journalStyles.header}>
       <Pressable accessibilityRole="button" accessibilityLabel="Close journal" onPress={close} style={journalStyles.headerButton}><Ionicons name="chevron-back" size={22} color="#FFF8EB"/></Pressable>
       <View style={journalStyles.headerText}><Text numberOfLines={1} style={journalStyles.headerTitle}>{trip.title}</Text><Text numberOfLines={1} style={journalStyles.headerPlace}>{[trip.city, trip.country].filter(Boolean).join(', ')}</Text></View>
-      <View style={journalStyles.headerSpacer}/>
+      <Pressable accessibilityRole="button" accessibilityLabel={`This book is ${isPublic ? 'public to friends' : 'private'}. Change sharing.`} onPress={onChangeVisibility} style={journalStyles.headerButton}><Ionicons name={isPublic ? 'globe-outline' : 'lock-closed'} size={18} color="#FFF8EB"/></Pressable>
     </View>
 
     <ScrollView ref={stageScroll} style={journalStyles.stageScroll} contentContainerStyle={journalStyles.stageScrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} directionalLockEnabled scrollEnabled={captionEditorOpen}>
@@ -203,7 +205,7 @@ export function MemoryJournal({ trip, coverIndex, onAddMemory, onSaveCaption }: 
       <Animated.View style={[journalStyles.openBook, { width: spreadWidth, opacity: openProgress, transform: [{ scale: bookScale }] }]} accessibilityLabel={currentLabel} accessibilityRole="summary" {...responder.panHandlers}>
         <PageEdges side="left" count={safePageIndex}/><PageEdges side="right" count={Math.max(pages.length - safePageIndex - 1, 0)}/>
         <View style={journalStyles.viewport}>
-          <Animated.View style={[journalStyles.spreadLayer, { opacity: pageProgress }]}><FrozenJournalSpread spread={visibleSpread} onAddMemory={onAddMemory} onSaveCaption={onSaveCaption} onCaptionFocus={revealCaption} onCaptionEditingChange={setCaptionEditorOpen}/></Animated.View>
+          <Animated.View style={[journalStyles.spreadLayer, { opacity: pageProgress }]}><FrozenJournalSpread spread={visibleSpread} onAddMemory={onAddMemory} onSaveCaption={onSaveCaption} onSaveLayout={onSaveLayout} onRemoveMemory={onRemoveMemory} onCaptionFocus={revealCaption} onCaptionEditingChange={setCaptionEditorOpen}/></Animated.View>
           {!reduceMotion && <Animated.View pointerEvents="none" style={[journalStyles.turningPage, { opacity: forwardLift, transform: [{ perspective: 900 }, { rotateY: rightPageRotation }] }]}><View style={journalStyles.turningPageFace}/></Animated.View>}
           {!reduceMotion && <Animated.View pointerEvents="none" style={[journalStyles.turningBackPage, { opacity: backLift, transform: [{ perspective: 900 }, { rotateY: leftPageRotation }] }]}><View style={journalStyles.turningPageFace}/></Animated.View>}
         </View>
@@ -216,43 +218,92 @@ export function MemoryJournal({ trip, coverIndex, onAddMemory, onSaveCaption }: 
 
     <View style={journalStyles.pageHint}><Text style={journalStyles.pageHintText}>{pages.length ? `${safePageIndex + 1} / ${pages.length}` : 'First page'}</Text><Text style={journalStyles.swipeHint}>{reduceMotion ? 'Swipe to browse' : 'Swipe to turn a page'}</Text></View>
     <View style={journalStyles.toolbar}>
-      <Pressable accessibilityRole="button" accessibilityLabel="Add a memory" onPress={onAddMemory} style={journalStyles.toolButton}><Ionicons name="add" size={26} color={colors.blue}/></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel="Add a memory" onPress={() => onAddMemory(current?.left.pageIndex ?? 0)} style={journalStyles.toolButton}><Ionicons name="add" size={26} color={colors.blue}/></Pressable>
     </View>
   </KeyboardAvoidingView>;
 }
 
-function JournalSpread({ spread, onAddMemory, onSaveCaption, onCaptionFocus, onCaptionEditingChange }: { spread?: Spread; onAddMemory: () => void; onSaveCaption: (memoryId: string, caption: string) => void; onCaptionFocus: () => void; onCaptionEditingChange: (open: boolean) => void }) {
-  return <View style={journalStyles.spread}><ScrapPage side="left" spread={spread} onAddMemory={onAddMemory} onSaveCaption={onSaveCaption} onCaptionFocus={onCaptionFocus} onCaptionEditingChange={onCaptionEditingChange}/><View style={journalStyles.crease}/><ScrapPage side="right" spread={spread} onAddMemory={onAddMemory} onSaveCaption={onSaveCaption} onCaptionFocus={onCaptionFocus} onCaptionEditingChange={onCaptionEditingChange}/></View>;
+function JournalSpread({ spread, onAddMemory, onSaveCaption, onSaveLayout, onRemoveMemory, onCaptionFocus, onCaptionEditingChange }: { spread?: Spread; onAddMemory: (page?: number) => void; onSaveCaption: (memoryId: string, caption: string) => void; onSaveLayout: (memoryId: string, layout: MemoryLayout) => void; onRemoveMemory: (memoryId: string) => void; onCaptionFocus: () => void; onCaptionEditingChange: (open: boolean) => void }) {
+  return <View style={journalStyles.spread}><ScrapPage side="left" page={spread?.left} onAddMemory={onAddMemory} onSaveCaption={onSaveCaption} onSaveLayout={onSaveLayout} onRemoveMemory={onRemoveMemory} onCaptionFocus={onCaptionFocus} onCaptionEditingChange={onCaptionEditingChange}/><View style={journalStyles.crease}/><ScrapPage side="right" page={spread?.right} onAddMemory={onAddMemory} onSaveCaption={onSaveCaption} onSaveLayout={onSaveLayout} onRemoveMemory={onRemoveMemory} onCaptionFocus={onCaptionFocus} onCaptionEditingChange={onCaptionEditingChange}/></View>;
 }
 
 const FrozenJournalSpread = memo(JournalSpread);
 
-function ScrapPage({ side, spread, onAddMemory, onSaveCaption, onCaptionFocus, onCaptionEditingChange }: { side: 'left' | 'right'; spread?: Spread; onAddMemory: () => void; onSaveCaption: (memoryId: string, caption: string) => void; onCaptionFocus: () => void; onCaptionEditingChange: (open: boolean) => void }) {
-  if (!spread) return <View style={[journalStyles.paper, side === 'left' ? journalStyles.leftPaper : journalStyles.rightPaper]}><CapybaraMoment size={86} waving/><Text style={journalStyles.emptyTitle}>A page for your first moment</Text><Text style={journalStyles.emptyCopy}>Add a photo after the trip and it will find a home here.</Text><Pressable accessibilityRole="button" onPress={onAddMemory} style={journalStyles.paperButton}><Text style={journalStyles.paperButtonText}>Add a memory</Text></Pressable></View>;
-  const photos = side === 'left' ? spread.memories.slice(0, 2) : spread.memories.slice(2, 4);
-  const showDetails = side === 'left';
+function ScrapPage({ side, page, onAddMemory, onSaveCaption, onSaveLayout, onRemoveMemory, onCaptionFocus, onCaptionEditingChange }: { side: 'left' | 'right'; page?: BookPage; onAddMemory: (page?: number) => void; onSaveCaption: (memoryId: string, caption: string) => void; onSaveLayout: (memoryId: string, layout: MemoryLayout) => void; onRemoveMemory: (memoryId: string) => void; onCaptionFocus: () => void; onCaptionEditingChange: (open: boolean) => void }) {
+  const [size, setSize] = useState({ width: 0, height: 0 });
+  const photos = page?.memories ?? [];
   return <View style={[journalStyles.paper, side === 'left' ? journalStyles.leftPaper : journalStyles.rightPaper]}>
-    {showDetails && <><View style={journalStyles.tape}><Text numberOfLines={1} style={journalStyles.tapeText}>{spread.place.toUpperCase()}</Text></View><Text style={journalStyles.dayTitle}>{spread.day}</Text></>}
-    {photos.length ? <View style={journalStyles.collage}>{photos.map((memory, index) => <MemoryPhoto key={memory.id} memory={memory} index={index} compact={!showDetails} onSaveCaption={onSaveCaption} onCaptionFocus={onCaptionFocus} onCaptionEditingChange={onCaptionEditingChange}/>)}</View> : <View style={journalStyles.blankPage}><CapybaraMoment size={48}/><Text style={journalStyles.blankCopy}>The rest of this page is yours.</Text></View>}
-    {side === 'right' && <View style={journalStyles.capySticker}><CapybaraMoment size={42}/></View>}
+    <View style={journalStyles.pageHeading}><View style={journalStyles.tape}><Text numberOfLines={1} style={journalStyles.tapeText}>{(page?.place || 'A favourite place').toUpperCase()}</Text></View>{page?.day ? <Text style={journalStyles.dayTitle}>{page.day}</Text> : null}</View>
+    <View onLayout={(event) => setSize(event.nativeEvent.layout)} style={journalStyles.collageCanvas}>
+      {photos.map((memory, index) => <MemoryPhoto key={memory.id} memory={memory} index={index} total={photos.length} canvas={size} onSaveCaption={onSaveCaption} onSaveLayout={onSaveLayout} onRemoveMemory={onRemoveMemory} onCaptionFocus={onCaptionFocus} onCaptionEditingChange={onCaptionEditingChange}/>)}
+      {!photos.length && <View style={journalStyles.blankPage}><CapybaraMoment size={48}/><Text style={journalStyles.blankCopy}>This page is ready for the next good bit.</Text></View>}
+    </View>
+    <Pressable accessibilityRole="button" accessibilityLabel="Add photos to this page" onPress={() => onAddMemory(page?.pageIndex ?? 0)} style={journalStyles.pageAddButton}><Ionicons name="add" size={13} color="#604936"/><Text style={journalStyles.pageAddText}>Add photo</Text></Pressable>
   </View>;
 }
 
-function MemoryPhoto({ memory, index, compact, onSaveCaption, onCaptionFocus, onCaptionEditingChange }: { memory: Memory; index: number; compact: boolean; onSaveCaption: (memoryId: string, caption: string) => void; onCaptionFocus: () => void; onCaptionEditingChange: (open: boolean) => void }) {
-  const rotations = compact ? [3, -3] : [-3, 3];
+function MemoryPhoto({ memory, index, total, canvas, onSaveCaption, onSaveLayout, onRemoveMemory, onCaptionFocus, onCaptionEditingChange }: { memory: Memory; index: number; total: number; canvas: { width: number; height: number }; onSaveCaption: (memoryId: string, caption: string) => void; onSaveLayout: (memoryId: string, layout: MemoryLayout) => void; onRemoveMemory: (memoryId: string) => void; onCaptionFocus: () => void; onCaptionEditingChange: (open: boolean) => void }) {
   const [caption, setCaption] = useState(memory.caption ?? '');
   const [editing, setEditing] = useState(false);
+  const start = useRef<MemoryLayout | null>(null);
+  const latestLayout = useRef<MemoryLayout>(memory.layout ?? starterLayout(index, total));
+  const startPinchDistance = useRef(0);
+  const defaultLayout = useMemo(() => memory.layout ?? starterLayout(index, total), [index, memory.layout, total]);
+  const [layout, setLayout] = useState(defaultLayout);
   useEffect(() => { setCaption(memory.caption ?? ''); }, [memory.caption, memory.id]);
+  useEffect(() => { const next = memory.layout ?? starterLayout(index, total); latestLayout.current = next; setLayout(next); }, [index, memory.id, memory.layout, total]);
   const beginEditing = () => { setEditing(true); onCaptionEditingChange(true); onCaptionFocus(); };
   const finishEditing = () => { onSaveCaption(memory.id, caption); setEditing(false); onCaptionEditingChange(false); };
-  return <View style={journalStyles.photoSlot}>
-    <View style={[journalStyles.photo, compact && journalStyles.compactPhoto, { transform: [{ rotate: `${rotations[index % rotations.length]}deg` }] }]}>
+  const photoWidth = Math.min(Math.max(canvas.width * (total > 2 ? .48 : .7), 62), 142);
+  const photoHeight = Math.min(Math.max(canvas.height * (total > 2 ? .35 : .42), 72), 158);
+  const effective = clampLayout(layout, canvas, photoWidth, photoHeight);
+  const responder = useMemo(() => PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: () => true,
+    onPanResponderGrant: (event) => { start.current = effective; startPinchDistance.current = touchDistance(event.nativeEvent.touches); },
+    onPanResponderMove: (event, gesture) => {
+      if (!start.current) return;
+      const pinch = touchDistance(event.nativeEvent.touches);
+      const next = clampLayout({ ...start.current, x: start.current.x + gesture.dx / Math.max(canvas.width, 1), y: start.current.y + gesture.dy / Math.max(canvas.height, 1), scale: pinch && startPinchDistance.current ? start.current.scale * pinch / startPinchDistance.current : start.current.scale }, canvas, photoWidth, photoHeight);
+      latestLayout.current = next;
+      setLayout(next);
+    },
+    onPanResponderRelease: () => { if (start.current) onSaveLayout(memory.id, clampLayout(latestLayout.current, canvas, photoWidth, photoHeight)); start.current = null; },
+    onPanResponderTerminate: () => { start.current = null; },
+    onPanResponderTerminationRequest: () => false,
+  }), [canvas, effective, memory.id, onSaveLayout, photoHeight, photoWidth]);
+  if (!canvas.width || !canvas.height) return null;
+  return <View style={[journalStyles.photoSlot, { width: photoWidth, height: photoHeight, left: effective.x * canvas.width - photoWidth / 2, top: effective.y * canvas.height - photoHeight / 2, transform: [{ scale: effective.scale }, { rotate: `${effective.rotation}deg` }] }] }>
+    <View style={journalStyles.photo}>
       <View style={journalStyles.imageFrame}><Image source={{ uri: memory.image }} resizeMode="contain" style={journalStyles.photoImage}/></View>
       {editing
         ? <View style={journalStyles.captionNote}><TextInput autoFocus value={caption} onChangeText={setCaption} onFocus={onCaptionFocus} onBlur={finishEditing} onSubmitEditing={finishEditing} placeholder="Write a caption" placeholderTextColor="#A99A89" maxLength={180} multiline={false} returnKeyType="done" style={journalStyles.captionInput} accessibilityLabel="Photo caption"/></View>
         : <Pressable accessibilityRole="button" accessibilityLabel="Edit photo caption" onPress={beginEditing} style={journalStyles.captionNote}><Text numberOfLines={1} style={[journalStyles.captionText, !caption.trim() && journalStyles.captionPlaceholder]}>{caption.trim() || 'Write a caption'}</Text></Pressable>}
     </View>
+    <View {...responder.panHandlers} accessibilityLabel="Drag or pinch to arrange this photo" style={journalStyles.dragHandle}><Ionicons name="move" size={13} color="#604936"/></View>
+    <Pressable accessibilityRole="button" accessibilityLabel="Remove photo" onPress={() => onRemoveMemory(memory.id)} hitSlop={7} style={journalStyles.removePhoto}><Ionicons name="close" size={12} color="#FFFDF9"/></Pressable>
   </View>;
+}
+
+function starterLayout(index: number, total: number): MemoryLayout {
+  const columns = total > 3 ? 3 : 2;
+  const column = index % columns;
+  const row = Math.floor(index / columns);
+  return { x: .25 + column * (.5 / (columns - 1)), y: .28 + row * .34, scale: total > 4 ? .7 : total > 2 ? .8 : .94, rotation: [-4, 3, -2, 4, 1, -3][index % 6] };
+}
+
+function clampLayout(layout: MemoryLayout, canvas: { width: number; height: number }, photoWidth: number, photoHeight: number): MemoryLayout {
+  if (!canvas.width || !canvas.height) return layout;
+  const scale = Math.max(.58, Math.min(1.15, layout.scale));
+  const margin = 13;
+  const halfWidth = (photoWidth * scale) / 2 + margin;
+  const halfHeight = (photoHeight * scale) / 2 + margin;
+  return { ...layout, scale, x: Math.max(halfWidth / canvas.width, Math.min(1 - halfWidth / canvas.width, layout.x)), y: Math.max(halfHeight / canvas.height, Math.min(1 - halfHeight / canvas.height, layout.y)), rotation: Math.max(-7, Math.min(7, layout.rotation)) };
+}
+
+function touchDistance(touches: readonly { pageX: number; pageY: number }[]) {
+  if (touches.length < 2) return 0;
+  return Math.hypot(touches[0].pageX - touches[1].pageX, touches[0].pageY - touches[1].pageY);
 }
 
 function PageEdges({ side, count }: { side: 'left' | 'right'; count: number }) {
@@ -275,13 +326,22 @@ function coverArtFor(destination: string): CoverArt {
 
 function makeSpreads(trip: Trip): Spread[] {
   const sorted = [...trip.memories].sort((a, b) => (parseTravelDate(a.date)?.getTime() ?? 0) - (parseTravelDate(b.date)?.getTime() ?? 0));
-  // A spread holds four photos: two on each paper page. Chunking every photo,
-  // rather than grouping by date, means nothing disappears from the reader.
-  return Array.from({ length: Math.ceil(sorted.length / 4) }, (_, index) => {
-    const memories = sorted.slice(index * 4, index * 4 + 4);
-    const first = memories[0];
-    return { id: memories.map((memory) => memory.id).join('-'), day: first ? formatJournalDate(first.date) : '', place: first?.location || trip.city || trip.country || 'A favourite place', memories };
+  const grouped = new Map<number, Memory[]>();
+  sorted.forEach((memory, index) => {
+    const page = memory.bookPage ?? Math.floor(index / 2);
+    grouped.set(page, [...(grouped.get(page) ?? []), memory]);
   });
+  const lastPage = Math.max(0, ...grouped.keys());
+  const pages: BookPage[] = Array.from({ length: lastPage + 1 }, (_, pageIndex) => {
+    const memories = grouped.get(pageIndex) ?? [];
+    const first = memories[0];
+    return { id: memories.map((memory) => memory.id).join('-') || `blank-${pageIndex}`, pageIndex, day: first ? formatJournalDate(first.date) : '', place: first?.location || trip.city || trip.country || 'A favourite place', memories };
+  });
+  return Array.from({ length: Math.max(1, Math.ceil(pages.length / 2)) }, (_, index) => ({
+    id: `${pages[index * 2]?.id ?? 'blank'}-${pages[index * 2 + 1]?.id ?? 'blank'}`,
+    left: pages[index * 2] ?? { id: `blank-${index * 2}`, pageIndex: index * 2, day: '', place: trip.city || trip.country || 'A favourite place', memories: [] },
+    right: pages[index * 2 + 1] ?? { id: `blank-${index * 2 + 1}`, pageIndex: index * 2 + 1, day: '', place: trip.city || trip.country || 'A favourite place', memories: [] },
+  }));
 }
 
 const bookStyles = StyleSheet.create({
@@ -290,6 +350,7 @@ const bookStyles = StyleSheet.create({
   spine: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 16, borderTopLeftRadius: 13, borderBottomLeftRadius: 13 }, spineHighlight: { position: 'absolute', left: 17, top: 8, bottom: 11, width: 2, backgroundColor: 'rgba(255,255,255,.3)', borderRadius: 2 },
   coverArt: { alignSelf: 'center', marginTop: 10 }, coverLine: { height: 1, width: '100%', marginTop: 8 }, coverDestination: { fontFamily: fonts.heading, fontSize: 15, lineHeight: 18, textAlign: 'center', marginTop: 9 },
   pageBlock: { position: 'absolute', left: 5, right: 4, bottom: -6, height: 13, borderRadius: 3, backgroundColor: '#FFFDF6', borderTopWidth: 1, borderColor: '#E5DCCF', zIndex: -1 }, bookmark: { position: 'absolute', left: '50%', marginLeft: -9, bottom: -21, width: 18, height: 27, borderBottomLeftRadius: 2, borderBottomRightRadius: 2, backgroundColor: '#E78B43', zIndex: -2 },
+  visibilityBadge: { position: 'absolute', right: 10, top: 10, height: 27, width: 27, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFDF9', shadowColor: '#342318', shadowOpacity: .18, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
   title: { color: colors.text, fontFamily: fonts.heading, fontSize: 14, lineHeight: 18, marginTop: 18 }, destination: { color: '#89847B', fontSize: 12, marginTop: 3 },
 });
 
@@ -299,9 +360,9 @@ const journalStyles = StyleSheet.create({
   stageScroll: { flex: 1 }, stageScrollContent: { flexGrow: 1 }, stage: { flex: 1, minHeight: 360, justifyContent: 'center', alignItems: 'center', paddingVertical: 10 }, openBook: { aspectRatio: 1.37, maxHeight: 430, position: 'relative' }, viewport: { ...StyleSheet.absoluteFill, overflow: 'hidden', borderRadius: 11 }, spreadLayer: { ...StyleSheet.absoluteFill },
   edges: { position: 'absolute', top: 13, bottom: 8, width: 22, zIndex: -1 }, leftEdges: { left: 0 }, rightEdges: { right: 0 }, edge: { position: 'absolute', top: 0, bottom: 0, width: 16, borderRadius: 4, backgroundColor: '#EAE0D3', shadowColor: '#000', shadowOpacity: .12, shadowRadius: 4, shadowOffset: { width: 1, height: 2 } },
   spread: { flex: 1, flexDirection: 'row', overflow: 'hidden', borderRadius: 11, backgroundColor: '#F9F0DF', shadowColor: '#0B0604', shadowOpacity: .34, shadowRadius: 22, shadowOffset: { width: 0, height: 12 }, elevation: 8 },
-  paper: { flex: 1, overflow: 'hidden', padding: 15, backgroundColor: '#FBF2E2' }, leftPaper: { borderTopLeftRadius: 11, borderBottomLeftRadius: 11 }, rightPaper: { borderTopRightRadius: 11, borderBottomRightRadius: 11 }, crease: { width: 5, backgroundColor: 'rgba(109,76,54,.17)', shadowColor: '#63442E', shadowOpacity: .35, shadowRadius: 5, shadowOffset: { width: 1, height: 0 }, zIndex: 3 },
-  tape: { alignSelf: 'flex-start', maxWidth: '94%', backgroundColor: '#E7BC78', paddingHorizontal: 8, paddingVertical: 4, transform: [{ rotate: '-2deg' }], marginTop: 1 }, tapeText: { color: '#5C4738', fontSize: 7, fontWeight: '800', letterSpacing: .7 }, dayTitle: { color: '#44362C', fontFamily: fonts.heading, fontSize: 17, lineHeight: 20, marginTop: 9 },
-  collage: { flex: 1, minHeight: 0, justifyContent: 'center', gap: 4, paddingTop: 8 }, photoSlot: { flex: 1, minHeight: 0, paddingHorizontal: 12, paddingVertical: 8 }, photo: { flex: 1, minHeight: 0, maxWidth: '100%', backgroundColor: '#FFFDF9', padding: 4, borderRadius: 2, shadowColor: '#76533A', shadowOpacity: .2, shadowRadius: 5, shadowOffset: { width: 0, height: 3 }, elevation: 2 }, compactPhoto: {}, imageFrame: { flex: 1, minHeight: 0, overflow: 'hidden', borderRadius: 1, backgroundColor: '#E1D3C1', alignItems: 'center', justifyContent: 'center' }, photoImage: { width: '100%', height: '100%' }, captionNote: { height: 20, marginTop: 3, paddingHorizontal: 5, justifyContent: 'center', borderRadius: 4, borderWidth: 1, borderColor: '#E4D7C6', backgroundColor: '#FFF8EA' }, captionText: { color: '#624B3A', fontSize: 8.5, lineHeight: 10, fontStyle: 'italic' }, captionPlaceholder: { color: '#A99A89' }, captionInput: { height: 18, color: '#624B3A', fontSize: 8.5, lineHeight: 10, fontStyle: 'italic', padding: 0, textAlignVertical: 'center' }, capySticker: { position: 'absolute', right: 6, bottom: 3, transform: [{ rotate: '-7deg' }] },
+  paper: { flex: 1, overflow: 'hidden', padding: 12, backgroundColor: '#FBF2E2' }, leftPaper: { borderTopLeftRadius: 11, borderBottomLeftRadius: 11 }, rightPaper: { borderTopRightRadius: 11, borderBottomRightRadius: 11 }, crease: { width: 5, backgroundColor: 'rgba(109,76,54,.17)', shadowColor: '#63442E', shadowOpacity: .35, shadowRadius: 5, shadowOffset: { width: 1, height: 0 }, zIndex: 3 },
+  pageHeading: { minHeight: 42, zIndex: 4 }, tape: { alignSelf: 'flex-start', maxWidth: '94%', backgroundColor: '#E7BC78', paddingHorizontal: 8, paddingVertical: 4, transform: [{ rotate: '-2deg' }], marginTop: 1 }, tapeText: { color: '#5C4738', fontSize: 7, fontWeight: '800', letterSpacing: .7 }, dayTitle: { color: '#44362C', fontFamily: fonts.heading, fontSize: 14, lineHeight: 17, marginTop: 5 },
+  collageCanvas: { flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden', marginHorizontal: -3, marginTop: 2, borderRadius: 8 }, photoSlot: { position: 'absolute', zIndex: 2 }, photo: { flex: 1, minHeight: 0, maxWidth: '100%', backgroundColor: '#FFFDF9', padding: 4, borderRadius: 2, shadowColor: '#76533A', shadowOpacity: .2, shadowRadius: 5, shadowOffset: { width: 0, height: 3 }, elevation: 2 }, imageFrame: { flex: 1, minHeight: 0, overflow: 'hidden', borderRadius: 1, backgroundColor: '#E1D3C1', alignItems: 'center', justifyContent: 'center' }, photoImage: { width: '100%', height: '100%' }, captionNote: { height: 20, marginTop: 3, paddingHorizontal: 5, justifyContent: 'center', borderRadius: 4, borderWidth: 1, borderColor: '#E4D7C6', backgroundColor: '#FFF8EA' }, captionText: { color: '#624B3A', fontSize: 8.5, lineHeight: 10, fontStyle: 'italic' }, captionPlaceholder: { color: '#A99A89' }, captionInput: { height: 18, color: '#624B3A', fontSize: 8.5, lineHeight: 10, fontStyle: 'italic', padding: 0, textAlignVertical: 'center' }, dragHandle: { position: 'absolute', left: -7, top: -7, width: 25, height: 25, borderRadius: 13, backgroundColor: '#F4D49E', borderWidth: 1, borderColor: '#D5AC69', alignItems: 'center', justifyContent: 'center', zIndex: 5 }, removePhoto: { position: 'absolute', right: -6, top: -6, width: 22, height: 22, borderRadius: 11, backgroundColor: '#8D574B', alignItems: 'center', justifyContent: 'center', zIndex: 5 }, pageAddButton: { alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, backgroundColor: '#F2DCAE', marginTop: 3 }, pageAddText: { color: '#604936', fontSize: 8, fontWeight: '800' },
   blankPage: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 7 }, blankCopy: { color: '#887563', fontSize: 10, textAlign: 'center', lineHeight: 14 }, emptyTitle: { color: '#44362C', fontFamily: fonts.heading, textAlign: 'center', fontSize: 16, marginTop: 6 }, emptyCopy: { color: '#887563', textAlign: 'center', fontSize: 11, lineHeight: 16, marginTop: 4 }, paperButton: { marginTop: 12, borderRadius: 15, backgroundColor: '#E8C695', paddingHorizontal: 10, paddingVertical: 7 }, paperButtonText: { color: '#5A4335', fontSize: 10, fontWeight: '800' },
   turningPage: { position: 'absolute', left: '50%', right: 0, top: 0, bottom: 0, transformOrigin: 'left center', zIndex: 5 }, turningBackPage: { position: 'absolute', left: 0, width: '50%', top: 0, bottom: 0, transformOrigin: 'right center', zIndex: 5 }, turningPageFace: { flex: 1, backgroundColor: '#FBF2E2', shadowColor: '#4B3020', shadowOpacity: .22, shadowRadius: 10, shadowOffset: { width: -4, height: 0 } }, edgeTap: { position: 'absolute', top: 0, bottom: 0, width: '12%', zIndex: 12 }, leftEdgeTap: { left: 0 }, rightEdgeTap: { right: 0 },
   frontCover: { ...StyleSheet.absoluteFill, zIndex: 10, transformOrigin: 'left center' }, coverFace: { flex: 1, borderRadius: 11, padding: 26, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }, coverFaceSpine: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 23 }, coverFaceTitle: { fontFamily: fonts.heading, textAlign: 'center', fontSize: 27, lineHeight: 32, marginTop: 14 }, coverFacePlace: { fontSize: 12, opacity: .86, marginTop: 5 }, coverFacePages: { position: 'absolute', left: 6, right: 6, bottom: 0, height: 13, backgroundColor: '#FFF9EE', borderTopWidth: 1, borderColor: '#E7DCCB' }, coverFaceRibbon: { position: 'absolute', bottom: -18, width: 22, height: 27, backgroundColor: '#E78B43' },
