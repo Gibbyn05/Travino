@@ -21,24 +21,27 @@ import { plugIconSource } from '@/src/plug-icons';
 import { tripNextStep } from '@/src/trip-guidance';
 import { tripDate } from '@/src/trip-planning';
 import { UndoNotice, useTripUndo } from '@/src/trip-undo';
-const tabs = ['Overview', 'Plan', 'Activities', 'Packing', 'Wishlist', 'Memories'];
+import { extraTripTabs, primaryTripTabs, primaryTripTab, tripSection } from '@/src/trip-navigation';
 export default function TripScreen() {
   const router = useRouter();
   const { selectedTrip } = useTravel();
   const { notice, undo, removeActivity, removePacking } = useTripUndo();
-  const { tab: requestedTab } = useLocalSearchParams<{ tab?: string }>();
+  const { tab: requestedTab, activityIntent } = useLocalSearchParams<{ tab?: string; activityIntent?: string }>();
   const [tab, setTab] = useState('Overview');
   const [addFriendOpen, setAddFriendOpen] = useState(false);
   const [datesOpen, setDatesOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [startActivity, setStartActivity] = useState(false);
   const scroll = useRef<ScrollView>(null);
+  const handledActivityIntent = useRef<string | undefined>(undefined);
   const selectedId = selectedTrip?.id;
   useFocusEffect(useCallback(() => {
-    setTab(requestedTab && tabs.includes(requestedTab) ? requestedTab : 'Overview');
-    setStartActivity(false); setDatesOpen(false); setDetailsOpen(false);
+    setTab(tripSection(requestedTab));
+    const addActivity = requestedTab === 'Plan' && Boolean(activityIntent) && handledActivityIntent.current !== activityIntent;
+    if (addActivity) handledActivityIntent.current = activityIntent;
+    setStartActivity(addActivity); setDatesOpen(false); setDetailsOpen(false);
     scroll.current?.scrollTo({ y: 0, animated: false });
-  }, [selectedId, requestedTab]));
+  }, [selectedId, requestedTab, activityIntent]));
   if (!selectedTrip) return <Empty/>;
   const invite = () => {
     const base = process.env.EXPO_PUBLIC_APP_URL || 'https://travino-git-main-gibbyn05s-projects.vercel.app';
@@ -63,8 +66,10 @@ export default function TripScreen() {
         <View style={s.compactTripAction}><Ionicons name="grid-outline" size={17} color={colors.blue}/></View>
       </Pressable>}
     {isOverview && <TripStatus/>}
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[s.tabs, !isOverview && s.compactTabs]}>{tabs.map((item) => <Pressable key={item} accessibilityRole="tab" accessibilityState={{ selected: tab === item }} onPress={() => setTab(item)} style={[s.tab, tab === item && s.activeTab]}><Text style={[s.tabText, tab === item && s.activeText]}>{item}</Text></Pressable>)}</ScrollView>
-    {tab === 'Overview' && <Overview key={`overview-${selectedTrip.id}`} onNext={(target) => openTab(target === 'add-activity' ? 'Plan' : target, target === 'add-activity')} onOpenPlan={() => openTab('Plan')} onEditDates={() => setDatesOpen(true)} onEditDetails={() => setDetailsOpen(true)} onInvite={invite} onOpenAddFriend={() => setAddFriendOpen(true)}/>}{tab === 'Plan' && <Plan key={`plan-${selectedTrip.id}`} onRemove={removeActivity} initiallyOpen={startActivity} onOpened={() => setStartActivity(false)}/>}{tab === 'Activities' && <ThingsToDo onOpen={(activity) => router.push({ pathname: '/activity-browser', params: { activity, city: selectedTrip.city, country: selectedTrip.country } })} />}{tab === 'Packing' && <Packing onRemove={removePacking}/>}{tab === 'Wishlist' && <Wishes/>}{tab === 'Memories' && <Memories/>}
+    <View accessibilityRole="tablist" accessibilityLabel="Trip sections" style={s.tripTabs}>{primaryTripTabs.map(item => <Pressable key={item} accessibilityRole="tab" accessibilityLabel={item} accessibilityState={{ selected: primaryTripTab(tab) === item }} aria-selected={primaryTripTab(tab) === item} onPress={() => openTab(item)} style={({ pressed }) => [s.tripTab, { flex: item === 'Overview' ? 1.3 : item === 'Packing' ? 1.15 : .9 }, primaryTripTab(tab) === item && s.activeTab, pressed && s.pressed]}><Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={.85} style={[s.tripTabText, primaryTripTab(tab) === item && s.activeText]}>{item}</Text></Pressable>)}</View>
+    {extraTripTabs.includes(tab) && <Pressable accessibilityRole="button" accessibilityLabel="Back to More" onPress={() => openTab('More')} style={s.moreBack}><Ionicons name="chevron-back" size={20} color={colors.blue}/><Text style={s.overviewLinkText}>Back to More</Text></Pressable>}
+    {tab === 'More' && <More onOpen={openTab}/>}
+    {tab === 'Overview' && <Overview key={`overview-${selectedTrip.id}`} onNext={(target) => openTab(target === 'add-activity' ? 'Plan' : target, target === 'add-activity')} onOpenPlan={() => openTab('Plan')} onEditDates={() => setDatesOpen(true)} onEditDetails={() => setDetailsOpen(true)} onInvite={invite} onOpenAddFriend={() => setAddFriendOpen(true)}/>}{tab === 'Plan' && <Plan key={`plan-${selectedTrip.id}`} onRemove={removeActivity} initiallyOpen={startActivity} onOpened={() => setStartActivity(false)}/>}{tab === 'Activities' && <ThingsToDo onOpen={(activity) => { router.setParams({ tab: 'Activities' }); router.push({ pathname: '/activity-browser', params: { activity, city: selectedTrip.city, country: selectedTrip.country } }); }} />}{tab === 'Packing' && <Packing onRemove={removePacking}/>}{tab === 'Wishlist' && <Wishes/>}{tab === 'Memories' && <Memories/>}
     {detailsOpen && <TripDetailsSheet key={`details-${selectedTrip.id}`} trip={selectedTrip} onClose={() => setDetailsOpen(false)}/>}
     {datesOpen && <TripDatesSheet key={`dates-${selectedTrip.id}`} trip={selectedTrip} onClose={() => setDatesOpen(false)}/>}
     <AddTripFriendSheet visible={addFriendOpen} onClose={() => setAddFriendOpen(false)} tripId={selectedTrip.id} tripTitle={selectedTrip.title} existingNames={selectedTrip.members}/>
@@ -72,6 +77,18 @@ export default function TripScreen() {
 }
 
 type TripFriend = { profile_id: string; display_name: string; status: string };
+function More({ onOpen }: { onOpen: (section: string) => void }) {
+  const choices = [
+    { section: 'Activities', label: 'Things to do', icon: 'compass-outline', color: colors.blue, background: colors.blueSoft },
+    { section: 'Wishlist', label: 'Wishlist', icon: 'heart-outline', color: colors.purple, background: colors.purpleSoft },
+    { section: 'Memories', label: 'Memories', icon: 'images-outline', color: colors.coral, background: '#FFF0E8' },
+  ];
+  return <Section title="More"><View style={s.moreChoices}>{choices.map(choice => <Pressable key={choice.section} accessibilityRole="button" accessibilityLabel={`Open ${choice.label.toLowerCase()}`} onPress={() => onOpen(choice.section)} style={({ pressed }) => [s.moreChoice, pressed && s.pressed]}>
+    <View style={[s.moreIcon, { backgroundColor: choice.background }]}><Ionicons name={choice.icon as any} size={25} color={choice.color}/></View>
+    <Text style={s.moreChoiceTitle}>{choice.label}</Text><Ionicons name="chevron-forward" size={21} color={colors.muted}/>
+  </Pressable>)}</View></Section>;
+}
+
 function AddTripFriendSheet({ visible, onClose, tripId, tripTitle, existingNames }: { visible: boolean; onClose: () => void; tripId: string; tripTitle: string; existingNames: string[] }) {
   const { addMember } = useTravel();
   const [friends, setFriends] = useState<TripFriend[]>([]);
@@ -665,6 +682,14 @@ function Wishes() {
 }
 function Memories() { const { selectedTrip, addPhoto } = useTravel(); if (!selectedTrip) return null; return <Section title="Memories"><View style={s.gallery}>{selectedTrip.memories.map((item) => <View key={item.id} style={s.memory}><Image source={{ uri: item.image }} style={s.image}/><Text style={s.copy}>{formatJournalDate(item.date)}</Text></View>)}</View>{!selectedTrip.memories.length ? <EmptyMoment compact title="Save the good bits" copy="Choose a photo when there is a moment worth keeping." actionTitle="Choose first photo" icon="image-outline" onPress={() => addPhoto(selectedTrip.id)}/> : <PrimaryButton title="Choose another photo" icon="image-outline" onPress={() => addPhoto(selectedTrip.id)}/>}</Section>; }
 const s = StyleSheet.create({
+  tripTabs: { flexDirection: 'row', gap: 6, paddingTop: 20, paddingBottom: 18 },
+  tripTab: { flex: 1, minWidth: 0, minHeight: 48, paddingHorizontal: 3, paddingVertical: 12, alignItems: 'center', justifyContent: 'center', borderRadius: 18, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  tripTabText: { color: colors.muted, fontSize: 14, lineHeight: 20, fontWeight: '600', textAlign: 'center' },
+  moreChoices: { gap: 12 },
+  moreChoice: { minHeight: 80, flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14, borderRadius: 22, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  moreIcon: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  moreChoiceTitle: { flex: 1, minWidth: 0, fontFamily: fonts.heading, fontSize: 22, lineHeight: 29, color: colors.text },
+  moreBack: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
   overviewStatus: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: -6, marginBottom: 4 },
   overviewStatusText: { flex: 1, color: colors.muted, fontSize: 17, lineHeight: 24 },
   guidanceCard: { backgroundColor: colors.blueSoft, borderColor: '#D7E8FF', gap: 18, padding: 20 },

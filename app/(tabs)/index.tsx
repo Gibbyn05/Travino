@@ -7,6 +7,7 @@ import { Trip, useTravel } from '@/src/store';
 import { formatTripDates, parseTravelDate } from '@/src/dates';
 import { tripPresentation } from '@/src/trip-presentation';
 import { planningTrip } from '@/src/trip-planning';
+import { tripNextStep } from '@/src/trip-guidance';
 
 function tripCountdown(trip: Pick<Trip, 'startDate' | 'endDate'>) {
   const start = parseTravelDate(trip.startDate);
@@ -47,12 +48,13 @@ function Ticket({ trip, onOpen }: { trip: Trip; onOpen: () => void }) {
 export default function HomeScreen() {
   const { profileName, trips, selectedTripId, setSelectedTripId } = useTravel();
   const continuing = planningTrip(trips, selectedTripId);
+  const nextStep = continuing ? tripNextStep(continuing) : undefined;
   const hasTrips = trips.length > 0;
   const openNewTrip = () => router.push('/new-trip' as never);
   const continueTrip = () => {
-    if (!continuing) return;
+    if (!continuing || !nextStep) return;
     setSelectedTripId(continuing.id);
-    router.push({ pathname: '/trip', params: { tab: 'Overview' } });
+    router.push({ pathname: '/trip', params: { tab: nextStep.target === 'add-activity' ? 'Plan' : nextStep.target, activityIntent: nextStep.target === 'add-activity' ? String(Date.now()) : '' } });
   };
   return <ScrollView style={s.page} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
     <View style={s.topRow}><Pressable accessibilityRole="button" accessibilityLabel="Open profile" onPress={() => router.push('/profile')} hitSlop={8} style={({ pressed }) => [s.profileDot, pressed && s.pressed]}><Text style={s.profileInitial}>{(profileName || 'T').slice(0, 1).toUpperCase()}</Text></Pressable><Text style={s.greeting}>Hi {profileName || 'traveller'}!</Text></View>
@@ -60,7 +62,7 @@ export default function HomeScreen() {
     <View style={s.createCard}>
       <View style={s.routeLine} pointerEvents="none"><View style={s.routeDot}/><View style={s.routeDash}/><Ionicons name="airplane" size={19} color={colors.blue}/><View style={s.routeDash}/><View style={[s.routeDot, s.routeDotEnd]}/></View>
       <View style={s.createText}><Text style={s.createTitle}>{continuing ? continuing.city : 'Where next?'}</Text></View>
-      <View style={s.createButton}><PrimaryButton title={continuing ? 'Continue trip' : hasTrips ? 'Plan another trip' : 'Plan a trip'} icon="arrow-forward" onPress={continuing ? continueTrip : openNewTrip}/></View>
+      <View style={s.createButton}><PrimaryButton title={nextStep ? nextStep.button : hasTrips ? 'Plan another trip' : 'Plan a trip'} icon={nextStep ? nextStep.icon : 'arrow-forward'} onPress={continuing ? continueTrip : openNewTrip}/></View>
     </View>
     {hasTrips && <>
       <View style={s.sectionHead}><AccentText text="Your trips" style={s.sectionTitle}/><Pressable accessibilityRole="button" accessibilityLabel="Start a new trip" onPress={openNewTrip} style={s.newTripButton}><Ionicons name="add" size={22} color="#FFFFFF"/></Pressable></View>
