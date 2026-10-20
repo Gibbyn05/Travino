@@ -1,9 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Easing, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useColorScheme, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { AccessibilityInfo, ActivityIndicator, Animated, Easing, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useColorScheme, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Suggestion, destinationSuggestions } from '@/src/suggestions';
+import { PlaceSearchResult, searchPlaces } from '@/src/place-search';
 import { useTravel } from '@/src/store';
 import { colors, fonts } from '@/src/theme';
 import { CapybaraMoment, PrimaryButton } from '@/src/ui';
@@ -18,10 +18,6 @@ const introPages = [
   { title: 'Keep the little moments.', copy: 'Turn the places, photos and notes from each trip into a book worth reopening.', role: 'memories' as MascotRole },
 ];
 
-const homeSuggestions: Suggestion[] = [
-  ['Oslo', 'Norway'], ['Bergen', 'Norway'], ['Trondheim', 'Norway'], ['Stockholm', 'Sweden'], ['Copenhagen', 'Denmark'], ['London', 'United Kingdom'], ['New York', 'USA'], ['Tokyo', 'Japan'],
-].map(([city, country]) => ({ label: `${city}, ${country}`, value: `${city}, ${country}`, detail: country }));
-
 export default function Onboarding() {
   const params = useLocalSearchParams<{ preview?: string | string[] }>();
   const preview = params.preview === '1' || params.preview === 'true';
@@ -31,6 +27,8 @@ export default function Onboarding() {
   const [age, setAge] = useState<number | null>(null);
   const [place, setPlace] = useState('');
   const [placeQuery, setPlaceQuery] = useState('');
+  const [placeCity, setPlaceCity] = useState<string | undefined>();
+  const [placeCountry, setPlaceCountry] = useState<string | undefined>();
   const nameInput = useRef<TextInput>(null);
   const placeInput = useRef<TextInput>(null);
   const scroll = useRef<ScrollView>(null);
@@ -58,13 +56,19 @@ export default function Onboarding() {
     if (preview) { closePreview(); return; }
     if (!name.trim() || age === null || !place.trim()) return;
     starting.current = true;
-    completeOnboarding({ name: name.trim(), age, place: place.trim() });
+    completeOnboarding({ name: name.trim(), age, place: place.trim(), city: placeCity, country: placeCountry });
     router.replace('/new-trip' as never);
   };
   const next = () => step === 6 ? finish() : canAdvance ? goTo(step + 1) : undefined;
   const chooseAge = (value: number) => { setAge(value); setTimeout(() => goTo(5), reduceMotion ? 0 : 300); };
-  const choosePlace = (suggestion: Suggestion) => {
-    setPlace(suggestion.label); setPlaceQuery(suggestion.label); Keyboard.dismiss();
+  const choosePlace = (suggestion: PlaceSearchResult) => {
+    setPlace(suggestion.label); setPlaceQuery(suggestion.label); setPlaceCity(suggestion.city); setPlaceCountry(suggestion.country); Keyboard.dismiss();
+    setTimeout(() => goTo(6), reduceMotion ? 0 : 300);
+  };
+  const useTypedPlace = (value = placeQuery) => {
+    const typedPlace = value.trim();
+    if (!typedPlace) return;
+    setPlace(typedPlace); setPlaceQuery(typedPlace); setPlaceCity(undefined); setPlaceCountry(undefined); Keyboard.dismiss();
     setTimeout(() => goTo(6), reduceMotion ? 0 : 300);
   };
   const title = step < 3 ? introPages[step].title : step === 3 ? 'What should we call you?' : step === 4 ? 'How old are you?' : step === 5 ? 'Where are you from?' : `Nice to meet you, ${name.trim() || 'traveller'}.`;
@@ -95,7 +99,7 @@ export default function Onboarding() {
             {step === 2 ? <MemoryPreview step={step} reduceMotion={reduceMotion}/> : null}
             {step === 3 ? <NameQuestion input={nameInput} value={name} onChange={setName} onSubmit={() => name.trim() && goTo(4)} dark={dark}/> : null}
             {step === 4 ? <AgeQuestion value={age} onPick={chooseAge} dark={dark}/> : null}
-            {step === 5 ? <PlaceQuestion input={placeInput} query={placeQuery} onChange={(value) => { setPlaceQuery(value); setPlace(''); }} onPick={choosePlace} dark={dark}/> : null}
+            {step === 5 ? <PlaceQuestion input={placeInput} query={placeQuery} onChange={(value) => { setPlaceQuery(value); setPlace(''); setPlaceCity(undefined); setPlaceCountry(undefined); }} onPick={choosePlace} onUseTyped={useTypedPlace} dark={dark}/> : null}
             {step === 6 ? <WelcomeCard name={name} age={age} place={place} /> : null}
           </Reveal>
         </View>
@@ -195,9 +199,40 @@ function NameQuestion({ input, value, onChange, onSubmit, dark }: { input: React
 
 function AgeQuestion({ value, onPick, dark }: { value: number | null; onPick: (age: number) => void; dark: boolean }) { const ages = [16, 18, 21, 25, 30, 40, 50, 60]; return <View style={s.questionCard}><Text style={[s.fieldLabel, dark && s.mutedOnDark]}>PICK AN AGE</Text><View style={s.ageGrid}>{ages.map((age) => <Pressable key={age} accessibilityRole="button" accessibilityLabel={`Choose age ${age}${age === 60 ? ' or older' : ''}`} onPress={() => onPick(age)} style={({ pressed }) => [s.ageOption, value === age && s.ageOptionSelected, pressed && s.pressed]}><Text style={[s.ageText, value === age && s.ageTextSelected]}>{age === 60 ? '60+' : age}</Text></Pressable>)}</View></View>; }
 
-function PlaceQuestion({ input, query, onChange, onPick, dark }: { input: React.RefObject<TextInput | null>; query: string; onChange: (value: string) => void; onPick: (suggestion: Suggestion) => void; dark: boolean }) {
-  const matches = useMemo(() => { const source = [...homeSuggestions, ...destinationSuggestions]; const normalised = query.trim().toLocaleLowerCase('en-US'); if (!normalised) return source.slice(0, 5); return source.filter((item) => item.label.toLocaleLowerCase('en-US').includes(normalised)).slice(0, 5); }, [query]);
-  return <View style={s.questionCard}><Text style={[s.fieldLabel, dark && s.mutedOnDark]}>CITY OR COUNTRY</Text><View style={[s.placeInput, dark && s.answerInputDark]}><Ionicons name="search-outline" size={19} color={colors.muted}/><TextInput ref={input} autoCorrect={false} returnKeyType="search" accessibilityLabel="Search for your city or country" value={query} onChangeText={onChange} placeholder="Search for a city or country" placeholderTextColor="#9C978F" style={[s.placeTextInput, dark && s.lightText]}/></View><View style={s.suggestions}>{matches.map((suggestion) => <Pressable key={suggestion.label} accessibilityRole="button" accessibilityLabel={`Choose ${suggestion.label}`} onPress={() => onPick(suggestion)} style={({ pressed }) => [s.suggestion, pressed && s.pressed]}><View style={s.suggestionIcon}><Ionicons name="location-outline" size={17} color={colors.blue}/></View><View style={s.flex}><Text style={s.suggestionTitle}>{suggestion.value}</Text><Text style={s.suggestionDetail}>{suggestion.detail}</Text></View><Ionicons name="arrow-forward" size={16} color={colors.blue}/></Pressable>)}</View></View>;
+function PlaceQuestion({ input, query, onChange, onPick, onUseTyped, dark }: { input: React.RefObject<TextInput | null>; query: string; onChange: (value: string) => void; onPick: (suggestion: PlaceSearchResult) => void; onUseTyped: (value?: string) => void; dark: boolean }) {
+  const [matches, setMatches] = useState<PlaceSearchResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [waitingToSearch, setWaitingToSearch] = useState(false);
+  const [resultQuery, setResultQuery] = useState('');
+  useEffect(() => {
+    const term = query.trim();
+    if (term.length < 2) { setMatches([]); setSearching(false); setWaitingToSearch(false); setResultQuery(''); return; }
+    let active = true;
+    setWaitingToSearch(true);
+    const debounce = setTimeout(() => {
+      setWaitingToSearch(false);
+      setSearching(true);
+      searchPlaces(term).then((results) => {
+        if (active) { setMatches(results); setResultQuery(term); }
+      }).catch(() => {
+        if (active) { setMatches([]); setResultQuery(term); }
+      }).finally(() => {
+        if (active) setSearching(false);
+      });
+    }, 250);
+    return () => { active = false; clearTimeout(debounce); };
+  }, [query]);
+  const typed = query.trim();
+  const resultIsCurrent = resultQuery === typed;
+  const showMatches = resultIsCurrent && matches.length > 0;
+  const showFallback = typed.length >= 2 && resultIsCurrent && !waitingToSearch && !searching && matches.length === 0;
+  return <View style={s.questionCard}>
+    <Text style={[s.fieldLabel, dark && s.mutedOnDark]}>CITY OR COUNTRY</Text>
+    <View style={[s.placeInput, dark && s.answerInputDark]}><Ionicons name="search-outline" size={19} color={colors.muted}/><TextInput ref={input} autoCorrect={false} returnKeyType="search" accessibilityLabel="Search for your city or country" value={query} onChangeText={onChange} onSubmitEditing={() => typed && onUseTyped(typed)} placeholder="Search for a city or country" placeholderTextColor="#9C978F" style={[s.placeTextInput, dark && s.lightText]}/></View>
+    {searching ? <View style={s.placeSearchStatus}><ActivityIndicator size="small" color={colors.blue}/><Text style={[s.placeSearchStatusText, dark && s.mutedOnDark]}>Looking for places...</Text></View> : null}
+    {showMatches ? <View style={s.suggestions}>{matches.map((suggestion) => <Pressable key={suggestion.id} accessibilityRole="button" accessibilityLabel={`Choose ${suggestion.label}`} onPress={() => onPick(suggestion)} style={({ pressed }) => [s.suggestion, pressed && s.pressed]}><View style={s.suggestionIcon}><Ionicons name="location-outline" size={17} color={colors.blue}/></View><View style={s.flex}><Text style={s.suggestionTitle}>{suggestion.label}</Text></View><Ionicons name="arrow-forward" size={16} color={colors.blue}/></Pressable>)}</View> : null}
+    {showFallback ? <View style={s.noPlaceResult}><Text style={[s.noPlaceCopy, dark && s.mutedOnDark]}>No exact place found yet.</Text><Pressable accessibilityRole="button" accessibilityLabel={`Use ${typed} as your place`} onPress={() => onUseTyped(typed)} style={({ pressed }) => [s.useTypedButton, pressed && s.pressed]}><Text style={s.useTypedText}>Use &quot;{typed}&quot;</Text><Ionicons name="arrow-forward" size={15} color={colors.blue}/></Pressable></View> : null}
+  </View>;
 }
 
 function WelcomeCard({ name, age, place }: { name: string; age: number | null; place: string }) { return <View style={[s.previewCard, s.welcomeCard]}><View style={s.welcomeIcon}><Ionicons name="sparkles" size={24} color="#fff"/></View><Text style={s.welcomeTitle}>Your travel journal is ready.</Text><Text style={s.welcomeCopy}>{name.trim()} · {age} · {place}</Text></View>; }
@@ -211,7 +246,7 @@ const s = StyleSheet.create({
   packingCard: { borderRadius: 19, padding: 16, gap: 11 }, previewHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 3 }, previewLabel: { color: colors.purple, fontSize: 10, fontWeight: '800', letterSpacing: .8 }, previewHeading: { color: colors.text, fontFamily: fonts.heading, fontSize: 16, fontWeight: '700', marginTop: 2 }, checkCount: { minWidth: 32, height: 28, borderRadius: 14, backgroundColor: colors.teal, paddingHorizontal: 7, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 1 }, checkCountText: { color: '#fff', fontSize: 12, fontWeight: '800' }, checkRow: { minHeight: 27, flexDirection: 'row', alignItems: 'center', gap: 9 }, checkText: { flex: 1, color: colors.text, fontSize: 14, fontWeight: '600' }, checkTextMuted: { color: colors.muted }, youBring: { color: colors.blue, fontSize: 11, fontWeight: '700', backgroundColor: colors.blueSoft, borderRadius: 9, paddingHorizontal: 8, paddingVertical: 4 }, notification: { flexDirection: 'row', alignItems: 'center', gap: 9, padding: 10, marginTop: 4, borderRadius: 13, backgroundColor: '#F8F3FF' }, notificationIcon: { width: 29, height: 29, borderRadius: 11, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }, notificationTitle: { color: colors.text, fontSize: 11, fontWeight: '800' }, notificationCopy: { color: colors.muted, fontSize: 11, marginTop: 2 },
   memoryCard: { borderRadius: 20, overflow: 'hidden' }, memorySky: { height: 116, backgroundColor: '#74BDE6', justifyContent: 'flex-end', padding: 13 }, memorySun: { position: 'absolute', width: 48, height: 48, borderRadius: 24, backgroundColor: '#FFCE6B', top: 17, right: 38 }, memoryPin: { position: 'absolute', right: 17, top: 19 }, memoryLocation: { color: '#fff', fontSize: 10, fontWeight: '800', letterSpacing: .8 }, memoryDetails: { minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: 11, padding: 13 }, memoryDate: { width: 38, height: 45, borderRadius: 13, backgroundColor: '#FFF1E8', alignItems: 'center', justifyContent: 'center' }, memoryDateDay: { color: colors.coral, fontSize: 17, fontWeight: '800', lineHeight: 19 }, memoryDateMonth: { color: colors.coral, fontSize: 8, fontWeight: '800', letterSpacing: .5 }, memoryCopy: { color: colors.muted, fontSize: 12, marginTop: 3 },
   questionCard: { width: '100%', maxWidth: 350, marginTop: 25 }, fieldLabel: { color: colors.muted, fontSize: 11, fontWeight: '800', letterSpacing: .75, marginBottom: 8 }, answerInput: { minHeight: 62, borderRadius: 18, paddingHorizontal: 17, backgroundColor: '#F5F1EB', color: colors.text, fontSize: 20, fontWeight: '600' }, answerInputDark: { backgroundColor: colors.darkSurface, color: '#FFFEFB' }, ageGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 }, ageOption: { width: '22%', minHeight: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F5F1EB' }, ageOptionSelected: { backgroundColor: colors.blue }, ageText: { color: colors.text, fontSize: 16, fontWeight: '700' }, ageTextSelected: { color: '#fff' }, pressed: { transform: [{ scale: .97 }], opacity: .9 },
-  placeInput: { minHeight: 62, borderRadius: 18, paddingHorizontal: 17, alignItems: 'center', flexDirection: 'row', gap: 10, backgroundColor: '#F5F1EB' }, placeTextInput: { flex: 1, minHeight: 62, color: colors.text, fontSize: 16, fontWeight: '600' }, suggestions: { marginTop: 9, borderRadius: 18, overflow: 'hidden', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }, suggestion: { minHeight: 57, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: 1, borderBottomColor: '#F1ECE5' }, suggestionIcon: { width: 30, height: 30, borderRadius: 11, backgroundColor: colors.blueSoft, alignItems: 'center', justifyContent: 'center' }, suggestionTitle: { color: colors.text, fontSize: 14, fontWeight: '700' }, suggestionDetail: { color: colors.muted, fontSize: 12, marginTop: 1 },
+  placeInput: { minHeight: 62, borderRadius: 18, paddingHorizontal: 17, alignItems: 'center', flexDirection: 'row', gap: 10, backgroundColor: '#F5F1EB' }, placeTextInput: { flex: 1, minHeight: 62, color: colors.text, fontSize: 16, fontWeight: '600' }, placeSearchStatus: { minHeight: 35, paddingHorizontal: 3, flexDirection: 'row', alignItems: 'center', gap: 8 }, placeSearchStatusText: { color: colors.muted, fontSize: 12, fontWeight: '600' }, suggestions: { marginTop: 9, borderRadius: 18, overflow: 'hidden', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }, suggestion: { minHeight: 57, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: 1, borderBottomColor: '#F1ECE5' }, suggestionIcon: { width: 30, height: 30, borderRadius: 11, backgroundColor: colors.blueSoft, alignItems: 'center', justifyContent: 'center' }, suggestionTitle: { color: colors.text, fontSize: 14, fontWeight: '700' }, noPlaceResult: { marginTop: 10, gap: 8, alignItems: 'flex-start' }, noPlaceCopy: { color: colors.muted, fontSize: 12, fontWeight: '600' }, useTypedButton: { minHeight: 40, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, borderRadius: 13, backgroundColor: colors.blueSoft }, useTypedText: { color: colors.blue, fontSize: 13, fontWeight: '800' },
   welcomeCard: { alignItems: 'center', padding: 22, borderRadius: 22, backgroundColor: '#EFF7FF', borderColor: '#CBE4FF' }, welcomeIcon: { width: 50, height: 50, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.blue, marginBottom: 12 }, welcomeTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 21, fontWeight: '700', textAlign: 'center' }, welcomeCopy: { color: colors.muted, fontSize: 13, marginTop: 6, textAlign: 'center' },
   footer: { width: '100%', marginTop: 28, paddingBottom: 4 }, footerRow: { minHeight: 36, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 9 }, backButton: { width: 60, minHeight: 44, flexDirection: 'row', gap: 4, alignItems: 'center' }, backText: { color: colors.blue, fontSize: 13, fontWeight: '700' }, backSpace: { width: 60 }, footerHint: { flex: 1, color: colors.muted, fontSize: 10, fontWeight: '600', textAlign: 'center', lineHeight: 14 },
 });
