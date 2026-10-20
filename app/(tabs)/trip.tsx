@@ -33,6 +33,7 @@ export default function TripScreen() {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [startActivity, setStartActivity] = useState(false);
   const scroll = useRef<ScrollView>(null);
+  const revealNextStep = useCallback(() => scroll.current?.scrollTo({ y: 0, animated: true }), []);
   const handledActivityIntent = useRef<string | undefined>(undefined);
   const selectedId = selectedTrip?.id;
   useFocusEffect(useCallback(() => {
@@ -55,7 +56,7 @@ export default function TripScreen() {
   };
   return <View style={s.page}><ScrollView ref={scroll} style={s.page} contentContainerStyle={s.content}>
     {isOverview ? <PageTitle eyebrow={`${selectedTrip.city}, ${selectedTrip.country}`}>{selectedTrip.title}</PageTitle>
-      : <Pressable accessibilityRole="button" accessibilityLabel="Open trip overview" onPress={() => setTab('Overview')} style={({ pressed }) => [s.compactTripHeader, pressed && s.pressed]}>
+      : <View style={s.compactTripHeader}><Pressable accessibilityRole="button" accessibilityLabel="Open trip overview" onPress={() => setTab('Overview')} style={({ pressed }) => [s.compactOverviewLink, pressed && s.pressed]}>
         <DestinationCover country={selectedTrip.country} uri={selectedTrip.coverImage} style={s.compactTripImage} imageStyle={s.compactTripImage}/>
         <View style={s.compactTripContent}>
           <Text style={s.compactTripEyebrow} numberOfLines={1}>{selectedTrip.city}, {selectedTrip.country}</Text>
@@ -63,13 +64,12 @@ export default function TripScreen() {
           <View style={s.compactTripMeta}><Ionicons name="calendar-clear-outline" size={13} color={colors.muted}/><Text style={s.compactTripMetaText} numberOfLines={1}>{formatTripDates(selectedTrip.startDate, selectedTrip.endDate)}</Text></View>
           <View style={s.compactTripMeta}><Ionicons name="people-outline" size={13} color={colors.muted}/><Text style={s.compactTripMetaText}>{selectedTrip.members.length ? `${selectedTrip.members.length} ${selectedTrip.members.length === 1 ? 'traveller' : 'travellers'}` : 'Solo trip'}</Text></View>
         </View>
-        <View style={s.compactTripAction}><Ionicons name="grid-outline" size={17} color={colors.blue}/></View>
-      </Pressable>}
-    {isOverview && <TripStatus/>}
+      </Pressable><InviteButton onPress={invite}/></View>}
+    {isOverview && <><TripStatus/><TripCompanions onInvite={invite}/></>}
     <View accessibilityRole="tablist" accessibilityLabel="Trip sections" style={s.tripTabs}>{primaryTripTabs.map(item => <Pressable key={item} accessibilityRole="tab" accessibilityLabel={item} accessibilityState={{ selected: primaryTripTab(tab) === item }} aria-selected={primaryTripTab(tab) === item} onPress={() => openTab(item)} style={({ pressed }) => [s.tripTab, { flex: item === 'Overview' ? 1.3 : item === 'Packing' ? 1.15 : .9 }, primaryTripTab(tab) === item && s.activeTab, pressed && s.pressed]}><Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={.85} style={[s.tripTabText, primaryTripTab(tab) === item && s.activeText]}>{item}</Text></Pressable>)}</View>
     {extraTripTabs.includes(tab) && <Pressable accessibilityRole="button" accessibilityLabel="Back to More" onPress={() => openTab('More')} style={s.moreBack}><Ionicons name="chevron-back" size={20} color={colors.blue}/><Text style={s.overviewLinkText}>Back to More</Text></Pressable>}
     {tab === 'More' && <More onOpen={openTab}/>}
-    {tab === 'Overview' && <Overview key={`overview-${selectedTrip.id}`} onNext={(target) => openTab(target === 'add-activity' ? 'Plan' : target, target === 'add-activity')} onOpenPlan={() => openTab('Plan')} onEditDates={() => setDatesOpen(true)} onEditDetails={() => setDetailsOpen(true)} onInvite={invite} onOpenAddFriend={() => setAddFriendOpen(true)}/>}{tab === 'Plan' && <Plan key={`plan-${selectedTrip.id}`} onRemove={removeActivity} initiallyOpen={startActivity} onOpened={() => setStartActivity(false)}/>}{tab === 'Activities' && <ThingsToDo onOpen={(activity) => { router.setParams({ tab: 'Activities' }); router.push({ pathname: '/activity-browser', params: { activity, city: selectedTrip.city, country: selectedTrip.country } }); }} />}{tab === 'Packing' && <Packing onRemove={removePacking}/>}{tab === 'Wishlist' && <Wishes/>}{tab === 'Memories' && <Memories/>}
+    {tab === 'Overview' && <Overview key={`overview-${selectedTrip.id}`} onNext={(target) => openTab(target === 'add-activity' ? 'Plan' : target, target === 'add-activity')} onOpenPlan={() => openTab('Plan')} onEditDates={() => setDatesOpen(true)} onEditDetails={() => setDetailsOpen(true)} onInvite={invite} onOpenAddFriend={() => setAddFriendOpen(true)}/>}{tab === 'Plan' && <Plan key={`plan-${selectedTrip.id}`} onRemove={removeActivity} onOpenPacking={() => openTab('Packing')} onFirstSaved={revealNextStep} initiallyOpen={startActivity} onOpened={() => setStartActivity(false)}/>}{tab === 'Activities' && <ThingsToDo onOpen={(activity) => { router.setParams({ tab: 'Activities' }); router.push({ pathname: '/activity-browser', params: { activity, city: selectedTrip.city, country: selectedTrip.country } }); }} />}{tab === 'Packing' && <Packing onRemove={removePacking} onOpenPlan={() => openTab('Plan')} onComplete={revealNextStep}/>}{tab === 'Wishlist' && <Wishes/>}{tab === 'Memories' && <Memories/>}
     {detailsOpen && <TripDetailsSheet key={`details-${selectedTrip.id}`} trip={selectedTrip} onClose={() => setDetailsOpen(false)}/>}
     {datesOpen && <TripDatesSheet key={`dates-${selectedTrip.id}`} trip={selectedTrip} onClose={() => setDatesOpen(false)}/>}
     <AddTripFriendSheet visible={addFriendOpen} onClose={() => setAddFriendOpen(false)} tripId={selectedTrip.id} tripTitle={selectedTrip.title} existingNames={selectedTrip.members}/>
@@ -77,6 +77,23 @@ export default function TripScreen() {
 }
 
 type TripFriend = { profile_id: string; display_name: string; status: string };
+function InviteButton({ onPress }: { onPress: () => void }) {
+  return <Pressable accessibilityRole="button" accessibilityLabel="Invite to trip" onPress={onPress} style={({ pressed }) => [s.inviteShortcut, pressed && s.pressed]}><Ionicons name="person-add-outline" size={17} color={colors.blue}/><Text style={s.inviteShortcutText}>Invite</Text></Pressable>;
+}
+
+function TripCompanions({ onInvite }: { onInvite: () => void }) {
+  const { selectedTrip, profileName } = useTravel();
+  if (!selectedTrip) return null;
+  const people = [profileName || 'You', ...selectedTrip.members];
+  return <View style={s.tripCompanions}>
+    <View style={s.companionSummary}>
+      <View style={s.companionAvatars}>{people.slice(0, 2).map((name, index) => <View key={`${name}-${index}`} style={s.companionAvatar}><Text style={s.companionInitial}>{name.slice(0, 1).toUpperCase()}</Text></View>)}</View>
+      <Text style={s.companionLabel}>{selectedTrip.members.length ? 'Travellers' : 'Just you'}</Text>
+    </View>
+    <InviteButton onPress={onInvite}/>
+  </View>;
+}
+
 function More({ onOpen }: { onOpen: (section: string) => void }) {
   const choices = [
     { section: 'Activities', label: 'Things to do', icon: 'compass-outline', color: colors.blue, background: colors.blueSoft },
@@ -358,7 +375,7 @@ function TripStatus() {
   const state = tripState(selectedTrip);
   return <View style={s.overviewStatus}><Ionicons name={state.label === 'Completed' ? 'checkmark-circle-outline' : 'calendar-outline'} size={19} color={colors.blue}/><Text style={s.overviewStatusText}>{state.countdown}</Text></View>;
 }
-function Plan({ initiallyOpen = false, onOpened, onRemove }: { initiallyOpen?: boolean; onOpened?: () => void; onRemove: (id: string) => void }) {
+function Plan({ initiallyOpen = false, onOpened, onRemove, onOpenPacking, onFirstSaved }: { initiallyOpen?: boolean; onOpened?: () => void; onRemove: (id: string) => void; onOpenPacking: () => void; onFirstSaved: () => void }) {
   const { selectedTrip, addActivity, updateActivity } = useTravel();
   const [open, setOpen] = useState(initiallyOpen);
   useEffect(() => { if (initiallyOpen) { setOpen(true); onOpened?.(); } }, [initiallyOpen]);
@@ -371,7 +388,9 @@ function Plan({ initiallyOpen = false, onOpened, onRemove }: { initiallyOpen?: b
   const [editingId, setEditingId] = useState<string>();
   const [details, setDetails] = useState(false);
   const [error, setError] = useState('');
+  const [firstSaved, setFirstSaved] = useState(false);
   if (!selectedTrip) return null;
+  const needsPacking = selectedTrip.activities.length > 0 && !selectedTrip.packing.length && tripState(selectedTrip).label !== 'Completed' && selectedTrip.completionState !== 'completed';
   const ideas = activitySuggestionsForDestination(selectedTrip.city, selectedTrip.country);
   const orderedActivities = selectedTrip.activities.slice().sort((left, right) => {
     const leftTime = activityMoment(left.date, left.startTime || '00:00')?.getTime() ?? Number.MAX_SAFE_INTEGER;
@@ -411,11 +430,18 @@ function Plan({ initiallyOpen = false, onOpened, onRemove }: { initiallyOpen?: b
       return;
     }
     const item = { title: title.trim(), date, startTime: start, endTime: end, location, note };
+    const firstActivity = !editingId && selectedTrip.activities.length === 0;
     if (editingId) updateActivity(selectedTrip.id, editingId, item);
     else addActivity(selectedTrip.id, item);
+    setFirstSaved(firstActivity);
     setOpen(false); clear();
+    if (firstActivity && !selectedTrip.packing.length) onFirstSaved();
   };
   return <Section title="Plan">
+    {needsPacking && <Card style={s.handoffCard}>
+      <Text accessibilityRole="header" accessibilityLiveRegion="polite" style={s.handoffTitle}>{firstSaved ? 'Activity added!' : 'Ready to pack?'}</Text>
+      <View><PrimaryButton title="Create packing list" icon="bag-handle-outline" onPress={onOpenPacking}/><Pressable accessibilityRole="button" accessibilityLabel="Add another activity" onPress={() => { clear(); setOpen(true); }} style={({ pressed }) => [s.handoffSecondary, pressed && s.pressed]}><Ionicons name="add" size={19} color={colors.blue}/><Text style={s.overviewLinkText}>Add another activity</Text></Pressable></View>
+    </Card>}
     {dayGroups.length ? <View style={s.planTimeline}>{dayGroups.map((group) => <View key={group.key} style={s.planDay}>
       <View style={s.planDayHeader}>
         <View style={s.planDayMarker}><View style={s.planDayDot}/></View>
@@ -433,7 +459,7 @@ function Plan({ initiallyOpen = false, onOpened, onRemove }: { initiallyOpen?: b
         <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${item.title}`} hitSlop={10} onPress={() => onRemove(item.id)} style={({ pressed }) => [s.planRemove, pressed && s.pressed]}><Ionicons name="trash-outline" size={17} color={colors.muted}/></Pressable>
       </Card>)}</View>
     </View>)}</View> : null}
-    <View style={s.planAddButton}><PrimaryButton title={dayGroups.length ? 'Add another activity' : 'Add first activity'} onPress={() => { clear(); setOpen(true); }}/></View>
+    {!needsPacking && <View style={s.planAddButton}><PrimaryButton title={dayGroups.length ? 'Add another activity' : 'Add first activity'} onPress={() => { clear(); setOpen(true); }}/></View>}
     <Sheet visible={open} title={editingId ? 'Edit activity' : selectedTrip.activities.length ? 'New activity' : 'First activity'} onClose={() => { setOpen(false); clear(); }}>
       <AutocompleteField value={title} onChangeText={setTitle} placeholder="Activity" suggestions={ideas} hideLabel showSuggestionsOnFocus/>
       <Pressable accessibilityRole="button" accessibilityState={{ expanded: details }} onPress={() => setDetails(!details)} style={s.editDates}><Ionicons name={details ? 'chevron-up' : 'add'} color={colors.blue} size={18}/><Text style={s.editDatesText}>{details ? 'Hide details' : 'Add details'}</Text></Pressable>
@@ -490,7 +516,7 @@ function weatherPackingSuggestions(weather: Weather | null) {
   if (lowest <= 12 || icons.includes('snow-outline')) suggested.push(['Warm layer', 'Clothing']);
   return suggested;
 }
-function Packing({ onRemove }: { onRemove: (id: string) => void }) {
+function Packing({ onRemove, onOpenPlan, onComplete }: { onRemove: (id: string) => void; onOpenPlan: () => void; onComplete: () => void }) {
   const { selectedTrip, addPacking, togglePacking, updateTrip } = useTravel();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState('');
@@ -499,6 +525,9 @@ function Packing({ onRemove }: { onRemove: (id: string) => void }) {
   const [details, setDetails] = useState(false);
   const [showWeatherSuggestions, setShowWeatherSuggestions] = useState(false);
   const { weather, loading: weatherLoading, error: weatherError } = useWeather(selectedTrip?.city || '', selectedTrip?.country || '');
+  const allPacked = Boolean(selectedTrip?.packing.length && selectedTrip.packing.every(item => item.done));
+  const wasPacked = useRef(allPacked);
+  useEffect(() => { if (allPacked && !wasPacked.current) onComplete(); wasPacked.current = allPacked; }, [allPacked, onComplete]);
   if (!selectedTrip) return null;
   const total = selectedTrip.packing.length;
   const packed = selectedTrip.packing.filter((item) => item.done).length;
@@ -544,8 +573,9 @@ function Packing({ onRemove }: { onRemove: (id: string) => void }) {
       <Pressable accessibilityRole="button" onPress={openItem} style={({ pressed }) => [s.packingStartEmpty, pressed && s.pressed]}><Text style={s.packingLinkText}>Start my own list</Text></Pressable>
     </View> : <>
     <View style={[s.packingProgress, packed === total && s.packingComplete]}>
-      <View style={s.packingProgressHeading}><Text accessibilityLiveRegion="polite" style={s.packingProgressText}>{packed} of {total} packed</Text><Ionicons name={packed === total ? 'checkmark-circle' : 'bag-handle-outline'} size={26} color={colors.teal}/></View>
+      <View style={s.packingProgressHeading}><Text accessibilityLiveRegion="polite" style={s.packingProgressText}>{allPacked ? 'All packed!' : `${packed} of ${total} packed`}</Text><Ionicons name={packed === total ? 'checkmark-circle' : 'bag-handle-outline'} size={26} color={colors.teal}/></View>
       <View accessibilityRole="progressbar" accessibilityLabel="Packing progress" accessibilityValue={{ min: 0, max: total, now: packed, text: `${packed} of ${total} packed` }} aria-valuemin={0} aria-valuemax={total} aria-valuenow={packed} aria-valuetext={`${packed} of ${total} packed`} style={s.packingProgressTrack}><View style={[s.packingProgressFill, { width: `${progress}%` }]}/></View>
+      {allPacked && <PrimaryButton title="View plan" icon="arrow-forward" onPress={onOpenPlan}/>}
     </View>
     <View style={s.stack}>{orderedGroups.map(([group, items]) => <View key={group} style={s.packGroup}>
       <Text style={s.packGroupTitle}>{group}</Text>
@@ -557,7 +587,7 @@ function Packing({ onRemove }: { onRemove: (id: string) => void }) {
         <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${item.title}`} onPress={() => onRemove(item.id)} style={({ pressed }) => [s.packingRemove, pressed && s.pressed]}><Ionicons name="close" size={20} color={colors.muted}/></Pressable>
       </View>)}
     </View>)}</View>
-    <PrimaryButton title="Add item" icon="add" onPress={openItem}/>
+    {allPacked ? <Pressable accessibilityRole="button" accessibilityLabel="Add item" onPress={openItem} style={({ pressed }) => [s.handoffSecondary, pressed && s.pressed]}><Ionicons name="add" size={19} color={colors.blue}/><Text style={s.overviewLinkText}>Add item</Text></Pressable> : <PrimaryButton title="Add item" icon="add" onPress={openItem}/>}
     {!weatherError && (weatherLoading || weatherSuggestions.length > 0) && <Pressable accessibilityRole="button" accessibilityState={{ expanded: showWeatherSuggestions }} disabled={weatherLoading} onPress={() => setShowWeatherSuggestions((visible) => !visible)} style={({ pressed }) => [s.weatherSuggestButton, (pressed || weatherLoading) && s.pressed, weatherLoading && s.weatherSuggestDisabled]}>
       <View style={s.weatherSuggestIcon}><Ionicons name={weatherLoading ? 'sync-outline' : 'partly-sunny-outline'} size={20} color={colors.blue}/></View><Text style={[s.weatherSuggestTitle, { flex: 1 }]}>{weatherLoading ? 'Checking weather…' : 'Weather suggestions'}</Text><Ionicons name={showWeatherSuggestions ? 'chevron-up' : 'chevron-down'} size={20} color={colors.blue}/>
     </Pressable>}
@@ -683,6 +713,18 @@ function Wishes() {
 function Memories() { const { selectedTrip, addPhoto } = useTravel(); if (!selectedTrip) return null; return <Section title="Memories"><View style={s.gallery}>{selectedTrip.memories.map((item) => <View key={item.id} style={s.memory}><Image source={{ uri: item.image }} style={s.image}/><Text style={s.copy}>{formatJournalDate(item.date)}</Text></View>)}</View>{!selectedTrip.memories.length ? <EmptyMoment compact title="Save the good bits" copy="Choose a photo when there is a moment worth keeping." actionTitle="Choose first photo" icon="image-outline" onPress={() => addPhoto(selectedTrip.id)}/> : <PrimaryButton title="Choose another photo" icon="image-outline" onPress={() => addPhoto(selectedTrip.id)}/>}</Section>; }
 const s = StyleSheet.create({
   tripTabs: { flexDirection: 'row', gap: 6, paddingTop: 20, paddingBottom: 18 },
+  compactOverviewLink: { flex: 1, minWidth: 0, minHeight: 82, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  tripCompanions: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 8, marginBottom: 2 },
+  companionSummary: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  companionAvatars: { flexDirection: 'row', gap: 5 },
+  companionAvatar: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.purpleSoft },
+  companionInitial: { color: colors.purple, fontSize: 14, fontWeight: '700' },
+  companionLabel: { flexShrink: 1, color: colors.muted, fontSize: 16, lineHeight: 23, fontWeight: '600' },
+  inviteShortcut: { minHeight: 44, paddingHorizontal: 10, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 14, borderWidth: 1, borderColor: '#C8E3FF', backgroundColor: '#F7FBFF' },
+  inviteShortcutText: { color: colors.blue, fontSize: 16, lineHeight: 22, fontWeight: '600' },
+  handoffCard: { gap: 16, padding: 20, marginBottom: 22, borderColor: '#D7E8FF', backgroundColor: colors.blueSoft },
+  handoffTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 28, lineHeight: 36 },
+  handoffSecondary: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 8, marginTop: 4 },
   tripTab: { flex: 1, minWidth: 0, minHeight: 48, paddingHorizontal: 3, paddingVertical: 12, alignItems: 'center', justifyContent: 'center', borderRadius: 18, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   tripTabText: { color: colors.muted, fontSize: 14, lineHeight: 20, fontWeight: '600', textAlign: 'center' },
   moreChoices: { gap: 12 },
@@ -729,7 +771,7 @@ Object.assign(s, StyleSheet.create({
   date: { color: colors.text, fontWeight: '700', fontSize: 15 },
   heroCopy: { color: colors.muted, fontSize: 13, lineHeight: 20, marginTop: 5, fontWeight: '400' },
   compactTripHeader: { minHeight: 98, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 7, paddingRight: 11, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 22, shadowColor: colors.text, shadowOpacity: .035, shadowRadius: 12, shadowOffset: { width: 0, height: 5 } },
-  compactTripImage: { width: 79, height: 82, borderRadius: 16, backgroundColor: colors.blueSoft },
+  compactTripImage: { width: 48, height: 72, borderRadius: 13, backgroundColor: colors.blueSoft },
   compactTripContent: { flex: 1, alignSelf: 'stretch', justifyContent: 'center', minWidth: 0 },
   compactTripEyebrow: { color: colors.blue, fontSize: 10, fontWeight: '700', letterSpacing: .55, textTransform: 'uppercase', marginBottom: 3 },
   compactTripTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 18, fontWeight: '700', letterSpacing: -.2, marginBottom: 7 },
