@@ -23,7 +23,7 @@ export type Memory = { id: string; image: string; thumbnail?: string; date: stri
 export type MemoryBookVisibility = 'public' | 'private';
 export type Trip = { id: string; sharedTripId?: string; title: string; city: string; country: string; destinationTimeZone?: string; startDate: string; endDate: string; createdAt?: string; completedAt?: string; completionState?: CompletionState; members: string[]; memberAccountIds?: Record<string, string>; coverImage?: string; icon?: string; color?: string; reminderNotificationIds?: string[]; memoryBookVisibility?: MemoryBookVisibility; activities: Activity[]; packing: PackingItem[]; wishes: Wish[]; memories: Memory[] };
 export type DraftTrip = Pick<Trip, 'title' | 'city' | 'country' | 'startDate' | 'endDate' | 'members' | 'coverImage'> & Partial<Pick<Trip, 'sharedTripId' | 'icon' | 'color' | 'destinationTimeZone'>>;
-type StoredState = { profileName: string; profileBio?: string; profileAge?: number; profilePlace?: string; profileCity?: string; profileCountry?: string; profilePhoto?: string; profilePhotoState?: MemorySaveState; profileFrameId?: string; profileAccessoryId?: string; homeTimeZone?: string; homeCountry?: string; premium: boolean; memoryBooksPublicByDefault: boolean; trips: Trip[]; selectedTripId?: string; onboarded: boolean };
+type StoredState = { profileName: string; profileBio?: string; profileAge?: number; profilePlace?: string; profileCity?: string; profileCountry?: string; profilePhoto?: string; pendingProfilePhoto?: string; profilePhotoState?: MemorySaveState; profilePhotoError?: string; profileFrameId?: string; profileAccessoryId?: string; homeTimeZone?: string; homeCountry?: string; premium: boolean; memoryBooksPublicByDefault: boolean; trips: Trip[]; selectedTripId?: string; onboarded: boolean };
 
 const key = '@travino/state-v2';
 const legacyKey = ['@reise', 'folge/state-v2'].join('');
@@ -35,7 +35,7 @@ const memoryObjectPath = (memory: Memory, userId: string) => {
   return `${userId}/${memory.id.replace(/[^a-z0-9_-]/gi, '_')}.${extension}`;
 };
 const memoryThumbnailPath = (memory: Memory, userId: string) => `${userId}/${memory.id.replace(/[^a-z0-9_-]/gi, '_')}-thumb.jpg`;
-const profileAvatarPath = (userId: string) => `${userId}/avatar.jpg`;
+const profileAvatarPath = (userId: string) => `${userId}/avatar-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
 const defaultHomeTimeZone = deviceTimeZone();
 const initial: StoredState = { profileName: '', homeTimeZone: defaultHomeTimeZone, homeCountry: countryForTimeZone(defaultHomeTimeZone), premium: false, memoryBooksPublicByDefault: false, trips: [], onboarded: true };
 const timeZoneFieldsNeedMigration = (raw: unknown, hydrated: StoredState) => {
@@ -57,7 +57,7 @@ const stateFrom = (value: unknown): StoredState | null => {
     trips: state.trips.map((trip) => ({ ...trip, destinationTimeZone: resolvedDestinationTimeZone(trip.city, trip.country, trip.destinationTimeZone, homeTimeZone), coverImage: stockCoverForCountry(trip.country) })),
   };
 };
-type Store = StoredState & { ready: boolean; selectedTrip?: Trip; setSelectedTripId: (id?: string) => void; saveProfile: (name: string, bio?: string) => void; completeOnboarding: (profile: { name: string; age: number; place: string; city?: string; country?: string }) => void; setProfilePhoto: (uri?: string) => void; retryProfilePhoto: () => void; setProfileFrame: (frameId?: string) => void; setProfileAccessory: (accessoryId?: string) => void; createTrip: (draft: DraftTrip) => string; updateTrip: (id: string, patch: Partial<Trip>) => void; setTripCompletionState: (id: string, state?: CompletionState) => void; deleteTrip: (id: string) => void; addMember: (tripId: string, name: string, accountId?: string) => void; addActivity: (tripId: string, item: Omit<Activity, 'id'>) => void; updateActivity: (tripId: string, activityId: string, patch: Partial<Activity>) => void; removeActivity: (tripId: string, activityId: string) => void; restoreActivity: (tripId: string, item: Activity, index: number) => void; addPacking: (tripId: string, item: Omit<PackingItem, 'id' | 'done'>) => void; togglePacking: (tripId: string, itemId: string) => void; removePacking: (tripId: string, itemId: string) => void; restorePacking: (tripId: string, item: PackingItem, index: number) => void; copyPacking: (fromTripId: string, toTripId: string, categories: string[]) => void; addWish: (tripId: string, item: Omit<Wish, 'id' | 'voted' | 'reactions'>) => void; toggleWish: (tripId: string, wishId: string) => void; setWishReaction: (tripId: string, wishId: string, voterId: string, displayName: string, reaction?: WishReaction) => void; removeWish: (tripId: string, wishId: string) => void; moveWishToPlan: (tripId: string, wishId: string) => void; addPhoto: (tripId: string, page?: number) => Promise<void>; setMemoryCaption: (tripId: string, memoryId: string, caption: string) => void; setMemoryLayout: (tripId: string, memoryId: string, layout: MemoryLayout) => void; removeMemory: (tripId: string, memoryId: string) => void; setMemoryBooksPublicByDefault: (isPublic: boolean) => void; setTripMemoryBookVisibility: (tripId: string, visibility?: MemoryBookVisibility) => void; syncMemoryBookPhotos: () => Promise<number>; setPremium: (premium: boolean) => void; markOnboarded: () => void };
+type Store = StoredState & { ready: boolean; selectedTrip?: Trip; setSelectedTripId: (id?: string) => void; saveProfile: (name: string, bio?: string) => void; completeOnboarding: (profile: { name: string; age: number; place: string; city?: string; country?: string }) => void; setProfilePhoto: (uri?: string) => Promise<void>; retryProfilePhoto: () => void; setProfileFrame: (frameId?: string) => void; setProfileAccessory: (accessoryId?: string) => void; createTrip: (draft: DraftTrip) => string; updateTrip: (id: string, patch: Partial<Trip>) => void; setTripCompletionState: (id: string, state?: CompletionState) => void; deleteTrip: (id: string) => void; addMember: (tripId: string, name: string, accountId?: string) => void; addActivity: (tripId: string, item: Omit<Activity, 'id'>) => void; updateActivity: (tripId: string, activityId: string, patch: Partial<Activity>) => void; removeActivity: (tripId: string, activityId: string) => void; restoreActivity: (tripId: string, item: Activity, index: number) => void; addPacking: (tripId: string, item: Omit<PackingItem, 'id' | 'done'>) => void; togglePacking: (tripId: string, itemId: string) => void; removePacking: (tripId: string, itemId: string) => void; restorePacking: (tripId: string, item: PackingItem, index: number) => void; copyPacking: (fromTripId: string, toTripId: string, categories: string[]) => void; addWish: (tripId: string, item: Omit<Wish, 'id' | 'voted' | 'reactions'>) => void; toggleWish: (tripId: string, wishId: string) => void; setWishReaction: (tripId: string, wishId: string, voterId: string, displayName: string, reaction?: WishReaction) => void; removeWish: (tripId: string, wishId: string) => void; moveWishToPlan: (tripId: string, wishId: string) => void; addPhoto: (tripId: string, page?: number) => Promise<void>; setMemoryCaption: (tripId: string, memoryId: string, caption: string) => void; setMemoryLayout: (tripId: string, memoryId: string, layout: MemoryLayout) => void; removeMemory: (tripId: string, memoryId: string) => void; setMemoryBooksPublicByDefault: (isPublic: boolean) => void; setTripMemoryBookVisibility: (tripId: string, visibility?: MemoryBookVisibility) => void; syncMemoryBookPhotos: () => Promise<number>; setPremium: (premium: boolean) => void; markOnboarded: () => void };
 const TravelContext = createContext<Store | null>(null);
 
 async function syncMemoryPhoto(trip: Trip, memory: Memory, userId: string, bookPublic: boolean, contentType = 'image/jpeg') {
@@ -123,30 +123,50 @@ function enqueueMemoryPhotoUpload(
 
 let profilePhotoUploadTail: Promise<void> = Promise.resolve();
 
-async function uploadProfilePhoto(uri: string, userId: string) {
-  if (!supabase) return uri;
+type ProfilePhotoUpload = { publicUrl: string; path: string };
+
+async function saveProfileAvatarUrl(userId: string, publicUrl: string, displayName: string) {
+  const client = supabase;
+  if (!client) return;
+  const updateAvatar = () => client.from('profiles').update({ avatar_url: publicUrl }).eq('id', userId).select('avatar_url').maybeSingle();
+  let { data, error } = await updateAvatar();
+  if (error) throw error;
+  if (data?.avatar_url) return;
+
+  // An anonymous account can have Storage access before it has a profile row.
+  // Create that row through the app's guarded RPC, then require a real update
+  // result so a zero-row RLS update cannot look like a successful save.
+  const { error: ensureError } = await client.rpc('ensure_my_profile', { p_display_name: displayName.trim() || 'Traveler' });
+  if (ensureError) throw ensureError;
+  ({ data, error } = await updateAvatar());
+  if (error) throw error;
+  if (!data?.avatar_url) throw new Error('Could not save the profile photo');
+}
+
+async function uploadProfilePhoto(uri: string, userId: string, displayName: string): Promise<ProfilePhotoUpload> {
+  if (!supabase) return { publicUrl: uri, path: uri };
   const image = await fetch(uri).then((response) => {
     if (!response.ok) throw new Error('Could not read the photo');
     return response.blob();
   });
   const path = profileAvatarPath(userId);
-  const { error: uploadError } = await supabase.storage.from('profile-avatars').upload(path, image, { contentType: 'image/jpeg', upsert: true });
+  const { error: uploadError } = await supabase.storage.from('profile-avatars').upload(path, image, { contentType: 'image/jpeg', upsert: false });
   if (uploadError) throw uploadError;
   const { data } = supabase.storage.from('profile-avatars').getPublicUrl(path);
-  const publicUrl = `${data.publicUrl}?v=${Date.now()}`;
-  const { error: profileError } = await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', userId);
-  if (profileError) throw profileError;
-  return publicUrl;
+  const publicUrl = data.publicUrl;
+  await saveProfileAvatarUrl(userId, publicUrl, displayName);
+  return { publicUrl, path };
 }
 
 function enqueueProfilePhotoUpload(
   uri: string,
-  onState: (state: MemorySaveState, value?: string, error?: string) => void,
+  displayName: string,
+  onState: (state: MemorySaveState, value?: ProfilePhotoUpload, error?: string) => void,
 ) {
   profilePhotoUploadTail = profilePhotoUploadTail.catch(() => undefined).then(async () => {
     try {
       if (!supabase) {
-        onState('saved', uri);
+        onState('saved', { publicUrl: uri, path: uri });
         return;
       }
       onState('saving');
@@ -154,8 +174,8 @@ function enqueueProfilePhotoUpload(
       if (!user) throw new Error('Waiting for a connection');
       for (let attempt = 0; attempt < 3; attempt += 1) {
         try {
-          const publicUrl = await uploadProfilePhoto(uri, user.id);
-          onState('saved', publicUrl);
+          const uploaded = await uploadProfilePhoto(uri, user.id, displayName);
+          onState('saved', uploaded);
           return;
         } catch (error) {
           if (attempt === 2) throw error;
@@ -163,7 +183,7 @@ function enqueueProfilePhotoUpload(
         }
       }
     } catch (error) {
-      onState('retry', uri, error instanceof Error ? error.message : 'Could not save just now');
+      onState('retry', undefined, error instanceof Error ? error.message : 'Could not save just now');
     }
   });
 }
@@ -174,12 +194,19 @@ function enqueueProfilePhotoRemoval(onComplete: (saved: boolean) => void) {
       if (!supabase) { onComplete(true); return; }
       const user = await ensureGuestIdentity().catch(() => null);
       if (!user) throw new Error('Waiting for a connection');
-      const path = profileAvatarPath(user.id);
-      const [{ error: profileError }] = await Promise.all([
-        supabase.from('profiles').update({ avatar_url: null }).eq('id', user.id),
-        supabase.storage.from('profile-avatars').remove([path]),
+      const { data: files, error: filesError } = await supabase.storage.from('profile-avatars').list(user.id, { limit: 100 });
+      if (filesError) throw filesError;
+      const paths = (files ?? []).map((file) => `${user.id}/${file.name}`);
+      const [{ data: updatedProfile, error: profileError }, removeResult] = await Promise.all([
+        supabase.from('profiles').update({ avatar_url: null }).eq('id', user.id).select('id').maybeSingle(),
+        paths.length ? supabase.storage.from('profile-avatars').remove(paths) : Promise.resolve({ error: null }),
       ]);
       if (profileError) throw profileError;
+      if (removeResult.error) throw removeResult.error;
+      if (!updatedProfile?.id) {
+        const { error: ensureError } = await supabase.rpc('ensure_my_profile', { p_display_name: 'Traveler' });
+        if (ensureError) throw ensureError;
+      }
       onComplete(true);
     } catch {
       onComplete(false);
@@ -238,7 +265,7 @@ export function TravelProvider({ children }: { children: ReactNode }) {
   const remoteWrites = useRef(Promise.resolve());
   const resumedMemoryUploads = useRef(new Set<string>());
   const resumedProfilePhotoUpload = useRef(false);
-  useEffect(() => { let active = true; const load = async () => { let next = initial; let client = supabase; let remoteUser: { id: string } | null = null; let migrateRemote = false; try { const raw = await storage.getItem(key) || await storage.getItem(legacyKey); const local = raw ? stateFrom(JSON.parse(raw)) : null; if (local) next = local; } catch { /* Start with an empty state if the local cache is unreadable. */ } try { if (client) { const user = await ensureGuestIdentity().catch(() => null); if (user) { remoteUser = user; const [{ data }, { data: remoteProfile }] = await Promise.all([client.from('travel_states').select('payload').eq('user_id', user.id).maybeSingle(), client.from('profiles').select('avatar_url').eq('id', user.id).maybeSingle()]); const remote = stateFrom(data?.payload); if (remote) { next = remote; migrateRemote = timeZoneFieldsNeedMigration(data?.payload, remote); } else await client.from('travel_states').upsert({ user_id: user.id, payload: next, updated_at: new Date().toISOString() }); if (remoteProfile?.avatar_url) next = { ...next, profilePhoto: remoteProfile.avatar_url, profilePhotoState: 'saved' }; } } } catch { /* The local state remains usable if the database is temporarily unavailable. */ } if (active) { setState(next); await storage.setItem(key, JSON.stringify(next)).catch(() => undefined); if (migrateRemote && client && remoteUser) await client.from('travel_states').upsert({ user_id: remoteUser.id, payload: next, updated_at: new Date().toISOString() }); setReady(true); } }; load().catch(() => { if (active) setReady(true); }); return () => { active = false; }; }, []);
+  useEffect(() => { let active = true; const load = async () => { let next = initial; let local: StoredState | null = null; let client = supabase; let remoteUser: { id: string } | null = null; let migrateRemote = false; try { const raw = await storage.getItem(key) || await storage.getItem(legacyKey); local = raw ? stateFrom(JSON.parse(raw)) : null; if (local) next = local; } catch { /* Start with an empty state if the local cache is unreadable. */ } try { if (client) { const user = await ensureGuestIdentity().catch(() => null); if (user) { remoteUser = user; const [{ data }, { data: remoteProfile }] = await Promise.all([client.from('travel_states').select('payload').eq('user_id', user.id).maybeSingle(), client.from('profiles').select('avatar_url').eq('id', user.id).maybeSingle()]); const remote = stateFrom(data?.payload); if (remote) { next = remote; migrateRemote = timeZoneFieldsNeedMigration(data?.payload, remote); } else await client.from('travel_states').upsert({ user_id: user.id, payload: next, updated_at: new Date().toISOString() }); if (remoteProfile?.avatar_url) next = { ...next, profilePhoto: remoteProfile.avatar_url, profilePhotoState: 'saved' }; } } } catch { /* The local state remains usable if the database is temporarily unavailable. */ } if (local?.pendingProfilePhoto && (local.profilePhotoState === 'saving' || local.profilePhotoState === 'retry')) next = { ...next, pendingProfilePhoto: local.pendingProfilePhoto, profilePhotoState: local.profilePhotoState, profilePhotoError: local.profilePhotoError }; if (active) { setState(next); await storage.setItem(key, JSON.stringify(next)).catch(() => undefined); if (migrateRemote && client && remoteUser) await client.from('travel_states').upsert({ user_id: remoteUser.id, payload: next, updated_at: new Date().toISOString() }); setReady(true); } }; load().catch(() => { if (active) setReady(true); }); return () => { active = false; }; }, []);
   const persistRemote = (next: StoredState) => { const client = supabase; if (!client || !ready) return; remoteWrites.current = remoteWrites.current.catch(() => undefined).then(async () => { const user = await ensureGuestIdentity(); if (!user) return; const { error } = await client.from('travel_states').upsert({ user_id: user.id, payload: next, updated_at: new Date().toISOString() }); if (error) throw error; }).catch(() => undefined); };
   useEffect(() => {
     if (!ready || !supabase) return;
@@ -249,6 +276,13 @@ export function TravelProvider({ children }: { children: ReactNode }) {
     return () => { clearInterval(interval); appState.remove(); };
   }, [ready]);
   const change = (update: (current: StoredState) => StoredState, syncRemotely = true) => setState((current) => { const next = update(current); storage.setItem(key, JSON.stringify(next)).catch(() => undefined); if (syncRemotely) persistRemote(next); return next; });
+  const stageProfilePhoto = (uri: string) => new Promise<void>((resolve) => {
+    setState((current) => {
+      const next = { ...current, pendingProfilePhoto: uri, profilePhotoState: 'saving' as const, profilePhotoError: undefined };
+      void storage.setItem(key, JSON.stringify(next)).catch(() => undefined).finally(resolve);
+      return next;
+    });
+  });
   const updateTrip = (id: string, patch: Partial<Trip>) => change((s) => ({ ...s, trips: s.trips.map((trip) => {
     if (trip.id !== id) return trip;
     const next = { ...trip, ...patch };
@@ -285,11 +319,12 @@ export function TravelProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const startProfilePhotoUpload = (uri: string) => {
-    enqueueProfilePhotoUpload(uri, (saveState, resolvedUri, saveError) => {
+  const startProfilePhotoUpload = (uri: string, displayName: string) => {
+    enqueueProfilePhotoUpload(uri, displayName, (saveState, uploaded, saveError) => {
       change((current) => {
-        if (current.profilePhoto !== uri && current.profilePhoto !== resolvedUri) return current;
-        return { ...current, profilePhoto: resolvedUri ?? uri, profilePhotoState: saveState };
+        if (current.pendingProfilePhoto !== uri) return current;
+        if (saveState === 'saved' && uploaded) return { ...current, profilePhoto: uploaded.publicUrl, pendingProfilePhoto: undefined, profilePhotoState: 'saved', profilePhotoError: undefined };
+        return { ...current, profilePhotoState: 'retry', profilePhotoError: saveError || 'Could not save just now' };
       }, saveState === 'saved');
     });
   };
@@ -304,30 +339,30 @@ export function TravelProvider({ children }: { children: ReactNode }) {
     }));
   }, [ready, state.trips]);
   useEffect(() => {
-    if (!ready || !state.profilePhoto || state.profilePhotoState !== 'saving' || resumedProfilePhotoUpload.current) return;
+    if (!ready || !state.pendingProfilePhoto || state.profilePhotoState !== 'saving' || resumedProfilePhotoUpload.current) return;
     resumedProfilePhotoUpload.current = true;
-    startProfilePhotoUpload(state.profilePhoto);
-  }, [ready, state.profilePhoto, state.profilePhotoState]);
+    startProfilePhotoUpload(state.pendingProfilePhoto, state.profileName);
+  }, [ready, state.pendingProfilePhoto, state.profileName, state.profilePhotoState]);
   const selectedTrip = state.trips.find((trip) => trip.id === state.selectedTripId) ?? state.trips[0];
   const value = useMemo<Store>(() => ({ ...state, ready, selectedTrip,
     setSelectedTripId: (id) => change((s) => ({ ...s, selectedTripId: id })), saveProfile: (profileName, profileBio) => change((s) => ({ ...s, profileName, profileBio: profileBio ?? s.profileBio ?? '' })), completeOnboarding: ({ name, age, place, city, country }) => change((s) => ({ ...s, profileName: name, profileAge: age, profilePlace: place, profileCity: city, profileCountry: country, onboarded: true })),
-    setProfilePhoto: (uri) => {
+    setProfilePhoto: async (uri) => {
       if (!uri) {
-        change((current) => ({ ...current, profilePhoto: undefined, profilePhotoState: undefined }), false);
+        change((current) => ({ ...current, profilePhoto: undefined, pendingProfilePhoto: undefined, profilePhotoState: undefined, profilePhotoError: undefined }), false);
         enqueueProfilePhotoRemoval((saved) => {
-          if (saved) change((current) => ({ ...current, profilePhoto: undefined, profilePhotoState: undefined }));
+          if (saved) change((current) => ({ ...current, profilePhoto: undefined, pendingProfilePhoto: undefined, profilePhotoState: undefined, profilePhotoError: undefined }));
         });
         return;
       }
       resumedProfilePhotoUpload.current = true;
-      change((current) => ({ ...current, profilePhoto: uri, profilePhotoState: 'saving' }), false);
-      startProfilePhotoUpload(uri);
+      await stageProfilePhoto(uri);
+      startProfilePhotoUpload(uri, state.profileName);
     },
     retryProfilePhoto: () => {
-      if (!state.profilePhoto) return;
+      if (!state.pendingProfilePhoto) return;
       resumedProfilePhotoUpload.current = true;
-      change((current) => ({ ...current, profilePhotoState: 'saving' }), false);
-      startProfilePhotoUpload(state.profilePhoto);
+      change((current) => ({ ...current, profilePhotoState: 'saving', profilePhotoError: undefined }), false);
+      startProfilePhotoUpload(state.pendingProfilePhoto, state.profileName);
     },
     setProfileFrame: (profileFrameId) => change((s) => ({ ...s, profileFrameId })), setProfileAccessory: (profileAccessoryId) => change((s) => ({ ...s, profileAccessoryId })), setPremium: (premium) => change((s) => ({ ...s, premium })), markOnboarded: () => change((s) => ({ ...s, onboarded: true })),
     createTrip: (draft) => { const id = uid(); change((s) => { const trip: Trip = { ...draft, id, createdAt: new Date().toISOString(), destinationTimeZone: resolvedDestinationTimeZone(draft.city, draft.country, draft.destinationTimeZone, s.homeTimeZone), coverImage: stockCoverForCountry(draft.country), members: draft.members.filter(Boolean), activities: [], packing: [], wishes: [], memories: [] }; return { ...s, trips: [trip, ...s.trips], selectedTripId: id }; }); return id; },
