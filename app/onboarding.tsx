@@ -19,8 +19,11 @@ const introPages = [
 ];
 
 export default function Onboarding() {
-  const params = useLocalSearchParams<{ preview?: string | string[] }>();
-  const preview = params.preview === '1' || params.preview === 'true';
+  const params = useLocalSearchParams<{ preview?: string | string[]; source?: string | string[] }>();
+  const previewRequested = params.preview === '1' || params.preview === 'true';
+  // Production preview is entered from Settings. A direct debug route remains
+  // useful during development, but an ordinary first run can never become a preview.
+  const preview = previewRequested && (params.source === 'settings' || __DEV__);
   const { completeOnboarding, onboarded, ready } = useTravel();
   const [step, setStep] = useState<Step>(0);
   const [name, setName] = useState('');
@@ -51,7 +54,7 @@ export default function Onboarding() {
 
   const closePreview = () => router.canGoBack() ? router.back() : router.replace('/');
   const goTo = (next: number) => { Keyboard.dismiss(); setStep(Math.max(0, Math.min(TOTAL_STEPS - 1, next)) as Step); };
-  const canAdvance = step < 3 || step === 6 || (step === 3 ? Boolean(name.trim()) : step === 4 ? age !== null : Boolean(place.trim()));
+  const canAdvance = step < 3 || step === 6 || (step === 3 ? Boolean(name.trim()) : step === 4 ? age !== null : Boolean(placeQuery.trim()));
   const finish = () => {
     if (preview) { closePreview(); return; }
     if (!name.trim() || age === null || !place.trim()) return;
@@ -59,7 +62,12 @@ export default function Onboarding() {
     completeOnboarding({ name: name.trim(), age, place: place.trim(), city: placeCity, country: placeCountry });
     router.replace('/new-trip' as never);
   };
-  const next = () => step === 6 ? finish() : canAdvance ? goTo(step + 1) : undefined;
+  const next = () => {
+    if (step === 6) { finish(); return; }
+    if (!canAdvance) return;
+    if (step === 5) { useTypedPlace(); return; }
+    goTo(step + 1);
+  };
   const chooseAge = (value: number) => { setAge(value); setTimeout(() => goTo(5), reduceMotion ? 0 : 300); };
   const choosePlace = (suggestion: PlaceSearchResult) => {
     setPlace(suggestion.label); setPlaceQuery(suggestion.label); setPlaceCity(suggestion.city); setPlaceCountry(suggestion.country); Keyboard.dismiss();
@@ -72,7 +80,7 @@ export default function Onboarding() {
     setTimeout(() => goTo(6), reduceMotion ? 0 : 300);
   };
   const title = step < 3 ? introPages[step].title : step === 3 ? 'What should we call you?' : step === 4 ? 'How old are you?' : step === 5 ? 'Where are you from?' : `Nice to meet you, ${name.trim() || 'traveller'}.`;
-  const copy = step < 3 ? introPages[step].copy : step === 3 ? 'Your name stays with your trips and invitations.' : step === 4 ? 'This helps Travino keep the welcome personal.' : step === 5 ? 'Choose a city or country to make the details feel closer to home.' : 'Travino is ready for your next trip.';
+  const copy = step < 3 ? introPages[step].copy : step === 3 ? 'Type your name, then press return' : step === 4 ? 'Pick an age to continue' : step === 5 ? 'Start typing a town or city' : 'Travino is ready for your next trip.';
   const role: MascotRole = step < 3 ? introPages[step].role : step === 3 ? 'name' : step === 4 ? 'age' : step === 5 ? 'place' : 'welcome';
 
   return <SafeAreaView style={[s.safe, dark && s.safeDark]} edges={['top', 'bottom']}>
@@ -84,7 +92,7 @@ export default function Onboarding() {
             <Pressable accessibilityRole="button" accessibilityLabel="Skip introduction" onPress={() => goTo(3)} hitSlop={10} style={s.skipButton}><Text style={s.skip}>Skip</Text></Pressable>
           ) : <View style={s.skipSpace}/>}
         </View>
-        {preview && <View style={s.previewNotice}><Ionicons name="eye-outline" size={16} color={colors.blue}/><Text style={s.previewText}>Preview mode. Nothing you enter here will be saved.</Text></View>}
+        {preview && <View style={s.previewNotice}><Ionicons name="eye-outline" size={16} color={colors.blue}/><Text style={s.previewText}>Preview from Settings. Nothing you enter here will be saved.</Text></View>}
         <View style={s.progressRow} accessibilityLabel={`Step ${step + 1} of ${TOTAL_STEPS}`}>
           <Text style={[s.stepLabel, dark && s.mutedOnDark]}>Step {step + 1} of {TOTAL_STEPS}</Text>
           <View style={s.dots}>{Array.from({ length: TOTAL_STEPS }, (_, index) => <ProgressDot key={index} active={index === step} complete={index < step} reduceMotion={reduceMotion}/>)}</View>
@@ -108,7 +116,7 @@ export default function Onboarding() {
             {step > 0 ? (
               <Pressable accessibilityRole="button" accessibilityLabel="Previous onboarding step" onPress={() => goTo(step - 1)} style={s.backButton}><Ionicons name="arrow-back" size={17} color={colors.blue}/><Text style={s.backText}>Back</Text></Pressable>
             ) : <View style={s.backSpace}/>}
-            <Text style={[s.footerHint, dark && s.mutedOnDark]}>{step < 3 ? 'A short tour, then a few quick questions.' : step === 6 ? 'Your answers are saved when you start.' : 'Press return or choose an answer to continue.'}</Text>
+            <Text style={[s.footerHint, dark && s.mutedOnDark]}>{step < 3 ? 'A short tour, then a few quick questions.' : step === 6 ? 'Your answers are saved when you start.' : ''}</Text>
             <View style={s.backSpace}/>
           </View>
           <PrimaryButton title={step === 6 ? (preview ? 'Back to profile' : 'Start Travino') : 'Next'} icon={step === 6 ? (preview ? 'arrow-back' : 'arrow-forward') : 'arrow-forward'} disabled={!canAdvance} onPress={next}/>
@@ -149,8 +157,8 @@ function OnboardingMascot({ role, reduceMotion }: { role: MascotRole; reduceMoti
   const bob = useRef(new Animated.Value(0)).current;
   const pointsToField = role === 'name' || role === 'age' || role === 'place';
   useEffect(() => {
-    const target = pointsToField ? 40 : 0;
-    y.setValue(reduceMotion ? target : -16);
+    const target = pointsToField ? 10 : 0;
+    y.setValue(reduceMotion ? target : -12);
     const enter = Animated.timing(y, { toValue: target, duration: reduceMotion ? 150 : 300, easing: Easing.out(Easing.cubic), useNativeDriver: true });
     enter.start();
     if (reduceMotion) { bob.setValue(0); return () => enter.stop(); }
@@ -161,10 +169,11 @@ function OnboardingMascot({ role, reduceMotion }: { role: MascotRole; reduceMoti
     idle.start();
     return () => { enter.stop(); idle.stop(); };
   }, [bob, pointsToField, reduceMotion, role, y]);
-  return <Animated.View accessibilityLabel={pointsToField ? 'Travino mascot points to the answer field' : 'Travino mascot'} style={[s.mascotSlot, { transform: [{ translateY: Animated.add(y, bob) }] }]}>
-    <CapybaraMoment size={pointsToField ? 70 : 82} waving={role === 'trip' || role === 'welcome'}/>
-    {pointsToField ? <View style={s.mascotPointer}><Ionicons name="arrow-down" size={17} color={colors.blue}/></View> : null}
-  </Animated.View>;
+  return <View accessibilityLabel={pointsToField ? 'Travino mascot near the answer field' : 'Travino mascot'} style={s.mascotSlot}>
+    <Animated.View style={{ transform: [{ translateY: Animated.add(y, bob) }] }}>
+      <CapybaraMoment size={82} waving={role === 'trip' || role === 'welcome'}/>
+    </Animated.View>
+  </View>;
 }
 
 function ProgressDot({ active, complete, reduceMotion }: { active: boolean; complete: boolean; reduceMotion: boolean }) {
@@ -241,7 +250,7 @@ const s = StyleSheet.create({
   flex: { flex: 1 }, safe: { flex: 1, backgroundColor: colors.background }, safeDark: { backgroundColor: colors.darkBackground }, content: { flexGrow: 1, width: '100%', maxWidth: 500, alignSelf: 'center', paddingHorizontal: 24, paddingTop: 12 },
   brandRow: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, brand: { color: colors.text, fontFamily: fonts.heading, fontSize: 22, fontWeight: '700' }, lightText: { color: '#FFFEFB' }, mutedOnDark: { color: '#D0CBD0' }, skipButton: { minHeight: 44, paddingHorizontal: 4, justifyContent: 'center' }, skip: { color: colors.blue, fontSize: 15, fontWeight: '700' }, skipSpace: { width: 44 },
   previewNotice: { flexDirection: 'row', gap: 8, alignItems: 'center', marginTop: 10, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 14, backgroundColor: colors.blueSoft, borderWidth: 1, borderColor: '#D9EAFF' }, previewText: { flex: 1, color: colors.blue, fontSize: 12, fontWeight: '700', lineHeight: 17 }, progressRow: { alignItems: 'center', marginTop: 14 }, stepLabel: { color: colors.muted, fontSize: 12, fontWeight: '700', marginBottom: 9 }, dots: { flexDirection: 'row', gap: 6, height: 7 }, dot: { height: 7, borderRadius: 5, backgroundColor: colors.border }, dotDone: { backgroundColor: colors.blue },
-  stage: { flex: 1, alignItems: 'center', paddingTop: 8 }, mascotSlot: { height: 116, width: 112, alignItems: 'center', justifyContent: 'center', marginBottom: 4 }, mascotPointer: { position: 'absolute', right: 4, bottom: 4, width: 30, height: 30, borderRadius: 15, backgroundColor: colors.blueSoft, alignItems: 'center', justifyContent: 'center' }, title: { maxWidth: 370, color: colors.text, fontFamily: fonts.heading, fontSize: 36, lineHeight: 43, letterSpacing: -.7, textAlign: 'center' }, copy: { maxWidth: 340, marginTop: 12, color: colors.muted, fontSize: 15, lineHeight: 23, textAlign: 'center' }, exampleWrap: { width: '100%', alignItems: 'center' },
+  stage: { flex: 1, alignItems: 'center', paddingTop: 8 }, mascotSlot: { height: 120, width: 112, alignItems: 'center', justifyContent: 'flex-start', paddingTop: 8, overflow: 'hidden', marginBottom: 12 }, title: { maxWidth: 370, color: colors.text, fontFamily: fonts.heading, fontSize: 36, lineHeight: 43, letterSpacing: -.7, textAlign: 'center' }, copy: { maxWidth: 340, marginTop: 12, color: colors.muted, fontSize: 15, lineHeight: 23, textAlign: 'center' }, exampleWrap: { width: '100%', alignItems: 'center' },
   previewCard: { width: '100%', maxWidth: 350, marginTop: 26, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, shadowColor: colors.ink, shadowOpacity: .07, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 2 }, ticketCard: { borderRadius: 22, padding: 17, backgroundColor: '#EFF7FF', borderColor: '#CBE4FF' }, ticketTop: { flexDirection: 'row', alignItems: 'center', gap: 10 }, ticketIcon: { width: 36, height: 36, borderRadius: 13, backgroundColor: colors.blue, alignItems: 'center', justifyContent: 'center' }, ticketPlace: { color: colors.blue, fontSize: 9, fontWeight: '800', letterSpacing: .75 }, ticketTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 16, fontWeight: '700', marginTop: 2 }, upcomingBadge: { paddingHorizontal: 8, paddingVertical: 5, borderRadius: 10, backgroundColor: '#fff', borderWidth: 1, borderColor: '#CBE4FF' }, upcomingText: { color: colors.blue, fontSize: 10, fontWeight: '800' }, ticketCountdown: { color: colors.text, fontFamily: fonts.heading, fontSize: 23, fontWeight: '700', marginTop: 19 }, ticketProgressHead: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 }, previewMuted: { color: colors.muted, fontSize: 10, fontWeight: '800', letterSpacing: .65 }, previewStrong: { color: colors.text, fontSize: 11, fontWeight: '800' }, progressTrack: { height: 7, borderRadius: 7, overflow: 'hidden', backgroundColor: '#D6E8FC', marginTop: 7 }, progressFill: { height: '100%', backgroundColor: colors.blue, borderRadius: 7 },
   packingCard: { borderRadius: 19, padding: 16, gap: 11 }, previewHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 3 }, previewLabel: { color: colors.purple, fontSize: 10, fontWeight: '800', letterSpacing: .8 }, previewHeading: { color: colors.text, fontFamily: fonts.heading, fontSize: 16, fontWeight: '700', marginTop: 2 }, checkCount: { minWidth: 32, height: 28, borderRadius: 14, backgroundColor: colors.teal, paddingHorizontal: 7, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 1 }, checkCountText: { color: '#fff', fontSize: 12, fontWeight: '800' }, checkRow: { minHeight: 27, flexDirection: 'row', alignItems: 'center', gap: 9 }, checkText: { flex: 1, color: colors.text, fontSize: 14, fontWeight: '600' }, checkTextMuted: { color: colors.muted }, youBring: { color: colors.blue, fontSize: 11, fontWeight: '700', backgroundColor: colors.blueSoft, borderRadius: 9, paddingHorizontal: 8, paddingVertical: 4 }, notification: { flexDirection: 'row', alignItems: 'center', gap: 9, padding: 10, marginTop: 4, borderRadius: 13, backgroundColor: '#F8F3FF' }, notificationIcon: { width: 29, height: 29, borderRadius: 11, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }, notificationTitle: { color: colors.text, fontSize: 11, fontWeight: '800' }, notificationCopy: { color: colors.muted, fontSize: 11, marginTop: 2 },
   memoryCard: { borderRadius: 20, overflow: 'hidden' }, memorySky: { height: 116, backgroundColor: '#74BDE6', justifyContent: 'flex-end', padding: 13 }, memorySun: { position: 'absolute', width: 48, height: 48, borderRadius: 24, backgroundColor: '#FFCE6B', top: 17, right: 38 }, memoryPin: { position: 'absolute', right: 17, top: 19 }, memoryLocation: { color: '#fff', fontSize: 10, fontWeight: '800', letterSpacing: .8 }, memoryDetails: { minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: 11, padding: 13 }, memoryDate: { width: 38, height: 45, borderRadius: 13, backgroundColor: '#FFF1E8', alignItems: 'center', justifyContent: 'center' }, memoryDateDay: { color: colors.coral, fontSize: 17, fontWeight: '800', lineHeight: 19 }, memoryDateMonth: { color: colors.coral, fontSize: 8, fontWeight: '800', letterSpacing: .5 }, memoryCopy: { color: colors.muted, fontSize: 12, marginTop: 3 },

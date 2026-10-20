@@ -322,7 +322,7 @@ export default function ProfileScreen() {
         </ListRow>
         <View style={s.rowDivider}/>
         <Text style={s.settingsGroupLabel}>App</Text>
-        <ListRow icon="eye-outline" title="Preview onboarding" copy="Review the welcome flow without changing your profile or trips." onPress={() => router.push({ pathname: '/onboarding', params: { preview: '1' } } as any)}/>
+        <ListRow icon="eye-outline" title="Preview onboarding" copy="Review the welcome flow without changing your profile or trips." onPress={() => router.push({ pathname: '/onboarding', params: { preview: '1', source: 'settings' } } as any)}/>
         <View style={s.rowDivider}/>
         <Text style={s.settingsGroupLabel}>Travino</Text>
         <ListRow icon="sparkles-outline" tint={colors.purpleSoft} iconColor={colors.purple} title="Travino is growing gently" copy="Everything here is open while we keep shaping the first version for travellers."/>
