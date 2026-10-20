@@ -20,10 +20,12 @@ import { countryForTimeZone, countryInfoFor, plugCompatibility, plugDescriptions
 import { plugIconSource } from '@/src/plug-icons';
 import { tripNextStep } from '@/src/trip-guidance';
 import { tripDate } from '@/src/trip-planning';
+import { UndoNotice, useTripUndo } from '@/src/trip-undo';
 const tabs = ['Overview', 'Plan', 'Activities', 'Packing', 'Wishlist', 'Memories'];
 export default function TripScreen() {
   const router = useRouter();
   const { selectedTrip } = useTravel();
+  const { notice, undo, removeActivity, removePacking } = useTripUndo();
   const { tab: requestedTab } = useLocalSearchParams<{ tab?: string }>();
   const [tab, setTab] = useState('Overview');
   const [addFriendOpen, setAddFriendOpen] = useState(false);
@@ -48,7 +50,7 @@ export default function TripScreen() {
     setStartActivity(addActivity); setTab(nextTab);
     scroll.current?.scrollTo({ y: 0, animated: false });
   };
-  return <ScrollView ref={scroll} style={s.page} contentContainerStyle={s.content}>
+  return <View style={s.page}><ScrollView ref={scroll} style={s.page} contentContainerStyle={s.content}>
     {isOverview ? <PageTitle eyebrow={`${selectedTrip.city}, ${selectedTrip.country}`}>{selectedTrip.title}</PageTitle>
       : <Pressable accessibilityRole="button" accessibilityLabel="Open trip overview" onPress={() => setTab('Overview')} style={({ pressed }) => [s.compactTripHeader, pressed && s.pressed]}>
         <DestinationCover country={selectedTrip.country} uri={selectedTrip.coverImage} style={s.compactTripImage} imageStyle={s.compactTripImage}/>
@@ -62,11 +64,11 @@ export default function TripScreen() {
       </Pressable>}
     {isOverview && <TripStatus/>}
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[s.tabs, !isOverview && s.compactTabs]}>{tabs.map((item) => <Pressable key={item} accessibilityRole="tab" accessibilityState={{ selected: tab === item }} onPress={() => setTab(item)} style={[s.tab, tab === item && s.activeTab]}><Text style={[s.tabText, tab === item && s.activeText]}>{item}</Text></Pressable>)}</ScrollView>
-    {tab === 'Overview' && <Overview key={`overview-${selectedTrip.id}`} onNext={(target) => openTab(target === 'add-activity' ? 'Plan' : target, target === 'add-activity')} onOpenPlan={() => openTab('Plan')} onEditDates={() => setDatesOpen(true)} onEditDetails={() => setDetailsOpen(true)} onInvite={invite} onOpenAddFriend={() => setAddFriendOpen(true)}/>}{tab === 'Plan' && <Plan key={`plan-${selectedTrip.id}`} initiallyOpen={startActivity} onOpened={() => setStartActivity(false)}/>}{tab === 'Activities' && <ThingsToDo onOpen={(activity) => router.push({ pathname: '/activity-browser', params: { activity, city: selectedTrip.city, country: selectedTrip.country } })} />}{tab === 'Packing' && <Packing/>}{tab === 'Wishlist' && <Wishes/>}{tab === 'Memories' && <Memories/>}
+    {tab === 'Overview' && <Overview key={`overview-${selectedTrip.id}`} onNext={(target) => openTab(target === 'add-activity' ? 'Plan' : target, target === 'add-activity')} onOpenPlan={() => openTab('Plan')} onEditDates={() => setDatesOpen(true)} onEditDetails={() => setDetailsOpen(true)} onInvite={invite} onOpenAddFriend={() => setAddFriendOpen(true)}/>}{tab === 'Plan' && <Plan key={`plan-${selectedTrip.id}`} onRemove={removeActivity} initiallyOpen={startActivity} onOpened={() => setStartActivity(false)}/>}{tab === 'Activities' && <ThingsToDo onOpen={(activity) => router.push({ pathname: '/activity-browser', params: { activity, city: selectedTrip.city, country: selectedTrip.country } })} />}{tab === 'Packing' && <Packing onRemove={removePacking}/>}{tab === 'Wishlist' && <Wishes/>}{tab === 'Memories' && <Memories/>}
     {detailsOpen && <TripDetailsSheet key={`details-${selectedTrip.id}`} trip={selectedTrip} onClose={() => setDetailsOpen(false)}/>}
     {datesOpen && <TripDatesSheet key={`dates-${selectedTrip.id}`} trip={selectedTrip} onClose={() => setDatesOpen(false)}/>}
     <AddTripFriendSheet visible={addFriendOpen} onClose={() => setAddFriendOpen(false)} tripId={selectedTrip.id} tripTitle={selectedTrip.title} existingNames={selectedTrip.members}/>
-  </ScrollView>;
+  </ScrollView><UndoNotice notice={notice} onUndo={undo}/></View>;
 }
 
 type TripFriend = { profile_id: string; display_name: string; status: string };
@@ -339,8 +341,8 @@ function TripStatus() {
   const state = tripState(selectedTrip);
   return <View style={s.overviewStatus}><Ionicons name={state.label === 'Completed' ? 'checkmark-circle-outline' : 'calendar-outline'} size={19} color={colors.blue}/><Text style={s.overviewStatusText}>{state.countdown}</Text></View>;
 }
-function Plan({ initiallyOpen = false, onOpened }: { initiallyOpen?: boolean; onOpened?: () => void }) {
-  const { selectedTrip, addActivity, updateActivity, removeActivity } = useTravel();
+function Plan({ initiallyOpen = false, onOpened, onRemove }: { initiallyOpen?: boolean; onOpened?: () => void; onRemove: (id: string) => void }) {
+  const { selectedTrip, addActivity, updateActivity } = useTravel();
   const [open, setOpen] = useState(initiallyOpen);
   useEffect(() => { if (initiallyOpen) { setOpen(true); onOpened?.(); } }, [initiallyOpen]);
   const [title, setTitle] = useState('');
@@ -411,7 +413,7 @@ function Plan({ initiallyOpen = false, onOpened }: { initiallyOpen?: boolean; on
           {Boolean(item.note) && <Text style={s.planNote} numberOfLines={2}>{item.note}</Text>}
           <Text style={s.editDatesText}>{!item.date ? 'Add details' : 'Edit'}</Text>
         </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${item.title}`} hitSlop={10} onPress={() => removeActivity(selectedTrip.id, item.id)} style={({ pressed }) => [s.planRemove, pressed && s.pressed]}><Ionicons name="trash-outline" size={17} color={colors.muted}/></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${item.title}`} hitSlop={10} onPress={() => onRemove(item.id)} style={({ pressed }) => [s.planRemove, pressed && s.pressed]}><Ionicons name="trash-outline" size={17} color={colors.muted}/></Pressable>
       </Card>)}</View>
     </View>)}</View> : null}
     <View style={s.planAddButton}><PrimaryButton title={dayGroups.length ? 'Add another activity' : 'Add first activity'} onPress={() => { clear(); setOpen(true); }}/></View>
@@ -471,8 +473,8 @@ function weatherPackingSuggestions(weather: Weather | null) {
   if (lowest <= 12 || icons.includes('snow-outline')) suggested.push(['Warm layer', 'Clothing']);
   return suggested;
 }
-function Packing() {
-  const { selectedTrip, addPacking, togglePacking, removePacking, updateTrip } = useTravel();
+function Packing({ onRemove }: { onRemove: (id: string) => void }) {
+  const { selectedTrip, addPacking, togglePacking, updateTrip } = useTravel();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('');
@@ -535,7 +537,7 @@ function Packing() {
           <Ionicons name={item.done ? 'checkmark-circle' : 'ellipse-outline'} size={28} color={item.done ? colors.teal : colors.muted}/>
           <View style={s.packingItemCopy}><Text style={[s.packingItemTitle, item.done && s.done]}>{item.title}</Text>{Boolean(item.person) && <Text style={s.packingPerson}>{item.person}</Text>}</View>
         </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${item.title}`} onPress={() => removePacking(selectedTrip.id, item.id)} style={({ pressed }) => [s.packingRemove, pressed && s.pressed]}><Ionicons name="close" size={20} color={colors.muted}/></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${item.title}`} onPress={() => onRemove(item.id)} style={({ pressed }) => [s.packingRemove, pressed && s.pressed]}><Ionicons name="close" size={20} color={colors.muted}/></Pressable>
       </View>)}
     </View>)}</View>
     <PrimaryButton title="Add item" icon="add" onPress={openItem}/>
