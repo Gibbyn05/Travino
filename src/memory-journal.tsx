@@ -1,11 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Easing, Image, KeyboardAvoidingView, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { AccessibilityInfo, ActivityIndicator, Animated, Easing, Image, KeyboardAvoidingView, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { CapybaraMoment } from '@/src/ui';
 import { colors, fonts } from '@/src/theme';
 import { Memory, MemoryLayout, Trip } from '@/src/store';
 import { formatJournalDate, parseTravelDate } from '@/src/dates';
+import { cacheMemoryImage } from '@/src/memory-image-cache';
 
 const coverPalette = [
   { cover: '#29476D', shade: '#203B5D', ink: '#F9F0DB' },
@@ -136,7 +137,10 @@ export function MemoryJournal({ trip, coverIndex, isPublic, onAddMemory, onSaveC
       springBack();
       return;
     }
-    setTurnSnapshot(current);
+    // Keep the outgoing page as the single moving layer and render the target
+    // spread beneath it before the snapshot can reveal it. This is what makes
+    // both directions use the same, interruption-safe paging container.
+    setTurnSnapshot((snapshot) => snapshot ?? current);
     if (reduceMotion) {
       stopActiveTurn();
       setPageIndex(destination);
@@ -146,10 +150,8 @@ export function MemoryJournal({ trip, coverIndex, isPublic, onAddMemory, onSaveC
       animation.start(() => { if (activeTurn.current === animation) { activeTurn.current = null; releaseTurnSnapshot(); } });
       return;
     }
-    springDrag(direction * -spreadWidth, velocity, () => {
-      setPageIndex(destination);
-      requestAnimationFrame(releaseTurnSnapshot);
-    });
+    setPageIndex(destination);
+    requestAnimationFrame(() => springDrag(direction * -spreadWidth, velocity, releaseTurnSnapshot));
   }, [activeTurn, current, nativeDriver, pages.length, reduceMotion, releaseTurnSnapshot, safePageIndex, snapshotOpacity, springBack, springDrag, spreadWidth, stopActiveTurn]);
 
   const responder = useMemo(() => PanResponder.create({
@@ -157,8 +159,8 @@ export function MemoryJournal({ trip, coverIndex, isPublic, onAddMemory, onSaveC
     // Capture only a deliberate horizontal drag. This lets notes remain tappable
     // while ensuring a photo, note or input cannot swallow a page turn.
     onStartShouldSetPanResponderCapture: () => false,
-    onMoveShouldSetPanResponderCapture: (_, gesture) => open && Math.abs(gesture.dx) > 5 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
-    onMoveShouldSetPanResponder: (_, gesture) => open && Math.abs(gesture.dx) > 5 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
+    onMoveShouldSetPanResponderCapture: (_, gesture) => open && !captionEditorOpen && Math.abs(gesture.dx) > 5 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
+    onMoveShouldSetPanResponder: (_, gesture) => open && !captionEditorOpen && Math.abs(gesture.dx) > 5 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
     onPanResponderGrant: () => {
       stopActiveTurn();
       dragX.stopAnimation();
@@ -186,7 +188,7 @@ export function MemoryJournal({ trip, coverIndex, isPublic, onAddMemory, onSaveC
     onPanResponderTerminate: springBack,
     onPanResponderTerminationRequest: () => false,
     onShouldBlockNativeResponder: () => true,
-  }), [current, dragX, open, pages.length, reduceMotion, safePageIndex, snapshotOpacity, springBack, spreadWidth, stopActiveTurn, turn]);
+  }), [captionEditorOpen, current, dragX, open, pages.length, reduceMotion, safePageIndex, snapshotOpacity, springBack, spreadWidth, stopActiveTurn, turn]);
 
   const bookScale = openProgress.interpolate({ inputRange: [0, 1], outputRange: [.76, 1] });
   const coverRotation = openProgress.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '-169deg'] });
@@ -210,8 +212,8 @@ export function MemoryJournal({ trip, coverIndex, isPublic, onAddMemory, onSaveC
           <View style={journalStyles.spreadLayer}><JournalSpread spread={current} onSaveCaption={saveCaption} onSaveLayout={saveLayout} onRemoveMemory={removeMemory} onCaptionFocus={revealCaption} onCaptionEditingChange={setCaptionEditorOpen} layoutEditing={!readOnly && layoutEditing} readOnly={readOnly}/></View>
           {turnSnapshot && <Animated.View pointerEvents="none" style={[journalStyles.turnSnapshotLayer, { opacity: snapshotOpacity, transform: [{ translateX: dragX }] }]}><FrozenJournalSpread spread={turnSnapshot} onSaveCaption={saveCaption} onSaveLayout={saveLayout} onRemoveMemory={removeMemory} onCaptionFocus={revealCaption} onCaptionEditingChange={setCaptionEditorOpen} layoutEditing={false} readOnly={readOnly}/></Animated.View>}
         </View>
-        {safePageIndex > 0 && <Pressable accessibilityRole="button" accessibilityLabel="Previous page" onPress={() => turn(-1)} style={[journalStyles.edgeTap, journalStyles.leftEdgeTap]}/>}
-        {safePageIndex < pages.length - 1 && <Pressable accessibilityRole="button" accessibilityLabel="Next page" onPress={() => turn(1)} style={[journalStyles.edgeTap, journalStyles.rightEdgeTap]}/>}
+        {safePageIndex > 0 && <Pressable accessibilityRole="button" accessibilityLabel="Previous page" onPress={() => turn(-1)} hitSlop={8} style={[journalStyles.pageArrow, journalStyles.leftPageArrow]}><Ionicons name="chevron-back" size={18} color="#624B3A"/></Pressable>}
+        {safePageIndex < pages.length - 1 && <Pressable accessibilityRole="button" accessibilityLabel="Next page" onPress={() => turn(1)} hitSlop={8} style={[journalStyles.pageArrow, journalStyles.rightPageArrow]}><Ionicons name="chevron-forward" size={18} color="#624B3A"/></Pressable>}
         {!reduceMotion && <Animated.View pointerEvents="none" style={[journalStyles.frontCover, { opacity: coverOpacity, transform: [{ perspective: 900 }, { rotateY: coverRotation }] }]}><JournalCoverFace trip={trip} palette={palette}/></Animated.View>}
       </Animated.View>
     </View>
@@ -243,11 +245,21 @@ function ScrapPage({ side, page, onSaveCaption, onSaveLayout, onRemoveMemory, on
 function MemoryPhoto({ memory, canvas, onSaveCaption, onSaveLayout, onRemoveMemory, onCaptionFocus, onCaptionEditingChange, layoutEditing, readOnly }: { memory: Memory; canvas: { width: number; height: number }; onSaveCaption: (memoryId: string, caption: string) => void; onSaveLayout: (memoryId: string, layout: MemoryLayout) => void; onRemoveMemory: (memoryId: string) => void; onCaptionFocus: () => void; onCaptionEditingChange: (open: boolean) => void; layoutEditing: boolean; readOnly: boolean }) {
   const [caption, setCaption] = useState(memory.caption ?? '');
   const [editing, setEditing] = useState(false);
+  const [displayUri, setDisplayUri] = useState(memory.thumbnail || memory.image);
   const start = useRef<MemoryLayout | null>(null);
   const defaultLayout = useMemo(() => memory.layout?.pageStyle === 'single' ? memory.layout : singlePhotoLayout(), [memory.layout]);
   const latestLayout = useRef<MemoryLayout>(defaultLayout);
   const [layout, setLayout] = useState(defaultLayout);
   useEffect(() => { setCaption(memory.caption ?? ''); }, [memory.caption, memory.id]);
+  useEffect(() => {
+    let active = true;
+    const preview = memory.thumbnail || memory.image;
+    setDisplayUri(preview);
+    // Picked images are already local. Signed, public-book images are cached
+    // on disk on native so returning to a spread does not fetch them again.
+    void cacheMemoryImage(preview).then((uri) => { if (active) setDisplayUri(uri); });
+    return () => { active = false; };
+  }, [memory.id, memory.image, memory.thumbnail]);
   useEffect(() => { const next = memory.layout?.pageStyle === 'single' ? memory.layout : singlePhotoLayout(); latestLayout.current = next; setLayout(next); }, [memory.id, memory.layout]);
   const beginEditing = () => { setEditing(true); onCaptionEditingChange(true); onCaptionFocus(); };
   const finishEditing = () => { onSaveCaption(memory.id, caption); setEditing(false); onCaptionEditingChange(false); };
@@ -271,12 +283,15 @@ function MemoryPhoto({ memory, canvas, onSaveCaption, onSaveLayout, onRemoveMemo
   if (!canvas.width || !canvas.height) return null;
   return <View style={[journalStyles.photoSlot, { width: photoWidth, height: photoHeight, left: effective.x * canvas.width - photoWidth / 2, top: effective.y * canvas.height - photoHeight / 2 }]}>
     <View style={journalStyles.photo}>
-      <View style={journalStyles.imageFrame}><Image source={{ uri: memory.image }} resizeMode="contain" style={journalStyles.photoImage}/></View>
+      <View style={journalStyles.imageFrame}><Image source={{ uri: displayUri }} resizeMode="contain" style={journalStyles.photoImage}/></View>
       {readOnly
         ? <View style={journalStyles.captionNote}><Text numberOfLines={1} style={[journalStyles.captionText, !caption.trim() && journalStyles.captionPlaceholder]}>{caption.trim() || 'A memory worth keeping'}</Text></View>
         : editing
         ? <View style={journalStyles.captionNote}><TextInput autoFocus value={caption} onChangeText={setCaption} onFocus={onCaptionFocus} onBlur={finishEditing} onSubmitEditing={finishEditing} placeholder="Write a caption" placeholderTextColor="#A99A89" maxLength={180} multiline={false} returnKeyType="done" style={journalStyles.captionInput} accessibilityLabel="Photo caption"/></View>
         : <Pressable accessibilityRole="button" accessibilityLabel="Edit photo caption" onPress={beginEditing} style={journalStyles.captionNote}><Text numberOfLines={1} style={[journalStyles.captionText, !caption.trim() && journalStyles.captionPlaceholder]}>{caption.trim() || 'Write a caption'}</Text></Pressable>}
+      {!readOnly && memory.saveState && <View accessibilityLabel={memory.saveState === 'saving' ? 'Saving photo' : memory.saveState === 'saved' ? 'Photo saved' : 'Photo needs retry'} style={[journalStyles.saveStatus, memory.saveState === 'retry' && journalStyles.saveStatusRetry]}>
+        {memory.saveState === 'saving' ? <ActivityIndicator size="small" color={colors.blue}/> : <Ionicons name={memory.saveState === 'saved' ? 'checkmark' : 'alert-circle'} size={11} color={memory.saveState === 'retry' ? '#A85737' : '#43745F'}/>}<Text style={[journalStyles.saveStatusText, memory.saveState === 'retry' && journalStyles.saveStatusRetryText]}>{memory.saveState === 'saving' ? 'Saving' : memory.saveState === 'saved' ? 'Saved' : 'Retry'}</Text>
+      </View>}
     </View>
     {layoutEditing && <><View {...responder.panHandlers} accessibilityLabel="Drag to arrange this photo" style={journalStyles.dragHandle}><Ionicons name="move" size={13} color="#604936"/></View><Pressable accessibilityRole="button" accessibilityLabel="Remove photo" onPress={() => onRemoveMemory(memory.id)} hitSlop={7} style={journalStyles.removePhoto}><Ionicons name="close" size={12} color="#FFFDF9"/></Pressable></>}
   </View>;
@@ -343,9 +358,9 @@ const journalStyles = StyleSheet.create({
   edges: { position: 'absolute', top: 13, bottom: 8, width: 22, zIndex: -1 }, leftEdges: { left: 0 }, rightEdges: { right: 0 }, edge: { position: 'absolute', top: 0, bottom: 0, width: 16, borderRadius: 4, backgroundColor: '#EAE0D3', shadowColor: '#000', shadowOpacity: .12, shadowRadius: 4, shadowOffset: { width: 1, height: 2 } },
   spread: { flex: 1, flexDirection: 'row', overflow: 'hidden', borderRadius: 11, backgroundColor: '#F9F0DF', shadowColor: '#0B0604', shadowOpacity: .34, shadowRadius: 22, shadowOffset: { width: 0, height: 12 }, elevation: 8 },
   paper: { flex: 1, overflow: 'hidden', padding: 12, backgroundColor: '#FBF2E2' }, leftPaper: { borderTopLeftRadius: 11, borderBottomLeftRadius: 11 }, rightPaper: { borderTopRightRadius: 11, borderBottomRightRadius: 11 }, crease: { width: 5, backgroundColor: 'rgba(109,76,54,.17)', shadowColor: '#63442E', shadowOpacity: .35, shadowRadius: 5, shadowOffset: { width: 1, height: 0 }, zIndex: 3 },
-  collageCanvas: { flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden', borderRadius: 8, backgroundColor: '#FBF2E2' }, photoSlot: { position: 'absolute', zIndex: 2 }, photo: { flex: 1, minHeight: 0, maxWidth: '100%', backgroundColor: '#FFFDF9', padding: 4, borderRadius: 2, shadowColor: '#76533A', shadowOpacity: .2, shadowRadius: 5, shadowOffset: { width: 0, height: 3 }, elevation: 2 }, imageFrame: { flex: 1, minHeight: 0, overflow: 'hidden', borderRadius: 1, backgroundColor: '#E1D3C1', alignItems: 'center', justifyContent: 'center' }, photoImage: { width: '100%', height: '100%' }, captionNote: { height: 20, marginTop: 3, paddingHorizontal: 5, justifyContent: 'center', borderRadius: 4, borderWidth: 1, borderColor: '#E4D7C6', backgroundColor: '#FFF8EA' }, captionText: { color: '#624B3A', fontSize: 8.5, lineHeight: 10, fontStyle: 'italic' }, captionPlaceholder: { color: '#A99A89' }, captionInput: { height: 18, color: '#624B3A', fontSize: 8.5, lineHeight: 10, fontStyle: 'italic', padding: 0, textAlignVertical: 'center' }, dragHandle: { position: 'absolute', left: -7, top: -7, width: 25, height: 25, borderRadius: 13, backgroundColor: '#F4D49E', borderWidth: 1, borderColor: '#D5AC69', alignItems: 'center', justifyContent: 'center', zIndex: 5 }, removePhoto: { position: 'absolute', right: -6, top: -6, width: 22, height: 22, borderRadius: 11, backgroundColor: '#8D574B', alignItems: 'center', justifyContent: 'center', zIndex: 5 },
+  collageCanvas: { flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden', borderRadius: 8, backgroundColor: '#FBF2E2' }, photoSlot: { position: 'absolute', zIndex: 2 }, photo: { flex: 1, minHeight: 0, maxWidth: '100%', backgroundColor: '#FFFDF9', padding: 4, borderRadius: 2, shadowColor: '#76533A', shadowOpacity: .2, shadowRadius: 5, shadowOffset: { width: 0, height: 3 }, elevation: 2 }, imageFrame: { flex: 1, minHeight: 0, overflow: 'hidden', borderRadius: 1, backgroundColor: '#E1D3C1', alignItems: 'center', justifyContent: 'center' }, photoImage: { width: '100%', height: '100%' }, captionNote: { height: 20, marginTop: 3, paddingHorizontal: 5, justifyContent: 'center', borderRadius: 4, borderWidth: 1, borderColor: '#E4D7C6', backgroundColor: '#FFF8EA' }, captionText: { color: '#624B3A', fontSize: 8.5, lineHeight: 10, fontStyle: 'italic' }, captionPlaceholder: { color: '#A99A89' }, captionInput: { height: 18, color: '#624B3A', fontSize: 8.5, lineHeight: 10, fontStyle: 'italic', padding: 0, textAlignVertical: 'center' }, saveStatus: { position: 'absolute', right: 7, bottom: 25, minWidth: 52, height: 18, paddingHorizontal: 5, borderRadius: 9, gap: 3, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,253,249,.94)', borderWidth: 1, borderColor: '#D6E6DC' }, saveStatusRetry: { borderColor: '#E4B99E', backgroundColor: '#FFF5EB' }, saveStatusText: { color: '#43745F', fontSize: 8, fontWeight: '800' }, saveStatusRetryText: { color: '#A85737' }, dragHandle: { position: 'absolute', left: -7, top: -7, width: 25, height: 25, borderRadius: 13, backgroundColor: '#F4D49E', borderWidth: 1, borderColor: '#D5AC69', alignItems: 'center', justifyContent: 'center', zIndex: 5 }, removePhoto: { position: 'absolute', right: -6, top: -6, width: 22, height: 22, borderRadius: 11, backgroundColor: '#8D574B', alignItems: 'center', justifyContent: 'center', zIndex: 5 },
   blankPage: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 7 }, blankCopy: { color: '#887563', fontSize: 10, textAlign: 'center', lineHeight: 14 }, emptyTitle: { color: '#44362C', fontFamily: fonts.heading, textAlign: 'center', fontSize: 16, marginTop: 6 }, emptyCopy: { color: '#887563', textAlign: 'center', fontSize: 11, lineHeight: 16, marginTop: 4 }, paperButton: { marginTop: 12, borderRadius: 15, backgroundColor: '#E8C695', paddingHorizontal: 10, paddingVertical: 7 }, paperButtonText: { color: '#5A4335', fontSize: 10, fontWeight: '800' },
-  edgeTap: { position: 'absolute', top: 0, bottom: 0, width: '12%', zIndex: 12 }, leftEdgeTap: { left: 0 }, rightEdgeTap: { right: 0 },
+  pageArrow: { position: 'absolute', top: '50%', marginTop: -17, height: 34, width: 30, borderRadius: 17, backgroundColor: 'rgba(255,253,249,.9)', alignItems: 'center', justifyContent: 'center', shadowColor: '#61412C', shadowOpacity: .16, shadowRadius: 5, shadowOffset: { width: 0, height: 2 }, elevation: 3, zIndex: 12 }, leftPageArrow: { left: 7 }, rightPageArrow: { right: 7 },
   frontCover: { ...StyleSheet.absoluteFill, zIndex: 10, transformOrigin: 'left center' }, coverFace: { flex: 1, borderRadius: 11, padding: 26, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }, coverFaceSpine: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 23 }, coverFaceTitle: { fontFamily: fonts.heading, textAlign: 'center', fontSize: 27, lineHeight: 32, marginTop: 14 }, coverFacePlace: { fontSize: 12, opacity: .86, marginTop: 5 }, coverFacePages: { position: 'absolute', left: 6, right: 6, bottom: 0, height: 13, backgroundColor: '#FFF9EE', borderTopWidth: 1, borderColor: '#E7DCCB' }, coverFaceRibbon: { position: 'absolute', bottom: -18, width: 22, height: 27, backgroundColor: '#E78B43' },
   pageHint: { alignItems: 'center', gap: 2, minHeight: 34 }, pageHintText: { color: '#FFF8EB', fontFamily: fonts.heading, fontSize: 13 }, swipeHint: { color: '#D8C1AA', fontSize: 11 }, toolbar: { minHeight: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12 }, toolButton: { height: 50, width: 50, borderRadius: 25, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', shadowColor: '#120B08', shadowOpacity: .2, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 4 }, toolButtonActive: { backgroundColor: colors.blue },
 });

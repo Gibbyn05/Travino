@@ -1,5 +1,5 @@
 import * as ImagePicker from 'expo-image-picker';
-import { Alert, AppState } from 'react-native';
+import { AppState } from 'react-native';
 import { createContext, ReactNode, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { stockCoverForCountry } from './country-images';
 import { ensureGuestIdentity, supabase } from './lib/supabase';
@@ -8,6 +8,7 @@ import { flushQueuedMessages } from './friend-chat';
 import { countryForTimeZone, deviceTimeZone, resolvedDestinationTimeZone, resolvedHomeTimeZone } from './travel-info';
 import { CompletionState } from './travel-levels';
 import { restoreItem } from './restore-item';
+import { prepareMemoryPhoto } from './memory-photo-processing';
 
 export type Activity = { id: string; title: string; date: string; startTime: string; endTime?: string; location?: string; note?: string; participants?: string[] };
 export type PackingItem = { id: string; title: string; person?: string; category: string; done: boolean };
@@ -17,7 +18,8 @@ export type Wish = { id: string; name: string; category: string; location?: stri
 // photo can carry its own short scrapbook caption.
 export type MemoryLayout = { x: number; y: number; scale: number; rotation: number; pageStyle?: 'single' };
 // `bookPage` is a zero-based scrapbook page. Each memory owns exactly one page.
-export type Memory = { id: string; image: string; date: string; location?: string; text?: string; caption?: string; bookPage?: number; layout?: MemoryLayout };
+export type MemorySaveState = 'saving' | 'saved' | 'retry';
+export type Memory = { id: string; image: string; thumbnail?: string; date: string; location?: string; text?: string; caption?: string; bookPage?: number; layout?: MemoryLayout; saveState?: MemorySaveState; saveError?: string; uploadReady?: boolean; sourceWidth?: number; sourceHeight?: number };
 export type MemoryBookVisibility = 'public' | 'private';
 export type Trip = { id: string; sharedTripId?: string; title: string; city: string; country: string; destinationTimeZone?: string; startDate: string; endDate: string; createdAt?: string; completedAt?: string; completionState?: CompletionState; members: string[]; memberAccountIds?: Record<string, string>; coverImage?: string; icon?: string; color?: string; reminderNotificationIds?: string[]; memoryBookVisibility?: MemoryBookVisibility; activities: Activity[]; packing: PackingItem[]; wishes: Wish[]; memories: Memory[] };
 export type DraftTrip = Pick<Trip, 'title' | 'city' | 'country' | 'startDate' | 'endDate' | 'members' | 'coverImage'> & Partial<Pick<Trip, 'sharedTripId' | 'icon' | 'color' | 'destinationTimeZone'>>;
@@ -32,6 +34,7 @@ const memoryObjectPath = (memory: Memory, userId: string) => {
   const extension = (cleanUri.split('.').pop() || 'jpg').replace(/[^a-z0-9]/gi, '').toLowerCase() || 'jpg';
   return `${userId}/${memory.id.replace(/[^a-z0-9_-]/gi, '_')}.${extension}`;
 };
+const memoryThumbnailPath = (memory: Memory, userId: string) => `${userId}/${memory.id.replace(/[^a-z0-9_-]/gi, '_')}-thumb.jpg`;
 const defaultHomeTimeZone = deviceTimeZone();
 const initial: StoredState = { profileName: '', homeTimeZone: defaultHomeTimeZone, homeCountry: countryForTimeZone(defaultHomeTimeZone), premium: false, memoryBooksPublicByDefault: false, trips: [], onboarded: true };
 const timeZoneFieldsNeedMigration = (raw: unknown, hydrated: StoredState) => {
@@ -56,19 +59,65 @@ const stateFrom = (value: unknown): StoredState | null => {
 type Store = StoredState & { ready: boolean; selectedTrip?: Trip; setSelectedTripId: (id?: string) => void; saveProfile: (name: string, bio?: string) => void; setProfileFrame: (frameId?: string) => void; setProfileAccessory: (accessoryId?: string) => void; createTrip: (draft: DraftTrip) => string; updateTrip: (id: string, patch: Partial<Trip>) => void; setTripCompletionState: (id: string, state?: CompletionState) => void; deleteTrip: (id: string) => void; addMember: (tripId: string, name: string, accountId?: string) => void; addActivity: (tripId: string, item: Omit<Activity, 'id'>) => void; updateActivity: (tripId: string, activityId: string, patch: Partial<Activity>) => void; removeActivity: (tripId: string, activityId: string) => void; restoreActivity: (tripId: string, item: Activity, index: number) => void; addPacking: (tripId: string, item: Omit<PackingItem, 'id' | 'done'>) => void; togglePacking: (tripId: string, itemId: string) => void; removePacking: (tripId: string, itemId: string) => void; restorePacking: (tripId: string, item: PackingItem, index: number) => void; copyPacking: (fromTripId: string, toTripId: string, categories: string[]) => void; addWish: (tripId: string, item: Omit<Wish, 'id' | 'voted' | 'reactions'>) => void; toggleWish: (tripId: string, wishId: string) => void; setWishReaction: (tripId: string, wishId: string, voterId: string, displayName: string, reaction?: WishReaction) => void; removeWish: (tripId: string, wishId: string) => void; moveWishToPlan: (tripId: string, wishId: string) => void; addPhoto: (tripId: string, page?: number) => Promise<void>; setMemoryCaption: (tripId: string, memoryId: string, caption: string) => void; setMemoryLayout: (tripId: string, memoryId: string, layout: MemoryLayout) => void; removeMemory: (tripId: string, memoryId: string) => void; setMemoryBooksPublicByDefault: (isPublic: boolean) => void; setTripMemoryBookVisibility: (tripId: string, visibility?: MemoryBookVisibility) => void; syncMemoryBookPhotos: () => Promise<number>; setPremium: (premium: boolean) => void; markOnboarded: () => void };
 const TravelContext = createContext<Store | null>(null);
 
-async function syncMemoryPhoto(trip: Trip, memory: Memory, userId: string, bookPublic: boolean, contentType?: string) {
+async function syncMemoryPhoto(trip: Trip, memory: Memory, userId: string, bookPublic: boolean, contentType = 'image/jpeg') {
   if (!supabase) return false;
-  const cleanUri = memory.image.split(/[?#]/)[0];
-  const extension = (cleanUri.split('.').pop() || 'jpg').replace(/[^a-z0-9]/gi, '').toLowerCase() || 'jpg';
   const path = memoryObjectPath(memory, userId);
+  const thumbnailPath = memoryThumbnailPath(memory, userId);
+  const startedAt = Date.now();
   try {
-    const blob = await (await fetch(memory.image)).blob();
-    const mime = contentType || (extension === 'jpg' ? 'image/jpeg' : `image/${extension}`);
-    const { error: uploadError } = await supabase.storage.from('memory-book').upload(path, blob, { contentType: mime, upsert: true });
-    if (uploadError) return false;
+    const [imageBlob, thumbnailBlob] = await Promise.all([
+      fetch(memory.image).then((response) => response.blob()),
+      fetch(memory.thumbnail || memory.image).then((response) => response.blob()),
+    ]);
+    // The full photo and the reader thumbnail intentionally travel together.
+    // Supabase does not offer byte progress here, so the UI exposes a clear
+    // saving/retry state instead of a misleading percentage.
+    const [imageUpload, thumbnailUpload] = await Promise.all([
+      supabase.storage.from('memory-book').upload(path, imageBlob, { contentType, upsert: true }),
+      supabase.storage.from('memory-book').upload(thumbnailPath, thumbnailBlob, { contentType: 'image/jpeg', upsert: true }),
+    ]);
+    if (imageUpload.error || thumbnailUpload.error) return false;
     const { error } = await supabase.from('memory_book_entries').upsert({ user_id: userId, object_path: path, trip_id: trip.id, trip_title: trip.title, city: memory.location || trip.city, country: trip.country, taken_on: memory.date, caption: memory.caption ?? memory.text ?? '', book_public: bookPublic }, { onConflict: 'object_path' });
+    console.info(`[Travino memory timing] upload ${memory.id}: ${Date.now() - startedAt}ms`);
     return !error;
   } catch { return false; }
+}
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const queuedMemoryIds = new Set<string>();
+let memoryUploadTail: Promise<void> = Promise.resolve();
+
+function enqueueMemoryPhotoUpload(
+  trip: Trip,
+  memory: Memory,
+  publicByDefault: boolean,
+  onState: (state: MemorySaveState, error?: string, persistRemotely?: boolean) => void,
+) {
+  if (queuedMemoryIds.has(memory.id)) return;
+  queuedMemoryIds.add(memory.id);
+  memoryUploadTail = memoryUploadTail.catch(() => undefined).then(async () => {
+    try {
+      if (!supabase) {
+        onState('saved', undefined, false);
+        return;
+      }
+      onState('saving');
+      const user = await ensureGuestIdentity().catch(() => null);
+      if (!user) throw new Error('Waiting for a connection');
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        if (await syncMemoryPhoto(trip, memory, user.id, memoryBookIsPublic(trip, publicByDefault))) {
+          onState('saved', undefined, true);
+          return;
+        }
+        if (attempt < 2) await sleep(1_000 * (2 ** attempt));
+      }
+      throw new Error('Could not save just now');
+    } catch (error) {
+      onState('retry', error instanceof Error ? error.message : 'Could not save just now');
+    } finally {
+      queuedMemoryIds.delete(memory.id);
+    }
+  });
 }
 
 async function syncMemoryBooks(trips: Trip[], publicByDefault: boolean) {
@@ -94,9 +143,10 @@ async function syncMemoryCaption(memory: Memory, userId: string) {
 async function removeMemoryFromCloud(memory: Memory, userId: string) {
   if (!supabase) return;
   const path = memoryObjectPath(memory, userId);
+  const thumbnailPath = memoryThumbnailPath(memory, userId);
   await Promise.all([
     supabase.from('memory_book_entries').delete().eq('user_id', userId).eq('object_path', path),
-    supabase.storage.from('memory-book').remove([path]),
+    supabase.storage.from('memory-book').remove([path, thumbnailPath]),
   ]);
 }
 
@@ -119,6 +169,7 @@ async function flushDirectMessageOutbox() {
 export function TravelProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<StoredState>(initial); const [ready, setReady] = useState(false);
   const remoteWrites = useRef(Promise.resolve());
+  const resumedMemoryUploads = useRef(new Set<string>());
   useEffect(() => { let active = true; const load = async () => { let next = initial; let client = supabase; let remoteUser: { id: string } | null = null; let migrateRemote = false; try { const raw = await storage.getItem(key) || await storage.getItem(legacyKey); const local = raw ? stateFrom(JSON.parse(raw)) : null; if (local) next = local; } catch { /* Start with an empty state if the local cache is unreadable. */ } try { if (client) { const user = await ensureGuestIdentity().catch(() => null); if (user) { remoteUser = user; const { data } = await client.from('travel_states').select('payload').eq('user_id', user.id).maybeSingle(); const remote = stateFrom(data?.payload); if (remote) { next = remote; migrateRemote = timeZoneFieldsNeedMigration(data?.payload, remote); } else await client.from('travel_states').upsert({ user_id: user.id, payload: next, updated_at: new Date().toISOString() }); } } } catch { /* The local state remains usable if the database is temporarily unavailable. */ } if (active) { setState(next); await storage.setItem(key, JSON.stringify(next)).catch(() => undefined); if (migrateRemote && client && remoteUser) await client.from('travel_states').upsert({ user_id: remoteUser.id, payload: next, updated_at: new Date().toISOString() }); setReady(true); } }; load().catch(() => { if (active) setReady(true); }); return () => { active = false; }; }, []);
   const persistRemote = (next: StoredState) => { const client = supabase; if (!client || !ready) return; remoteWrites.current = remoteWrites.current.catch(() => undefined).then(async () => { const user = await ensureGuestIdentity(); if (!user) return; const { error } = await client.from('travel_states').upsert({ user_id: user.id, payload: next, updated_at: new Date().toISOString() }); if (error) throw error; }).catch(() => undefined); };
   useEffect(() => {
@@ -129,12 +180,52 @@ export function TravelProvider({ children }: { children: ReactNode }) {
     const appState = AppState.addEventListener('change', (nextState) => { if (nextState === 'active') flush(); });
     return () => { clearInterval(interval); appState.remove(); };
   }, [ready]);
-  const change = (update: (current: StoredState) => StoredState) => setState((current) => { const next = update(current); storage.setItem(key, JSON.stringify(next)).catch(() => undefined); persistRemote(next); return next; });
+  const change = (update: (current: StoredState) => StoredState, syncRemotely = true) => setState((current) => { const next = update(current); storage.setItem(key, JSON.stringify(next)).catch(() => undefined); if (syncRemotely) persistRemote(next); return next; });
   const updateTrip = (id: string, patch: Partial<Trip>) => change((s) => ({ ...s, trips: s.trips.map((trip) => {
     if (trip.id !== id) return trip;
     const next = { ...trip, ...patch };
     return { ...next, destinationTimeZone: resolvedDestinationTimeZone(next.city, next.country, next.destinationTimeZone, s.homeTimeZone) };
   }) }));
+  const updateTripLocally = (id: string, patch: Partial<Trip>) => change((s) => ({ ...s, trips: s.trips.map((trip) => {
+    if (trip.id !== id) return trip;
+    const next = { ...trip, ...patch };
+    return { ...next, destinationTimeZone: resolvedDestinationTimeZone(next.city, next.country, next.destinationTimeZone, s.homeTimeZone) };
+  }) }), false);
+  const setMemoryUploadState = (tripId: string, memoryId: string, saveState: MemorySaveState, saveError?: string, persistRemotely = false) => {
+    const apply = (current: StoredState) => ({ ...current, trips: current.trips.map((trip) => trip.id === tripId ? {
+      ...trip,
+      memories: trip.memories.map((memory) => memory.id === memoryId ? { ...memory, saveState, saveError } : memory),
+    } : trip) });
+    change(apply, persistRemotely);
+  };
+  const startMemoryUpload = (trip: Trip, memory: Memory) => {
+    enqueueMemoryPhotoUpload(trip, memory, state.memoryBooksPublicByDefault, (saveState, saveError, persistRemotely) => {
+      setMemoryUploadState(trip.id, memory.id, saveState, saveError, persistRemotely);
+    });
+  };
+  const processMemoryPhoto = (trip: Trip, memory: Memory) => {
+    void prepareMemoryPhoto({ uri: memory.image, width: memory.sourceWidth, height: memory.sourceHeight }).then((prepared) => {
+      const processedMemory: Memory = { ...memory, image: prepared.image, thumbnail: prepared.thumbnail, saveState: 'saving', saveError: undefined, uploadReady: true };
+      change((current) => ({ ...current, trips: current.trips.map((item) => item.id !== trip.id ? item : {
+        ...item,
+        memories: item.memories.map((itemMemory) => itemMemory.id === memory.id ? processedMemory : itemMemory),
+      }) }), false);
+      console.info(`[Travino memory timing] compress ${memory.id}: ${prepared.compressMs}ms, ${Math.round((prepared.imageBytes ?? 0) / 1024)}KB photo, ${Math.round((prepared.thumbnailBytes ?? 0) / 1024)}KB thumbnail`);
+      startMemoryUpload(trip, processedMemory);
+    }).catch((error) => {
+      setMemoryUploadState(trip.id, memory.id, 'retry', error instanceof Error ? error.message : 'Could not prepare photo');
+    });
+  };
+
+  useEffect(() => {
+    if (!ready) return;
+    state.trips.forEach((trip) => trip.memories.forEach((memory) => {
+      if ((memory.saveState !== 'saving' && memory.saveState !== 'retry') || resumedMemoryUploads.current.has(memory.id)) return;
+      resumedMemoryUploads.current.add(memory.id);
+      if (memory.uploadReady) startMemoryUpload(trip, memory);
+      else processMemoryPhoto(trip, memory);
+    }));
+  }, [ready, state.trips]);
   const selectedTrip = state.trips.find((trip) => trip.id === state.selectedTripId) ?? state.trips[0];
   const value = useMemo<Store>(() => ({ ...state, ready, selectedTrip,
     setSelectedTripId: (id) => change((s) => ({ ...s, selectedTripId: id })), saveProfile: (profileName, profileBio) => change((s) => ({ ...s, profileName, profileBio: profileBio ?? s.profileBio ?? '' })), setProfileFrame: (profileFrameId) => change((s) => ({ ...s, profileFrameId })), setProfileAccessory: (profileAccessoryId) => change((s) => ({ ...s, profileAccessoryId })), setPremium: (premium) => change((s) => ({ ...s, premium })), markOnboarded: () => change((s) => ({ ...s, onboarded: true })),
@@ -184,26 +275,37 @@ export function TravelProvider({ children }: { children: ReactNode }) {
     addPhoto: async (tripId, afterPage) => {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permission.granted) return;
-      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: .8, allowsMultipleSelection: true, selectionLimit: 0 });
+      const pickedAt = Date.now();
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsMultipleSelection: true, selectionLimit: 0, quality: 1 });
       if (result.canceled) return;
       const trip = state.trips.find((item) => item.id === tripId);
+      if (!trip) return;
       const existing = trip?.memories ?? [];
       const orderedExisting = [...existing].map((memory, sourceIndex) => ({ memory, sourceIndex })).sort((a, b) => (a.memory.bookPage ?? a.sourceIndex) - (b.memory.bookPage ?? b.sourceIndex) || a.sourceIndex - b.sourceIndex);
       const insertionPage = afterPage ?? Math.max(-1, orderedExisting.length - 1);
-      const user = await ensureGuestIdentity().catch(() => null);
-      let sharingFailures = 0;
-      const addedMemories = await Promise.all(result.assets.map(async (asset, index) => {
-        const memory: Memory = { id: uid(), image: asset.uri, date: new Date().toISOString().slice(0, 10), location: trip?.city, bookPage: insertionPage + index + 1 };
-        // Keep the local copy usable offline and store a private cloud copy for
-        // the owner's friends-only memory book when Supabase is enabled.
-        if (supabase && user && trip) {
-          if (!await syncMemoryPhoto(trip, memory, user.id, memoryBookIsPublic(trip, state.memoryBooksPublicByDefault), asset.mimeType || undefined)) sharingFailures += 1;
-        }
-        return memory;
+      // Add instantly from the picker's local URI. Compression and cloud work
+      // start only after the new page is already on screen.
+      const addedMemories: Memory[] = result.assets.map((asset, index) => ({
+        id: uid(),
+        image: asset.uri,
+        thumbnail: asset.uri,
+        date: new Date().toISOString().slice(0, 10),
+        location: trip.city,
+        bookPage: insertionPage + index + 1,
+        saveState: 'saving',
+        uploadReady: false,
+        sourceWidth: asset.width,
+        sourceHeight: asset.height,
       }));
       const normalizedExisting = orderedExisting.map(({ memory }, index) => ({ ...memory, bookPage: index >= insertionPage + 1 ? index + addedMemories.length : index }));
-      updateTrip(tripId, { memories: [...normalizedExisting, ...addedMemories] });
-      if (sharingFailures > 0) Alert.alert('Photos saved on this device', `${sharingFailures} ${sharingFailures === 1 ? 'photo could not' : 'photos could not'} be shared just yet. Try again when you are online.`);
+      updateTripLocally(tripId, { memories: [...normalizedExisting, ...addedMemories] });
+      console.info(`[Travino memory timing] pick to display: ${Date.now() - pickedAt}ms for ${addedMemories.length} photo${addedMemories.length === 1 ? '' : 's'}`);
+
+      result.assets.forEach((_, index) => {
+        const optimisticMemory = addedMemories[index];
+        resumedMemoryUploads.current.add(optimisticMemory.id);
+        processMemoryPhoto(trip, optimisticMemory);
+      });
     },
   }), [state, ready, selectedTrip]);
   return <TravelContext.Provider value={value}>{children}</TravelContext.Provider>;
