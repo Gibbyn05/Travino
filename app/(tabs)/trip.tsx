@@ -415,9 +415,9 @@ function ThingsToDo({ onOpen }: { onOpen: (activity: string) => void }) {
   </Section>;
 }
 const packingTemplates = [
-  { name: 'Weekend', icon: 'partly-sunny-outline', copy: 'The easy essentials for a short escape.', items: [['Passport', 'Documents'], ['Charger', 'Electronics'], ['Toiletries', 'Toiletries'], ['Underwear', 'Clothing'], ['Light jacket', 'Clothing'], ['Sneakers', 'Shoes']] },
-  { name: 'Business', icon: 'briefcase-outline', copy: 'A practical list for work away.', items: [['Passport', 'Documents'], ['Laptop charger', 'Electronics'], ['Adapter', 'Electronics'], ['Smart outfit', 'Clothing'], ['Notebook', 'Documents'], ['Toiletries', 'Toiletries']] },
-  { name: 'Family', icon: 'people-outline', copy: 'A calm start for travelling with family.', items: [['Passport', 'Documents'], ['Snacks', 'Other'], ['Water bottle', 'Other'], ['Medication', 'Health'], ['Charger', 'Electronics'], ['Comfort item', 'Other']] },
+  { name: 'Beach', icon: 'sunny-outline', tint: '#FFF4DE', color: '#A66B13', items: [['Passport', 'Documents'], ['Charger', 'Electronics'], ['Toiletry bag', 'Toiletries'], ['Underwear', 'Clothing'], ['Swimwear', 'Clothing'], ['Sunscreen', 'Toiletries'], ['Sunglasses', 'Beach & sun'], ['Sandals', 'Shoes']] },
+  { name: 'City', icon: 'business-outline', tint: colors.blueSoft, color: colors.blue, items: [['Passport', 'Documents'], ['Charger', 'Electronics'], ['Toiletry bag', 'Toiletries'], ['Underwear', 'Clothing'], ['Sneakers', 'Shoes'], ['Jacket', 'Clothing'], ['Power bank', 'Electronics'], ['Bank card', 'Documents']] },
+  { name: 'Adventure', icon: 'trail-sign-outline', tint: '#E9F4EC', color: '#38704C', items: [['Passport', 'Documents'], ['Charger', 'Electronics'], ['Toiletry bag', 'Toiletries'], ['Underwear', 'Clothing'], ['Hiking boots', 'Shoes'], ['Rain jacket', 'Clothing'], ['Water bottle', 'Other'], ['First aid kit', 'Health']] },
 ];
 const packingCategories = [
   { name: 'Clothing', icon: 'shirt-outline' }, { name: 'Shoes', icon: 'walk-outline' }, { name: 'Toiletries', icon: 'water-outline' }, { name: 'Beach & sun', icon: 'sunny-outline' },
@@ -439,11 +439,17 @@ function Packing() {
   const { selectedTrip, addPacking, togglePacking, removePacking, updateTrip } = useTravel();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState('');
-  const [category, setCategory] = useState('Clothing');
+  const [category, setCategory] = useState('');
   const [person, setPerson] = useState('');
+  const [details, setDetails] = useState(false);
   const [showWeatherSuggestions, setShowWeatherSuggestions] = useState(false);
   const { weather, loading: weatherLoading, error: weatherError } = useWeather(selectedTrip?.city || '', selectedTrip?.country || '');
   if (!selectedTrip) return null;
+  const total = selectedTrip.packing.length;
+  const packed = selectedTrip.packing.filter((item) => item.done).length;
+  const progress = total ? Math.round(packed / total * 100) : 0;
+  const resolvedCategory = category || suggestedPackingCategory(title) || 'Other';
+  const openItem = () => { setTitle(''); setCategory(''); setPerson(''); setDetails(false); setOpen(true); };
   const memberSuggestions = selectedTrip.members.map((name) => ({ label: name, value: name }));
   const weatherSuggestions = weatherPackingSuggestions(weather).filter(([item]) => !selectedTrip.packing.some((packed) => packed.title.toLowerCase() === item.toLowerCase()));
   const groups = selectedTrip.packing.reduce<Record<string, typeof selectedTrip.packing>>((all, item) => {
@@ -460,9 +466,9 @@ function Packing() {
     if (!title.trim()) return;
     const cleanTitle = title.trim();
     const recipientId = selectedTrip.memberAccountIds?.[person.trim()];
-    addPacking(selectedTrip.id, { title: cleanTitle, category: category || suggestedPackingCategory(title) || 'Other', person: person.trim() });
+    addPacking(selectedTrip.id, { title: cleanTitle, category: resolvedCategory, person: person.trim() });
     setOpen(false);
-    setTitle(''); setCategory('Clothing'); setPerson('');
+    setTitle(''); setCategory(''); setPerson(''); setDetails(false);
     if (recipientId) sendTripNotification({ event: 'packing_assigned', tripId: selectedTrip.id, tripTitle: selectedTrip.title, recipientId, itemTitle: cleanTitle }).then((result) => {
       if (!result.pushSent) Alert.alert('Packing item saved', 'The item was assigned, but your travel companion may need to enable push notifications.');
     }).catch((error: any) => Alert.alert('Packing item saved', `The assignment was saved, but the notification could not be sent. ${error?.message || ''}`));
@@ -473,28 +479,42 @@ function Packing() {
     if (!fresh.length) return;
     updateTrip(selectedTrip.id, { packing: [...selectedTrip.packing, ...fresh.map(([item, itemCategory], index) => ({ id: `packing-${Date.now()}-${index}`, title: item, category: itemCategory, done: false }))] });
   };
-  return <Section title="Packing list">
+  return <Section title={total ? 'Packing list' : 'What kind of trip?'}>
+    {!total ? <View style={s.packingStart}>
+      <View style={s.templateGrid}>{packingTemplates.map((template) => <Pressable key={template.name} accessibilityRole="button" accessibilityLabel={`Create ${template.name.toLowerCase()} packing list`} onPress={() => addItems(template.items as [string, string][])} style={({ pressed }) => [s.templateCard, pressed && s.pressed]}>
+        <View style={[s.templateIcon, { backgroundColor: template.tint }]}><Ionicons name={template.icon as any} size={27} color={template.color}/></View>
+        <Text style={s.templateTitle}>{template.name}</Text>
+        <Ionicons name="arrow-forward" size={22} color={colors.blue}/>
+      </Pressable>)}</View>
+      <Pressable accessibilityRole="button" onPress={openItem} style={({ pressed }) => [s.packingStartEmpty, pressed && s.pressed]}><Text style={s.packingLinkText}>Start my own list</Text></Pressable>
+    </View> : <>
+    <View style={[s.packingProgress, packed === total && s.packingComplete]}>
+      <View style={s.packingProgressHeading}><Text accessibilityLiveRegion="polite" style={s.packingProgressText}>{packed} of {total} packed</Text><Ionicons name={packed === total ? 'checkmark-circle' : 'bag-handle-outline'} size={26} color={colors.teal}/></View>
+      <View accessibilityRole="progressbar" accessibilityLabel="Packing progress" accessibilityValue={{ min: 0, max: total, now: packed, text: `${packed} of ${total} packed` }} aria-valuemin={0} aria-valuemax={total} aria-valuenow={packed} aria-valuetext={`${packed} of ${total} packed`} style={s.packingProgressTrack}><View style={[s.packingProgressFill, { width: `${progress}%` }]}/></View>
+    </View>
     <View style={s.stack}>{orderedGroups.map(([group, items]) => <View key={group} style={s.packGroup}>
       <Text style={s.packGroupTitle}>{group}</Text>
-      {items.map((item) => <View key={item.id} style={s.pack}>
-        <Pressable onPress={() => togglePacking(selectedTrip.id, item.id)}><Ionicons name={item.done ? 'checkmark-circle' : 'ellipse-outline'} size={27} color={item.done ? colors.teal : colors.muted}/></Pressable>
-        <View style={{ flex: 1 }}><Text style={[s.itemTitle, item.done && s.done]}>{item.title}</Text>{item.person && <Text style={s.copy}>{item.person}</Text>}</View>
-        <Pressable onPress={() => removePacking(selectedTrip.id, item.id)}><Ionicons name="close" size={20} color={colors.muted}/></Pressable>
+      {items.map((item) => <View key={item.id} style={s.packingRow}>
+        <Pressable accessibilityRole="checkbox" accessibilityLabel={item.title} accessibilityState={{ checked: item.done }} aria-checked={item.done} onPress={() => togglePacking(selectedTrip.id, item.id)} style={({ pressed }) => [s.packingCheck, pressed && s.pressed]}>
+          <Ionicons name={item.done ? 'checkmark-circle' : 'ellipse-outline'} size={28} color={item.done ? colors.teal : colors.muted}/>
+          <View style={s.packingItemCopy}><Text style={[s.packingItemTitle, item.done && s.done]}>{item.title}</Text>{Boolean(item.person) && <Text style={s.packingPerson}>{item.person}</Text>}</View>
+        </Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${item.title}`} onPress={() => removePacking(selectedTrip.id, item.id)} style={({ pressed }) => [s.packingRemove, pressed && s.pressed]}><Ionicons name="close" size={20} color={colors.muted}/></Pressable>
       </View>)}
     </View>)}</View>
-    {!selectedTrip.packing.length && <>
-      <EmptyMoment compact title="Start with a small list" copy={isGroupTrip(selectedTrip.members) ? 'Pick a starter list, then decide who brings what.' : 'Pick a starter list, then make it your own.'} actionTitle="Add an item" icon="add" onPress={() => setOpen(true)}/>
-      <View style={s.templateBlock}><Text style={s.templateHeading}>STARTER LISTS</Text><View style={s.templateGrid}>{packingTemplates.map((template) => <Pressable key={template.name} accessibilityRole="button" onPress={() => addItems(template.items as [string, string][])} style={({ pressed }) => [s.templateCard, pressed && s.pressed]}><View style={s.templateIcon}><Ionicons name={template.icon as any} size={20} color={colors.blue}/></View><Text style={s.templateTitle}>{template.name}</Text><Text style={s.templateCopy}>{template.copy}</Text></Pressable>)}</View></View>
-    </>}
-    <Pressable accessibilityRole="button" disabled={weatherLoading || weatherError} onPress={() => setShowWeatherSuggestions((visible) => !visible)} style={({ pressed }) => [s.weatherSuggestButton, (pressed || weatherLoading || weatherError) && s.pressed, (weatherLoading || weatherError) && s.weatherSuggestDisabled]}>
-      <View style={s.weatherSuggestIcon}><Ionicons name={weatherLoading ? 'sync-outline' : weatherError ? 'cloud-offline-outline' : 'partly-sunny-outline'} size={20} color={colors.blue}/></View><View style={{ flex: 1 }}><Text style={s.weatherSuggestTitle}>{weatherLoading ? 'Checking the weather…' : weatherError ? 'Weather suggestions are unavailable' : `Suggest from weather in ${selectedTrip.city}`}</Text><Text style={s.weatherSuggestCopy}>{weatherLoading ? 'This only takes a moment.' : weatherError ? 'Try again when you are online.' : weather ? `${weather.condition}, ${weather.temperature}°. See what may help.` : 'Choose suggestions for this destination.'}</Text></View><Ionicons name={showWeatherSuggestions ? 'chevron-up' : 'chevron-down'} size={20} color={colors.blue}/>
-    </Pressable>
+    <PrimaryButton title="Add item" icon="add" onPress={openItem}/>
+    {!weatherError && (weatherLoading || weatherSuggestions.length > 0) && <Pressable accessibilityRole="button" accessibilityState={{ expanded: showWeatherSuggestions }} disabled={weatherLoading} onPress={() => setShowWeatherSuggestions((visible) => !visible)} style={({ pressed }) => [s.weatherSuggestButton, (pressed || weatherLoading) && s.pressed, weatherLoading && s.weatherSuggestDisabled]}>
+      <View style={s.weatherSuggestIcon}><Ionicons name={weatherLoading ? 'sync-outline' : 'partly-sunny-outline'} size={20} color={colors.blue}/></View><Text style={[s.weatherSuggestTitle, { flex: 1 }]}>{weatherLoading ? 'Checking weather…' : 'Weather suggestions'}</Text><Ionicons name={showWeatherSuggestions ? 'chevron-up' : 'chevron-down'} size={20} color={colors.blue}/>
+    </Pressable>}
     {showWeatherSuggestions && !weatherLoading && !weatherError && <View style={s.weatherSuggestionPanel}>{weatherSuggestions.length ? <><Text style={s.weatherSuggestionIntro}>Based on the next seven days</Text><View style={s.weatherChips}>{weatherSuggestions.map(([item, itemCategory]) => <View style={s.weatherChip} key={item}><Text style={s.weatherChipText}>{item}</Text><Text style={s.weatherChipCategory}>{itemCategory}</Text></View>)}</View><Pressable accessibilityRole="button" onPress={() => { addItems(weatherSuggestions); setShowWeatherSuggestions(false); }} style={s.weatherAddButton}><Ionicons name="add-circle-outline" size={18} color={colors.blue}/><Text style={s.weatherAddText}>Add {weatherSuggestions.length} suggestions</Text></Pressable></> : <Text style={s.weatherSuggestionIntro}>Those useful weather-based items are already on your list.</Text>}</View>}
-    <PrimaryButton title="Add packing item" onPress={() => setOpen(true)}/>
-    <Sheet visible={open} title="New packing item" onClose={() => setOpen(false)}>
-      <AutocompleteField value={title} onChangeText={setTitle} placeholder="What are you packing?" suggestions={packingSuggestions} onPick={(item) => setCategory(item.detail ?? 'Other')}/>
-      <View style={s.categoryPicker}><Text style={s.categoryPickerLabel}>Category</Text><View style={s.categoryOptions}>{packingCategories.map((item) => <Pressable key={item.name} accessibilityRole="button" accessibilityState={{ selected: category === item.name }} onPress={() => setCategory(item.name)} style={[s.categoryOption, category === item.name && s.categoryOptionSelected]}><Ionicons name={item.icon as any} size={16} color={category === item.name ? colors.blue : colors.muted}/><Text style={[s.categoryOptionText, category === item.name && s.categoryOptionTextSelected]}>{item.name}</Text></Pressable>)}</View></View>
-      {isGroupTrip(selectedTrip.members) && <AutocompleteField value={person} onChangeText={setPerson} placeholder="Assigned to (optional)" suggestions={memberSuggestions} showSuggestionsOnFocus/>}
+    </>}
+    <Sheet visible={open} title="Add item" onClose={() => setOpen(false)}>
+      <AutocompleteField value={title} onChangeText={(value) => { setTitle(value); setCategory(''); }} placeholder="Item name" suggestions={packingSuggestions} hideLabel/>
+      <Pressable accessibilityRole="button" accessibilityState={{ expanded: details }} onPress={() => setDetails(!details)} style={s.packingDetailsToggle}><Text style={s.packingLinkText}>Details</Text><Ionicons name={details ? 'chevron-up' : 'chevron-down'} color={colors.blue} size={20}/></Pressable>
+      {details && <View style={s.packingDetails}>
+        <View style={s.categoryPicker}><Text style={s.categoryPickerLabel}>Category</Text><View style={s.categoryOptions}>{packingCategories.map((item) => <Pressable key={item.name} accessibilityRole="button" accessibilityState={{ selected: resolvedCategory === item.name }} onPress={() => setCategory(item.name)} style={[s.categoryOption, resolvedCategory === item.name && s.categoryOptionSelected]}><Ionicons name={item.icon as any} size={18} color={resolvedCategory === item.name ? colors.blue : colors.muted}/><Text style={[s.categoryOptionText, resolvedCategory === item.name && s.categoryOptionTextSelected]}>{item.name}</Text></Pressable>)}</View></View>
+        {isGroupTrip(selectedTrip.members) && <AutocompleteField value={person} onChangeText={setPerson} placeholder="Assigned to (optional)" suggestions={memberSuggestions} showSuggestionsOnFocus/>}
+      </View>}
       <PrimaryButton title="Add item" icon="checkmark" onPress={save} disabled={!title.trim()}/>
     </Sheet>
   </Section>;
@@ -709,17 +729,31 @@ Object.assign(s, StyleSheet.create({
   planRemove: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginTop: -2, marginRight: -3 },
   planEmptyCard: { backgroundColor: '#FBFDFF', borderColor: '#DCEBFF' },
   planAddButton: { marginTop: 4 },
-  templateBlock: { marginTop: 16, marginBottom: 2 },
-  templateHeading: { color: colors.muted, fontSize: 10, fontWeight: '700', letterSpacing: .8, marginBottom: 9, paddingHorizontal: 2 },
-  templateGrid: { flexDirection: 'row', gap: 8 },
-  templateCard: { flex: 1, minHeight: 137, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 17, padding: 11 },
-  templateIcon: { width: 34, height: 34, borderRadius: 12, backgroundColor: colors.blueSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 9 },
-  templateTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 14, fontWeight: '700' },
-  templateCopy: { color: colors.muted, fontSize: 10, lineHeight: 14, marginTop: 4 },
+  packingStart: { gap: 14 },
+  templateGrid: { gap: 12 },
+  templateCard: { minHeight: 88, flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 22, padding: 16 },
+  templateIcon: { width: 50, height: 50, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  templateTitle: { flex: 1, minWidth: 0, color: colors.text, fontFamily: fonts.heading, fontSize: 23, lineHeight: 30, fontWeight: '700' },
+  packingStartEmpty: { minHeight: 48, alignItems: 'center', justifyContent: 'center', padding: 8 },
+  packingLinkText: { color: colors.blue, fontSize: 18, lineHeight: 25, fontWeight: '600', flexShrink: 1 },
+  packingProgress: { gap: 16, borderRadius: 22, backgroundColor: colors.blueSoft, padding: 20, marginBottom: 24 },
+  packingComplete: { backgroundColor: '#E9F4EC' },
+  packingProgressHeading: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  packingProgressText: { flex: 1, minWidth: 0, color: colors.text, fontFamily: fonts.heading, fontSize: 24, lineHeight: 32, fontWeight: '700' },
+  packingProgressTrack: { height: 10, borderRadius: 5, overflow: 'hidden', backgroundColor: '#FFFFFF' },
+  packingProgressFill: { height: '100%', borderRadius: 5, backgroundColor: colors.teal },
+  packingRow: { flexDirection: 'row', alignItems: 'center', borderRadius: 18, backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, paddingRight: 4 },
+  packingCheck: { flex: 1, minWidth: 0, minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14 },
+  packingItemCopy: { flex: 1, minWidth: 0, gap: 4 },
+  packingItemTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 19, lineHeight: 26, fontWeight: '700' },
+  packingPerson: { color: colors.muted, fontSize: 16, lineHeight: 22 },
+  packingRemove: { width: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  packingDetailsToggle: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start', paddingHorizontal: 2 },
+  packingDetails: { gap: 20, paddingBottom: 8 },
   weatherSuggestButton: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 18, borderWidth: 1, borderColor: '#CBE4FF', backgroundColor: '#F7FBFF', padding: 12, marginTop: 16 },
   weatherSuggestDisabled: { opacity: .63 },
   weatherSuggestIcon: { width: 38, height: 38, borderRadius: 14, backgroundColor: colors.blueSoft, alignItems: 'center', justifyContent: 'center' },
-  weatherSuggestTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 14, fontWeight: '700' },
+  weatherSuggestTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 17, lineHeight: 24, fontWeight: '700' },
   weatherSuggestCopy: { color: colors.muted, fontSize: 11, lineHeight: 16, marginTop: 3 },
   weatherSuggestionPanel: { gap: 12, backgroundColor: '#F7FBFF', borderBottomLeftRadius: 18, borderBottomRightRadius: 18, borderWidth: 1, borderTopWidth: 0, borderColor: '#CBE4FF', marginTop: -3, padding: 13, paddingTop: 15 },
   weatherSuggestionIntro: { color: colors.muted, fontSize: 12, lineHeight: 18 },
@@ -730,11 +764,11 @@ Object.assign(s, StyleSheet.create({
   weatherAddButton: { minHeight: 43, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: '#CBE4FF' },
   weatherAddText: { color: colors.blue, fontSize: 13, fontWeight: '700' },
   categoryPicker: { gap: 9, marginTop: 2 },
-  categoryPickerLabel: { color: colors.text, fontFamily: fonts.heading, fontSize: 15, fontWeight: '700' },
+  categoryPickerLabel: { color: colors.text, fontFamily: fonts.heading, fontSize: 18, lineHeight: 25, fontWeight: '700' },
   categoryOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  categoryOption: { minHeight: 40, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, borderRadius: 13, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  categoryOption: { minHeight: 46, maxWidth: '100%', flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 13, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
   categoryOptionSelected: { borderColor: '#BFDFFF', backgroundColor: colors.blueSoft },
-  categoryOptionText: { color: colors.muted, fontSize: 12, fontWeight: '600' },
+  categoryOptionText: { color: colors.muted, fontSize: 16, lineHeight: 22, flexShrink: 1, fontWeight: '600' },
   categoryOptionTextSelected: { color: colors.blue },
   wishCard: { gap: 12 },
   wishHeading: { flexDirection: 'row', alignItems: 'center', gap: 12 },
