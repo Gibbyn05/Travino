@@ -82,12 +82,12 @@ function InviteButton({ onPress }: { onPress: () => void }) {
 }
 
 function TripCompanions({ onInvite }: { onInvite: () => void }) {
-  const { selectedTrip, profileName } = useTravel();
+  const { selectedTrip, profileName, profilePhoto } = useTravel();
   if (!selectedTrip) return null;
   const people = [profileName || 'You', ...selectedTrip.members];
   return <View style={s.tripCompanions}>
     <View style={s.companionSummary}>
-      <View style={s.companionAvatars}>{people.slice(0, 2).map((name, index) => <View key={`${name}-${index}`} style={s.companionAvatar}><Text style={s.companionInitial}>{name.slice(0, 1).toUpperCase()}</Text></View>)}</View>
+      <View style={s.companionAvatars}>{people.slice(0, 2).map((name, index) => <View key={`${name}-${index}`} style={s.companionAvatar}>{index === 0 && profilePhoto ? <Image accessibilityLabel={`${name} profile photo`} source={{ uri: profilePhoto }} style={s.companionAvatarPhoto}/> : <Text style={s.companionInitial}>{name.slice(0, 1).toUpperCase()}</Text>}</View>)}</View>
       <Text style={s.companionLabel}>{selectedTrip.members.length ? 'Travellers' : 'Just you'}</Text>
     </View>
     <InviteButton onPress={onInvite}/>
@@ -717,7 +717,7 @@ const s = StyleSheet.create({
   tripCompanions: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 8, marginBottom: 2 },
   companionSummary: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 10 },
   companionAvatars: { flexDirection: 'row', gap: 5 },
-  companionAvatar: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.purpleSoft },
+  companionAvatar: { width: 30, height: 30, overflow: 'hidden', borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.purpleSoft }, companionAvatarPhoto: { width: '100%', height: '100%', resizeMode: 'cover' },
   companionInitial: { color: colors.purple, fontSize: 14, fontWeight: '700' },
   companionLabel: { flexShrink: 1, color: colors.muted, fontSize: 16, lineHeight: 23, fontWeight: '600' },
   inviteShortcut: { minHeight: 44, paddingHorizontal: 10, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 14, borderWidth: 1, borderColor: '#C8E3FF', backgroundColor: '#F7FBFF' },

@@ -1,8 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import * as ImageManipulator from 'expo-image-manipulator';
+import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AccessibilityInfo, Alert, Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, ActionSheetIOS, Alert, Animated, Image, Linking, Modal, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, useColorScheme, useWindowDimensions, View } from 'react-native';
 import { Field, Sheet } from '@/src/forms';
 import { Card, PrimaryButton } from '@/src/ui';
 import { colors, fonts } from '@/src/theme';
@@ -20,8 +22,9 @@ function parseTripDate(value: string): Date | null {
 
 const dayStamp = (date: Date) => Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
 
-function LevelAvatar({ name, level, frame, accessoryIcon, reduceMotion, onPress }: {
+function LevelAvatar({ name, photoUri, level, frame, accessoryIcon, reduceMotion, onPress }: {
   name: string;
+  photoUri?: string;
   level: number;
   frame: ReturnType<typeof frameForProfile>;
   accessoryIcon?: keyof typeof Ionicons.glyphMap;
@@ -46,12 +49,79 @@ function LevelAvatar({ name, level, frame, accessoryIcon, reduceMotion, onPress 
   return <Pressable accessibilityRole="button" accessibilityLabel="Open travel levels" onPress={onPress} style={({ pressed }) => [s.avatarPress, pressed && s.pressed]}>
     <Animated.View style={[s.levelFrame, { borderColor: frame.colors[0], shadowColor: frame.colors[0], transform: [{ scale: pulse }] }]}>
       <View style={[s.levelFrameInner, { borderColor: frame.colors[1] }]}>
-        <View style={s.avatar}><Text style={s.initial}>{(name || '?').slice(0, 1).toUpperCase()}</Text>{accessoryIcon && <View style={s.accessoryBadge}><Ionicons name={accessoryIcon} size={13} color="#8A611B"/></View>}</View>
+        <View style={s.avatar}>{photoUri ? <Image accessibilityLabel={`${name || 'Your'} profile photo`} source={{ uri: photoUri }} style={s.avatarPhoto}/> : <Text style={s.initial}>{(name || '?').slice(0, 1).toUpperCase()}</Text>}{accessoryIcon && <View style={s.accessoryBadge}><Ionicons name={accessoryIcon} size={13} color="#8A611B"/></View>}</View>
       </View>
       <View style={[s.levelMarker, { backgroundColor: frame.colors[0] }]}><Text style={s.levelMarkerText}>{level}</Text></View>
       {legendary && <View style={s.legendCrown}><Ionicons name="ribbon" size={15} color="#8A611B"/></View>}
     </Animated.View>
   </Pressable>;
+}
+
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+function ProfilePhotoCropper({ asset, onCancel, onDone }: { asset: ImagePicker.ImagePickerAsset | null; onCancel: () => void; onDone: (uri: string) => void }) {
+  const scheme = useColorScheme();
+  const { width } = useWindowDimensions();
+  const [zoom, setZoom] = useState(1);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [saving, setSaving] = useState(false);
+  const lastOffset = useRef(offset);
+  const cropSize = Math.min(width - 48, 360);
+  const sourceWidth = asset?.width || 1;
+  const sourceHeight = asset?.height || 1;
+  const baseScale = cropSize / Math.min(sourceWidth, sourceHeight);
+  const imageWidth = sourceWidth * baseScale * zoom;
+  const imageHeight = sourceHeight * baseScale * zoom;
+  const boundsForZoom = (nextZoom: number) => ({
+    x: Math.max(0, (sourceWidth * baseScale * nextZoom - cropSize) / 2),
+    y: Math.max(0, (sourceHeight * baseScale * nextZoom - cropSize) / 2),
+  });
+  const clampOffset = (next: { x: number; y: number }, nextZoom = zoom) => {
+    const bounds = boundsForZoom(nextZoom);
+    return { x: clamp(next.x, -bounds.x, bounds.x), y: clamp(next.y, -bounds.y, bounds.y) };
+  };
+
+  useEffect(() => { setZoom(1); setOffset({ x: 0, y: 0 }); lastOffset.current = { x: 0, y: 0 }; setSaving(false); }, [asset?.uri]);
+  const pan = useMemo(() => PanResponder.create({
+    onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dx) > 3 || Math.abs(gesture.dy) > 3,
+    onPanResponderGrant: () => { lastOffset.current = offset; },
+    onPanResponderMove: (_, gesture) => setOffset(clampOffset({ x: lastOffset.current.x + gesture.dx, y: lastOffset.current.y + gesture.dy })),
+    onPanResponderRelease: () => { lastOffset.current = offset; },
+  }), [offset, zoom, cropSize, sourceWidth, sourceHeight]);
+  const setZoomSafely = (nextZoom: number) => {
+    const next = clamp(nextZoom, 1, 3);
+    setZoom(next);
+    setOffset((current) => clampOffset(current, next));
+  };
+  const finish = async () => {
+    if (!asset || saving) return;
+    setSaving(true);
+    try {
+      const visibleSourceSize = cropSize / (baseScale * zoom);
+      const left = clamp((sourceWidth - visibleSourceSize) / 2 - offset.x / (baseScale * zoom), 0, Math.max(0, sourceWidth - visibleSourceSize));
+      const top = clamp((sourceHeight - visibleSourceSize) / 2 - offset.y / (baseScale * zoom), 0, Math.max(0, sourceHeight - visibleSourceSize));
+      const result = await ImageManipulator.manipulateAsync(asset.uri, [
+        { crop: { originX: left, originY: top, width: visibleSourceSize, height: visibleSourceSize } },
+        { resize: { width: 800, height: 800 } },
+      ], { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG });
+      onDone(result.uri);
+    } catch {
+      Alert.alert('Could not prepare photo', 'Please choose the photo again.');
+      setSaving(false);
+    }
+  };
+  const dark = scheme === 'dark';
+  return <Modal visible={Boolean(asset)} animationType="slide" presentationStyle="fullScreen" onRequestClose={onCancel}>
+    <View style={[s.cropScreen, { backgroundColor: dark ? '#17212B' : '#FFFDF9' }]}>
+      <View style={s.cropHeader}><Pressable accessibilityRole="button" accessibilityLabel="Cancel photo crop" onPress={onCancel} disabled={saving} hitSlop={10} style={s.cropHeaderButton}><Text style={[s.cropCancel, { color: dark ? '#E6EEF8' : colors.text }]}>Cancel</Text></Pressable><Text style={[s.cropTitle, { color: dark ? '#FFFFFF' : colors.text }]}>Position photo</Text><Pressable accessibilityRole="button" accessibilityLabel="Save profile photo" onPress={finish} disabled={saving} hitSlop={10} style={[s.cropDone, saving && s.cropDoneDisabled]}><Text style={s.cropDoneText}>{saving ? 'Saving…' : 'Done'}</Text></Pressable></View>
+      <Text style={[s.cropCopy, { color: dark ? '#B9C5D4' : colors.muted }]}>Drag to position your photo. Use the controls to zoom.</Text>
+      <View {...pan.panHandlers} accessibilityLabel="Profile photo crop area" style={s.cropViewport}>
+        <Image source={{ uri: asset?.uri }} style={{ width: imageWidth, height: imageHeight, transform: [{ translateX: offset.x }, { translateY: offset.y }] }}/>
+        <View pointerEvents="none" style={s.cropRing}/>
+      </View>
+      <View style={s.zoomControls}><Pressable accessibilityRole="button" accessibilityLabel="Zoom out" onPress={() => setZoomSafely(zoom - .2)} disabled={zoom <= 1} style={[s.zoomButton, dark && s.zoomButtonDark]}><Ionicons name="remove" size={22} color={dark ? '#FFFFFF' : colors.text}/></Pressable><Text style={[s.zoomValue, { color: dark ? '#E6EEF8' : colors.text }]}>{Math.round(zoom * 100)}%</Text><Pressable accessibilityRole="button" accessibilityLabel="Zoom in" onPress={() => setZoomSafely(zoom + .2)} disabled={zoom >= 3} style={[s.zoomButton, dark && s.zoomButtonDark]}><Ionicons name="add" size={22} color={dark ? '#FFFFFF' : colors.text}/></Pressable></View>
+    </View>
+  </Modal>;
 }
 
 function ListRow({ icon, tint = colors.blueSoft, iconColor = colors.blue, title, copy, onPress, children }: {
@@ -73,13 +143,14 @@ function ListRow({ icon, tint = colors.blueSoft, iconColor = colors.blue, title,
 }
 
 export default function ProfileScreen() {
-  const { profileName, profileBio = '', profileFrameId, profileAccessoryId, setProfileFrame, setProfileAccessory, saveProfile, trips, selectedTrip, deleteTrip, setTripCompletionState, memoryBooksPublicByDefault, setMemoryBooksPublicByDefault } = useTravel();
+  const { profileName, profileBio = '', profilePhoto, profilePhotoState, profileFrameId, profileAccessoryId, setProfilePhoto, retryProfilePhoto, setProfileFrame, setProfileAccessory, saveProfile, trips, selectedTrip, deleteTrip, setTripCompletionState, memoryBooksPublicByDefault, setMemoryBooksPublicByDefault } = useTravel();
   const [open, setOpen] = useState(false);
   const [levelsOpen, setLevelsOpen] = useState(false);
   const [levelUp, setLevelUp] = useState<string | null>(null);
   const [reduceMotion, setReduceMotion] = useState(false);
   const [name, setName] = useState(profileName);
   const [bio, setBio] = useState(profileBio);
+  const [cropAsset, setCropAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const previousLevel = useRef<number | null>(null);
   const celebrationOpacity = useRef(new Animated.Value(0)).current;
   const memoryCount = trips.reduce((total, trip) => total + trip.memories.length, 0);
@@ -159,6 +230,42 @@ export default function ProfileScreen() {
     setOpen(false);
   };
 
+  const showPermissionHelp = (kind: 'camera' | 'photos') => {
+    Alert.alert(`Allow ${kind === 'camera' ? 'camera' : 'photo library'}`, `Travino needs ${kind === 'camera' ? 'the camera' : 'your photo library'} only to set the profile picture you choose.`, [
+      { text: 'Not now', style: 'cancel' },
+      { text: 'Open Settings', onPress: () => void Linking.openSettings() },
+    ]);
+  };
+  const chooseProfilePhoto = async (source: 'camera' | 'library') => {
+    const permission = source === 'camera' ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) { showPermissionHelp(source === 'camera' ? 'camera' : 'photos'); return; }
+    try {
+      const result = source === 'camera'
+        ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 1, cameraType: ImagePicker.CameraType.front })
+        : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1, allowsMultipleSelection: false });
+      if (!result.canceled && result.assets[0]) setCropAsset(result.assets[0]);
+    } catch {
+      Alert.alert('Could not open camera', 'Please try again, or choose a photo from your library.');
+    }
+  };
+  const openPhotoActions = () => {
+    const takePhoto = () => { void chooseProfilePhoto('camera'); };
+    const chooseLibrary = () => { void chooseProfilePhoto('library'); };
+    const removePhoto = () => setProfilePhoto(undefined);
+    if (Platform.OS === 'ios') {
+      const options = ['Take photo', 'Choose from library', ...(profilePhoto ? ['Remove photo'] : []), 'Cancel'];
+      ActionSheetIOS.showActionSheetWithOptions({ options, cancelButtonIndex: options.length - 1, destructiveButtonIndex: profilePhoto ? 2 : undefined, title: 'Profile picture', message: 'Choose a photo that helps your friends recognise you.' }, (index) => {
+        if (index === 0) takePhoto();
+        if (index === 1) chooseLibrary();
+        if (profilePhoto && index === 2) removePhoto();
+      });
+      return;
+    }
+    Alert.alert('Profile picture', 'Choose a photo that helps your friends recognise you.', [
+      { text: 'Take photo', onPress: takePhoto }, { text: 'Choose from library', onPress: chooseLibrary }, ...(profilePhoto ? [{ text: 'Remove photo', style: 'destructive' as const, onPress: removePhoto }] : []), { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
   const levelCopy = travelLevel.nextTitle && travelLevel.tripsLeft !== null
     ? `${travelLevel.tripsLeft} more ${travelLevel.tripsLeft === 1 ? 'trip' : 'trips'} to ${travelLevel.nextTitle}`
     : 'Max level reached';
@@ -170,7 +277,7 @@ export default function ProfileScreen() {
     </View>
 
     <View style={s.profileHero}>
-      <LevelAvatar name={profileName} level={travelLevel.level} frame={selectedFrame} accessoryIcon={selectedAccessory?.icon as keyof typeof Ionicons.glyphMap | undefined} reduceMotion={reduceMotion} onPress={() => setLevelsOpen(true)}/>
+      <LevelAvatar name={profileName} photoUri={profilePhoto} level={travelLevel.level} frame={selectedFrame} accessoryIcon={selectedAccessory?.icon as keyof typeof Ionicons.glyphMap | undefined} reduceMotion={reduceMotion} onPress={() => setLevelsOpen(true)}/>
       <Pressable accessibilityRole="button" accessibilityLabel="Open travel levels" onPress={() => setLevelsOpen(true)} style={({ pressed }) => [s.levelPill, hasGoldAccents && s.levelPillGold, pressed && s.pressed]}>
         <Text style={s.levelPillEyebrow}>TRAVEL LEVEL</Text><View style={s.levelPillDot}/><Text style={s.levelPillText}>{travelLevel.title}</Text><Ionicons name="chevron-up" size={14} color="#FFFFFF"/>
       </Pressable>
@@ -222,7 +329,16 @@ export default function ProfileScreen() {
       </Card>
     </View>
 
-    <Sheet visible={open} title="Edit profile" onClose={() => setOpen(false)}><Field value={name} onChangeText={setName} placeholder="Your name"/><Field value={bio} onChangeText={setBio} placeholder="A little about you" multiline/><Text style={s.profileHint}>Your name and introduction help accepted friends recognize you when you share a memory book.</Text><PrimaryButton title="Save profile" icon="checkmark" onPress={save} disabled={!name.trim()}/></Sheet>
+    <Sheet visible={open} title="Edit profile" onClose={() => setOpen(false)}>
+      <View style={s.editAvatarSection}>
+        <View style={[s.editAvatarFrame, { borderColor: selectedFrame.colors[0] }]}><View style={[s.editAvatarFrameInner, { borderColor: selectedFrame.colors[1] }]}>{profilePhoto ? <Image accessibilityLabel={`${profileName || 'Your'} profile photo`} source={{ uri: profilePhoto }} style={s.editAvatarPhoto}/> : <Text style={s.editAvatarInitial}>{(profileName || '?').slice(0, 1).toUpperCase()}</Text>}</View></View>
+        <Pressable accessibilityRole="button" accessibilityLabel="Change profile photo" onPress={openPhotoActions} style={({ pressed }) => [s.changePhoto, pressed && s.pressed]}><Ionicons name="camera" size={15} color="#FFFFFF"/><Text style={s.changePhotoText}>Change photo</Text></Pressable>
+        {profilePhotoState === 'saving' && <Text accessibilityLiveRegion="polite" style={s.photoStatus}><Ionicons name="cloud-upload-outline" size={13} color={colors.muted}/> Saving photo in the background</Text>}
+        {profilePhotoState === 'retry' && <Pressable accessibilityRole="button" accessibilityLabel="Retry profile photo upload" onPress={retryProfilePhoto} style={s.retryPhoto}><Ionicons name="refresh" size={14} color={colors.pink}/><Text style={s.retryPhotoText}>Could not save photo. Retry</Text></Pressable>}
+      </View>
+      <Field value={name} onChangeText={setName} placeholder="Your name"/><Field value={bio} onChangeText={setBio} placeholder="A little about you" multiline/><Text style={s.profileHint}>Your name and introduction help accepted friends recognize you when you share a memory book.</Text><PrimaryButton title="Save profile" icon="checkmark" onPress={save} disabled={!name.trim()}/>
+    </Sheet>
+    <ProfilePhotoCropper asset={cropAsset} onCancel={() => setCropAsset(null)} onDone={(uri) => { setCropAsset(null); setProfilePhoto(uri); }}/>
     <Sheet visible={levelsOpen} title="Travel levels" onClose={() => setLevelsOpen(false)}>
       <Text style={s.levelSheetIntro}>Trips count when they have a plan and at least one memory.</Text>
       <Text style={s.levelSheetRule}>They also need a destination, at least two days, and cannot overlap an older qualifying trip.</Text>
@@ -251,7 +367,7 @@ const s = StyleSheet.create({
   headerEyebrow: { color: '#EAF4FF', fontSize: 14, fontWeight: '700', letterSpacing: .2 }, headerTitle: { color: '#FFFFFF', fontFamily: fonts.heading, fontSize: 38, lineHeight: 45, fontWeight: '800', letterSpacing: -.7 },
   profileHero: { alignItems: 'center', marginTop: -62, paddingHorizontal: 24 }, avatarPress: { zIndex: 2 },
   levelFrame: { width: 126, height: 126, borderRadius: 63, borderWidth: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFDF9', shadowOpacity: .25, shadowRadius: 13, shadowOffset: { width: 0, height: 7 }, elevation: 4 },
-  levelFrameInner: { width: 108, height: 108, borderRadius: 54, borderWidth: 3, padding: 4, backgroundColor: '#FFFFFF' }, avatar: { flex: 1, borderRadius: 49, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.blueBright }, initial: { color: '#FFFFFF', fontFamily: fonts.heading, fontSize: 43, fontWeight: '800' }, accessoryBadge: { position: 'absolute', width: 27, height: 27, borderRadius: 14, right: 4, top: 4, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFE6A8', borderWidth: 2, borderColor: '#FFFFFF' },
+  levelFrameInner: { width: 108, height: 108, borderRadius: 54, borderWidth: 3, padding: 4, backgroundColor: '#FFFFFF' }, avatar: { flex: 1, overflow: 'hidden', borderRadius: 49, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.blueBright }, avatarPhoto: { width: '100%', height: '100%', resizeMode: 'cover' }, initial: { color: '#FFFFFF', fontFamily: fonts.heading, fontSize: 43, fontWeight: '800' }, accessoryBadge: { position: 'absolute', width: 27, height: 27, borderRadius: 14, right: 4, top: 4, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFE6A8', borderWidth: 2, borderColor: '#FFFFFF' },
   levelMarker: { position: 'absolute', width: 30, height: 30, borderRadius: 15, borderWidth: 2, borderColor: '#FFFDF9', right: 0, bottom: 3, alignItems: 'center', justifyContent: 'center' }, levelMarkerText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' }, legendCrown: { position: 'absolute', top: -8, right: 12, width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFE7A2', borderWidth: 2, borderColor: '#FFFDF9' },
   levelPill: { minHeight: 31, marginTop: -12, zIndex: 3, paddingHorizontal: 12, borderRadius: 16, flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.navy, shadowColor: colors.ink, shadowOpacity: .13, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 3 }, levelPillGold: { backgroundColor: '#8A611B', shadowColor: '#B8832E' }, levelPillEyebrow: { color: '#C7D9F4', fontSize: 8, fontWeight: '800', letterSpacing: .7 }, levelPillDot: { width: 3, height: 3, borderRadius: 2, backgroundColor: '#8EA7C9' }, levelPillText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
   nameRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, marginTop: 14, maxWidth: '100%' }, name: { color: colors.text, fontFamily: fonts.heading, fontSize: 25, lineHeight: 31, fontWeight: '800', letterSpacing: -.4, textAlign: 'center', flexShrink: 1 }, legendBadge: { minHeight: 23, paddingHorizontal: 7, borderRadius: 12, backgroundColor: '#FFF0C4', flexDirection: 'row', gap: 3, alignItems: 'center' }, legendBadgeText: { color: '#8A611B', fontSize: 10, fontWeight: '800' }, profileCopy: { color: colors.muted, fontSize: 14, lineHeight: 20, textAlign: 'center', marginTop: 3, maxWidth: 310 },
@@ -263,6 +379,7 @@ const s = StyleSheet.create({
   listRow: { minHeight: 68, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 12 }, rowIcon: { width: 39, height: 39, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.blueSoft }, rowBody: { flex: 1, minWidth: 0 }, rowTitle: { color: colors.text, fontSize: 14, lineHeight: 19, fontWeight: '700' }, rowCopy: { color: colors.muted, fontSize: 12, lineHeight: 17, marginTop: 2 }, rowDivider: { height: StyleSheet.hairlineWidth, marginLeft: 51, backgroundColor: colors.border }, journeySummary: { flexDirection: 'row', gap: 12, alignItems: 'center' },
   privacyHint: { color: colors.muted, fontSize: 11, lineHeight: 16, marginTop: 4 }, visibilityChoices: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 9 }, visibilityChoice: { minHeight: 30, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 9, borderRadius: 12, backgroundColor: '#EEF0F3' }, visibilityChoiceActive: { backgroundColor: colors.blue }, visibilityChoiceText: { color: colors.muted, fontSize: 10, fontWeight: '800' }, visibilityChoiceTextActive: { color: '#FFFFFF' }, settingsGroupLabel: { color: colors.muted, fontSize: 10, fontWeight: '800', letterSpacing: .7, textTransform: 'uppercase', marginTop: 13, marginBottom: -2 },
   completeTripRow: { minHeight: 40, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 9, marginTop: 9 }, completeTripText: { color: colors.blue, fontSize: 13, fontWeight: '700', flexShrink: 1 }, deleteRow: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8, marginTop: 1 }, deleteText: { color: colors.pink, fontSize: 13, fontWeight: '700', flexShrink: 1 }, pressed: { opacity: .72 },
-  profileHint: { color: colors.muted, fontSize: 12, lineHeight: 18, marginTop: -1, marginBottom: 18 }, levelSheetIntro: { color: colors.text, fontSize: 14, lineHeight: 20, fontWeight: '700', marginBottom: 4 }, levelSheetRule: { color: colors.muted, fontSize: 12, lineHeight: 18, marginBottom: 16 }, levelList: { gap: 8 }, levelRow: { minHeight: 62, paddingHorizontal: 12, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 17, backgroundColor: '#F7F3ED' }, levelRowCurrent: { backgroundColor: colors.blueSoft, borderWidth: 1, borderColor: '#D8E9FF' }, levelRowLocked: { opacity: .48 }, levelRowNumber: { width: 32, height: 32, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#ECE6DD' }, levelRowNumberCurrent: { backgroundColor: colors.blue }, levelRowNumberText: { color: colors.muted, fontSize: 13, fontWeight: '800' }, levelRowNumberTextCurrent: { color: '#FFFFFF' }, levelRowTitle: { color: colors.text, fontSize: 14, fontWeight: '700' }, levelRowCopy: { color: colors.muted, fontSize: 12, marginTop: 2 }, levelRowTextLocked: { color: colors.muted },
+  editAvatarSection: { alignItems: 'center', marginBottom: 20 }, editAvatarFrame: { width: 110, height: 110, borderRadius: 55, borderWidth: 5, padding: 4, backgroundColor: '#FFFDF9', shadowColor: colors.ink, shadowOpacity: .12, shadowRadius: 9, shadowOffset: { width: 0, height: 4 }, elevation: 2 }, editAvatarFrameInner: { flex: 1, overflow: 'hidden', borderRadius: 46, borderWidth: 2, padding: 3, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' }, editAvatarPhoto: { width: '100%', height: '100%', borderRadius: 42, resizeMode: 'cover' }, editAvatarInitial: { color: '#FFFFFF', fontFamily: fonts.heading, fontSize: 38, fontWeight: '800', width: '100%', height: '100%', textAlign: 'center', textAlignVertical: 'center', backgroundColor: colors.blueBright, borderRadius: 42 }, changePhoto: { minHeight: 35, marginTop: -3, paddingHorizontal: 12, borderRadius: 18, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6, backgroundColor: colors.blue, borderWidth: 2, borderColor: '#FFFFFF' }, changePhotoText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' }, photoStatus: { marginTop: 9, color: colors.muted, fontSize: 12, lineHeight: 18 }, retryPhoto: { marginTop: 9, minHeight: 30, paddingHorizontal: 10, borderRadius: 12, alignItems: 'center', flexDirection: 'row', gap: 5, backgroundColor: '#FFF0F1' }, retryPhotoText: { color: colors.pink, fontSize: 12, fontWeight: '700' }, profileHint: { color: colors.muted, fontSize: 12, lineHeight: 18, marginTop: -1, marginBottom: 18 }, levelSheetIntro: { color: colors.text, fontSize: 14, lineHeight: 20, fontWeight: '700', marginBottom: 4 }, levelSheetRule: { color: colors.muted, fontSize: 12, lineHeight: 18, marginBottom: 16 }, levelList: { gap: 8 }, levelRow: { minHeight: 62, paddingHorizontal: 12, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 17, backgroundColor: '#F7F3ED' }, levelRowCurrent: { backgroundColor: colors.blueSoft, borderWidth: 1, borderColor: '#D8E9FF' }, levelRowLocked: { opacity: .48 }, levelRowNumber: { width: 32, height: 32, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#ECE6DD' }, levelRowNumberCurrent: { backgroundColor: colors.blue }, levelRowNumberText: { color: colors.muted, fontSize: 13, fontWeight: '800' }, levelRowNumberTextCurrent: { color: '#FFFFFF' }, levelRowTitle: { color: colors.text, fontSize: 14, fontWeight: '700' }, levelRowCopy: { color: colors.muted, fontSize: 12, marginTop: 2 }, levelRowTextLocked: { color: colors.muted },
   framePickerTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 18, fontWeight: '800', marginTop: 24, marginBottom: 9 }, framePicker: { gap: 8, paddingBottom: 8 }, frameChoice: { minHeight: 59, paddingHorizontal: 10, paddingVertical: 8, gap: 10, flexDirection: 'row', alignItems: 'center', borderRadius: 16, backgroundColor: '#F7F3ED' }, frameChoiceSelected: { backgroundColor: colors.blueSoft, borderWidth: 1, borderColor: '#D8E9FF' }, frameChoiceLocked: { opacity: .46 }, framePreview: { width: 34, height: 34, borderRadius: 17, borderWidth: 4, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' }, framePreviewInner: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, backgroundColor: colors.blueBright }, frameChoiceTitle: { color: colors.text, fontSize: 13, fontWeight: '700' }, frameChoiceCopy: { color: colors.muted, fontSize: 11, marginTop: 2 }, perkRow: { minHeight: 59, paddingHorizontal: 10, paddingVertical: 8, gap: 10, flexDirection: 'row', alignItems: 'center', borderRadius: 16, backgroundColor: '#F7F3ED' }, perkIcon: { width: 34, height: 34, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.purpleSoft }, accessoryChoices: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingBottom: 8 }, accessoryChoice: { minHeight: 42, paddingHorizontal: 11, borderRadius: 15, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#F7F3ED' }, accessoryChoiceSelected: { backgroundColor: colors.blueSoft, borderWidth: 1, borderColor: '#D8E9FF' }, accessoryChoiceText: { color: colors.muted, fontSize: 12, fontWeight: '700' }, accessoryChoiceTextSelected: { color: colors.blue },
+  cropScreen: { flex: 1, paddingTop: 18, paddingHorizontal: 24, alignItems: 'center' }, cropHeader: { width: '100%', minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, cropHeaderButton: { minWidth: 68, minHeight: 44, justifyContent: 'center' }, cropCancel: { fontSize: 16, fontWeight: '600' }, cropTitle: { fontFamily: fonts.heading, fontSize: 18, fontWeight: '800' }, cropDone: { minWidth: 68, minHeight: 36, paddingHorizontal: 12, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.blue }, cropDoneDisabled: { opacity: .58 }, cropDoneText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' }, cropCopy: { alignSelf: 'stretch', textAlign: 'center', fontSize: 13, lineHeight: 19, marginTop: 26, marginBottom: 24 }, cropViewport: { width: '100%', aspectRatio: 1, maxWidth: 360, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: '#D9E1EB', borderRadius: 28 }, cropRing: { position: 'absolute', inset: 0, borderWidth: 3, borderColor: '#FFFFFF', borderRadius: 28, shadowColor: '#000000', shadowOpacity: .26, shadowRadius: 5, shadowOffset: { width: 0, height: 1 } }, zoomControls: { marginTop: 24, flexDirection: 'row', alignItems: 'center', gap: 20 }, zoomButton: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F1F4F7', borderWidth: 1, borderColor: '#DEE4EA' }, zoomButtonDark: { backgroundColor: '#283746', borderColor: '#435568' }, zoomValue: { minWidth: 48, textAlign: 'center', fontSize: 14, fontWeight: '800' },
 });
