@@ -82,7 +82,7 @@ export default function Onboarding() {
     if (!name.trim() || age === null || !place.trim()) return;
     starting.current = true;
     completeOnboarding({ name: name.trim(), age, place: place.trim(), city: placeCity, country: placeCountry });
-    router.replace('/new-trip' as never);
+    router.replace({ pathname: '/premium', params: { after: 'new-trip' } } as never);
   };
   const useTypedPlace = (value = placeQuery) => {
     const typedPlace = value.trim();
