@@ -73,14 +73,13 @@ export default function TripScreen() {
       : <View style={s.compactTripHeader}><Pressable accessibilityRole="button" accessibilityLabel="Open trip overview" onPress={() => openTab('Overview')} style={({ pressed }) => [s.compactOverviewLink, pressed && s.pressed]}>
         <DestinationCover country={selectedTrip.country} uri={selectedTrip.coverImage} style={s.compactTripImage} imageStyle={s.compactTripImage}/>
         <View style={s.compactTripContent}>
-          <Text style={s.compactTripEyebrow} numberOfLines={1}>{selectedTrip.city}, {selectedTrip.country}</Text>
-          <Text style={s.compactTripTitle} numberOfLines={1}>{selectedTrip.title}</Text>
-          <View style={s.compactTripMeta}><Ionicons name="calendar-clear-outline" size={13} color={colors.muted}/><Text style={s.compactTripMetaText} numberOfLines={1}>{formatTripDates(selectedTrip.startDate, selectedTrip.endDate)}</Text></View>
-          <View style={s.compactTripMeta}><Ionicons name="people-outline" size={13} color={colors.muted}/><Text style={s.compactTripMetaText}>{selectedTrip.members.length ? `${selectedTrip.members.length} ${selectedTrip.members.length === 1 ? 'traveller' : 'travellers'}` : 'Solo trip'}</Text></View>
+          <Text style={s.compactTripEyebrow}>{selectedTrip.city}, {selectedTrip.country}</Text>
+          <Text style={s.compactTripTitle}>{selectedTrip.title}</Text>
+
         </View>
       </Pressable><InviteButton onPress={invite}/></View>}
     {isOverview && <><TripStatus/><TripCompanions onInvite={invite}/></>}
-    <View accessibilityRole="tablist" accessibilityLabel="Trip sections" style={s.tripTabs}>{primaryTripTabs.map(item => <Pressable key={item} accessibilityRole="tab" accessibilityLabel={item} accessibilityState={{ selected: primaryTripTab(tab) === item }} aria-selected={primaryTripTab(tab) === item} onPress={() => openTab(item)} style={({ pressed }) => [s.tripTab, { flex: item === 'Overview' ? 1.3 : item === 'Packing' ? 1.15 : .9 }, primaryTripTab(tab) === item && s.activeTab, pressed && s.pressed]}><Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={.85} style={[s.tripTabText, primaryTripTab(tab) === item && s.activeText]}>{item}</Text></Pressable>)}</View>
+    <View accessibilityRole="tablist" accessibilityLabel="Trip sections" style={s.tripTabs}>{primaryTripTabs.map(item => <Pressable key={item} accessibilityRole="tab" accessibilityLabel={item} accessibilityState={{ selected: primaryTripTab(tab) === item }} aria-selected={primaryTripTab(tab) === item} onPress={() => openTab(item)} style={({ pressed }) => [s.tripTab, { flex: item === 'Overview' ? 1.3 : item === 'Packing' ? 1.15 : .9 }, primaryTripTab(tab) === item && s.activeTab, pressed && s.pressed]}><Text style={[s.tripTabText, primaryTripTab(tab) === item && s.activeText]}>{item}</Text></Pressable>)}</View>
     {extraTripTabs.includes(tab) && <Pressable accessibilityRole="button" accessibilityLabel="Back to More" onPress={() => openTab('More')} style={s.moreBack}><Ionicons name="chevron-back" size={20} color={colors.blue}/><Text style={s.overviewLinkText}>Back to More</Text></Pressable>}
     {tab === 'More' && <More onOpen={openTab}/>}
     {tab === 'Overview' && <Overview key={`overview-${selectedTrip.id}`} onNext={(target) => openTab(target === 'add-activity' ? 'Plan' : target, target === 'add-activity')} onOpenPlan={() => openTab('Plan')} onEditDates={() => setDatesOpen(true)} onEditDetails={() => setDetailsOpen(true)} onInvite={invite} onOpenAddFriend={() => setAddFriendOpen(true)}/>}{tab === 'Plan' && <Plan key={`plan-${selectedTrip.id}`} onRemove={removeActivity} onOpenPacking={() => openTab('Packing')} onFirstSaved={revealNextStep} initiallyOpen={startActivity} onOpened={() => setStartActivity(false)}/>}{tab === 'Activities' && <ThingsToDo onOpen={(activity) => { router.push({ pathname: '/activity-browser', params: { activity, city: selectedTrip.city, country: selectedTrip.country } }); }} />}{tab === 'Packing' && <Packing onRemove={removePacking} onOpenPlan={() => openTab('Plan')} onComplete={revealNextStep}/>}{tab === 'Wishlist' && <Wishes/>}{tab === 'Memories' && <Memories/>}
@@ -354,7 +353,7 @@ function TravelInfo({ country, city, tripStartDate, destinationTimeZone }: { cou
   const exchange = rate && info ? `100 kr ≈ ${new Intl.NumberFormat('en', { maximumFractionDigits: info.currency === 'JPY' ? 0 : 1 }).format(rate * 100)} ${info.currency}` : info ? `${info.currency} · ${info.currencyName}` : 'Currency details soon';
   return <Section title="Good to know"><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.infoRow}>
     {timeDifference ? <View style={s.infoCard}><View style={s.infoIcon}><Ionicons name="time-outline" size={18} color={colors.blue}/></View><Text style={s.infoLabel}>TIME</Text><Text style={s.infoValue}>{timeDifference.title}</Text><Text style={s.infoCopy}>It is {timeDifference.localTime} in {city}</Text></View> : null}
-    <View style={s.infoCard}><View style={[s.infoIcon, s.currencyIcon]}><Ionicons name="cash-outline" size={18} color={colors.purple}/></View><Text style={s.infoLabel}>CURRENCY</Text><Text style={s.infoValue} numberOfLines={1}>{exchange}</Text><Text style={s.infoCopy}>{info ? info.currencyName : 'No currency details yet'}</Text></View>
+    <View style={s.infoCard}><View style={[s.infoIcon, s.currencyIcon]}><Ionicons name="cash-outline" size={18} color={colors.purple}/></View><Text style={s.infoLabel}>CURRENCY</Text><Text style={s.infoValue}>{exchange}</Text><Text style={s.infoCopy}>{info ? info.currencyName : 'No currency details yet'}</Text></View>
     {info ? <Pressable accessibilityRole="button" accessibilityLabel={`Open plug details for ${country}`} onPress={() => setPlugsOpen(true)} style={[s.infoCard, s.plugCard]}>
       <View style={s.plugPreview}>{info.plugs.slice(0, 3).map((type) => <View key={type} style={s.plugPreviewIcon}><PlugIcon type={type} size={34}/><Text style={s.plugTypeMini}>Type {type}</Text></View>)}{info.plugs.length > 3 ? <View style={s.morePlugTypes}><Text style={s.morePlugTypesText}>+{info.plugs.length - 3}</Text></View> : null}</View>
       <Text style={s.infoLabel}>PLUGS</Text><Text style={s.infoValue}>{voltageLabel(info)}</Text>
@@ -482,14 +481,15 @@ function Plan({ initiallyOpen = false, onOpened, onRemove, onOpenPacking, onFirs
       </View>
       {Boolean(group.activityDate) && <Pressable accessibilityRole="button" accessibilityLabel={`Add activity on ${group.date}`} onPress={() => openNew(group.activityDate)} style={({ pressed }) => [s.planDayAdd, pressed && s.pressed]}><Ionicons name="add" size={18} color={colors.blue}/><Text style={s.planDayAddText}>Add activity</Text></Pressable>}
       <View style={s.planDayActivities}>{group.items.map((item) => <Card key={item.id} style={s.planActivityCard}>
-        <View style={s.planTimeBlock}><Text style={s.planStartTime}>{item.startTime || '—'}</Text>{Boolean(item.endTime) && <Text style={s.planEndTime}>{item.endTime}</Text>}</View>
+        <View style={s.planCardTop}><View style={s.planTimeBlock}><Text style={s.planStartTime}>{item.startTime || '—'}</Text>{Boolean(item.endTime) && <Text style={s.planEndTime}>– {item.endTime}</Text>}</View>
+        <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${item.title}`} hitSlop={10} onPress={() => onRemove(item.id)} style={({ pressed }) => [s.planRemove, pressed && s.pressed]}><Ionicons name="trash-outline" size={17} color={colors.muted}/></Pressable></View>
         <Pressable accessibilityRole="button" accessibilityLabel={`Edit ${item.title}`} onPress={() => edit(item)} style={s.planActivityContent}>
           <Text style={s.itemTitle}>{item.title}</Text>
           {Boolean(item.location) && <View style={s.planMetaRow}><Ionicons name="location-outline" size={14} color={colors.muted}/><Text style={s.planMetaText}>{item.location}</Text></View>}
           {Boolean(item.note) && <Text style={s.planNote} numberOfLines={2}>{item.note}</Text>}
           <Text style={s.editDatesText}>{!item.date ? 'Add details' : 'Edit'}</Text>
         </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${item.title}`} hitSlop={10} onPress={() => onRemove(item.id)} style={({ pressed }) => [s.planRemove, pressed && s.pressed]}><Ionicons name="trash-outline" size={17} color={colors.muted}/></Pressable>
+
       </Card>)}</View>
     </View>)}</View> : null}
     {!needsPacking && <View style={s.planAddButton}><PrimaryButton title={newActivityLabel} onPress={() => openNew()}/></View>}
@@ -760,8 +760,8 @@ const s = StyleSheet.create({
   handoffCard: { gap: 16, padding: 20, marginBottom: 22, borderColor: '#D7E8FF', backgroundColor: colors.blueSoft },
   handoffTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 28, lineHeight: 36 },
   handoffSecondary: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 8, marginTop: 4 },
-  tripTab: { flex: 1, minWidth: 0, minHeight: 48, paddingHorizontal: 3, paddingVertical: 12, alignItems: 'center', justifyContent: 'center', borderRadius: 18, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  tripTabText: { color: colors.muted, fontSize: 14, lineHeight: 20, fontWeight: '600', textAlign: 'center' },
+  tripTab: { flex: 1, minWidth: 0, minHeight: 52, paddingHorizontal: 3, paddingVertical: 12, alignItems: 'center', justifyContent: 'center', borderRadius: 18, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  tripTabText: { color: colors.muted, fontSize: 16, lineHeight: 22, fontWeight: '600', textAlign: 'center' },
   moreChoices: { gap: 12 },
   moreChoice: { minHeight: 80, flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14, borderRadius: 22, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   moreIcon: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
@@ -788,10 +788,10 @@ const s = StyleSheet.create({
   overviewMember: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   guidanceIcon: { width: 48, height: 48, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' },
   guidanceTitle: { fontFamily: fonts.heading, fontSize: 32, lineHeight: 40, color: colors.text },
-  guidanceCopy: { color: colors.muted, fontSize: 14, lineHeight: 21, marginBottom: 4 },
+  guidanceCopy: { color: colors.muted, fontSize: 18, lineHeight: 26, marginBottom: 4 },
   editDates: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 12, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 8 },
   editDatesText: { color: colors.blue, fontSize: 18, fontWeight: '600' },
-  page: { flex: 1, backgroundColor: colors.background }, content: { padding: 24, paddingTop: 72, paddingBottom: 42 }, hero: { height: 224, borderRadius: 32, overflow: 'hidden', backgroundColor: colors.mist, shadowColor: colors.navy, shadowOpacity: .12, shadowRadius: 22, shadowOffset: { width: 0, height: 10 }, elevation: 4 }, heroImage: { borderRadius: 32 }, heroShade: { flex: 1, justifyContent: 'flex-end', padding: 22, backgroundColor: 'rgba(38,49,84,.27)' }, date: { color: colors.sun, fontWeight: '900', fontSize: 14, letterSpacing: .2 }, heroCopy: { color: '#FFFFFF', fontSize: 14, lineHeight: 21, marginTop: 6, fontWeight: '700' }, copy: { color: colors.muted, fontSize: 17, lineHeight: 25, marginTop: 5 }, tabs: { gap: 8, paddingVertical: 24 }, tab: { paddingHorizontal: 17, paddingVertical: 11, borderRadius: 18, backgroundColor: '#F7F8FC' }, activeTab: { backgroundColor: colors.mist }, tabText: { color: colors.muted, fontWeight: '800', fontSize: 16 }, activeText: { color: colors.teal }, stack: { gap: 14, marginBottom: 16 }, row: { flexDirection: 'row', alignItems: 'center', gap: 13 }, itemTitle: { color: colors.navy, fontSize: 17, fontWeight: '900', letterSpacing: -.35 }, packGroup: { gap: 8, marginBottom: 9 }, packGroupTitle: { color: colors.coral, fontSize: 11, fontWeight: '900', letterSpacing: 1, textTransform: 'uppercase', paddingHorizontal: 4, marginTop: 5 }, pack: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 21, backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, padding: 16, shadowColor: colors.navy, shadowOpacity: .035, shadowRadius: 10, shadowOffset: { width: 0, height: 5 } }, done: { textDecorationLine: 'line-through', opacity: .5 }, gallery: { flexDirection: 'row', flexWrap: 'wrap', gap: 13, marginBottom: 16 }, memory: { width: '47%' }, image: { height: 146, borderRadius: 21, backgroundColor: colors.mist }, empty: { flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center', gap: 13, padding: 28 }, emptyText: { color: colors.navy, fontWeight: '800', fontSize: 16 }, weather: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: colors.sand, borderColor: 'transparent', marginTop: 2, paddingVertical: 21 }, weatherTitle: { color: colors.navy, fontSize: 17, fontWeight: '900' }, temperature: { alignItems: 'flex-end' }, temperatureValue: { color: colors.navy, fontSize: 34, fontWeight: '900', letterSpacing: -1.4 }, weatherRange: { color: colors.muted, fontSize: 11, fontWeight: '800' }, tripFacts: { gap: 14, paddingVertical: 21 }, factLabel: { color: colors.muted, fontSize: 12, fontWeight: '800' }, factText: { color: colors.navy, fontSize: 16, fontWeight: '900', marginTop: 4 }, factDivider: { height: 1, backgroundColor: colors.border }, countdown: { alignSelf: 'flex-start', backgroundColor: colors.lime, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 9 }, countdownText: { color: colors.ink, fontSize: 13, fontWeight: '900' }, note: { color: colors.navy, fontSize: 13, lineHeight: 20, marginTop: 12 }, summaryRow: { flexDirection: 'row', gap: 13 }, summaryCard: { flex: 1, gap: 4, padding: 17 }, summaryNumber: { color: colors.navy, fontSize: 28, fontWeight: '900', marginTop: 5 }, members: { flexDirection: 'row', flexWrap: 'wrap', gap: 17, paddingVertical: 17 }, member: { alignItems: 'center', gap: 6, minWidth: 50 }, memberName: { color: colors.navy, fontSize: 12, fontWeight: '800' } });
+  page: { flex: 1, backgroundColor: colors.background }, content: { padding: 24, paddingTop: 72, paddingBottom: 42 }, hero: { height: 224, borderRadius: 32, overflow: 'hidden', backgroundColor: colors.mist, shadowColor: colors.navy, shadowOpacity: .12, shadowRadius: 22, shadowOffset: { width: 0, height: 10 }, elevation: 4 }, heroImage: { borderRadius: 32 }, heroShade: { flex: 1, justifyContent: 'flex-end', padding: 22, backgroundColor: 'rgba(38,49,84,.27)' }, date: { color: colors.sun, fontWeight: '900', fontSize: 14, letterSpacing: .2 }, heroCopy: { color: '#FFFFFF', fontSize: 14, lineHeight: 21, marginTop: 6, fontWeight: '700' }, copy: { color: colors.muted, fontSize: 17, lineHeight: 25, marginTop: 5 }, tabs: { gap: 8, paddingVertical: 24 }, tab: { paddingHorizontal: 17, paddingVertical: 11, borderRadius: 18, backgroundColor: '#F7F8FC' }, activeTab: { backgroundColor: colors.mist }, tabText: { color: colors.muted, fontWeight: '800', fontSize: 16 }, activeText: { color: colors.teal }, stack: { gap: 14, marginBottom: 16 }, row: { flexDirection: 'row', alignItems: 'center', gap: 13 }, itemTitle: { color: colors.navy, fontSize: 20, fontWeight: '900', letterSpacing: -.35, lineHeight: 27}, packGroup: { gap: 8, marginBottom: 9 }, packGroupTitle: { color: colors.coral, fontSize: 16, fontWeight: '900', letterSpacing: 1, textTransform: 'uppercase', paddingHorizontal: 4, marginTop: 5, lineHeight: 23}, pack: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 21, backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, padding: 16, shadowColor: colors.navy, shadowOpacity: .035, shadowRadius: 10, shadowOffset: { width: 0, height: 5 } }, done: { textDecorationLine: 'line-through', opacity: .5 }, gallery: { flexDirection: 'row', flexWrap: 'wrap', gap: 13, marginBottom: 16 }, memory: { width: '47%' }, image: { height: 146, borderRadius: 21, backgroundColor: colors.mist }, empty: { flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center', gap: 13, padding: 28 }, emptyText: { color: colors.navy, fontWeight: '800', fontSize: 16 }, weather: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: colors.sand, borderColor: 'transparent', marginTop: 2, paddingVertical: 21 }, weatherTitle: { color: colors.navy, fontSize: 17, fontWeight: '900' }, temperature: { alignItems: 'flex-end' }, temperatureValue: { color: colors.navy, fontSize: 34, fontWeight: '900', letterSpacing: -1.4 }, weatherRange: { color: colors.muted, fontSize: 16, fontWeight: '800', lineHeight: 23}, tripFacts: { gap: 14, paddingVertical: 21 }, factLabel: { color: colors.muted, fontSize: 12, fontWeight: '800' }, factText: { color: colors.navy, fontSize: 16, fontWeight: '900', marginTop: 4 }, factDivider: { height: 1, backgroundColor: colors.border }, countdown: { alignSelf: 'flex-start', backgroundColor: colors.lime, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 9 }, countdownText: { color: colors.ink, fontSize: 13, fontWeight: '900' }, note: { color: colors.navy, fontSize: 13, lineHeight: 20, marginTop: 12 }, summaryRow: { flexDirection: 'row', gap: 13 }, summaryCard: { flex: 1, gap: 4, padding: 17 }, summaryNumber: { color: colors.navy, fontSize: 28, fontWeight: '900', marginTop: 5 }, members: { flexDirection: 'row', flexWrap: 'wrap', gap: 17, paddingVertical: 17 }, member: { alignItems: 'center', gap: 6, minWidth: 50 }, memberName: { color: colors.navy, fontSize: 12, fontWeight: '800' } });
 
 // The trip's sections share the same quiet white / blue / lilac language as Home.
 Object.assign(s, StyleSheet.create({
@@ -803,15 +803,15 @@ Object.assign(s, StyleSheet.create({
   hero: { height: 220, borderRadius: 17, overflow: 'hidden', backgroundColor: colors.blueSoft },
   heroImage: { borderRadius: 17 },
   heroDetails: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14 },
-  date: { color: colors.text, fontWeight: '700', fontSize: 15 },
-  heroCopy: { color: colors.muted, fontSize: 13, lineHeight: 20, marginTop: 5, fontWeight: '400' },
+  date: { color: colors.text, fontWeight: '700', fontSize: 18, lineHeight: 26},
+  heroCopy: { color: colors.muted, fontSize: 18, lineHeight: 26, marginTop: 5, fontWeight: '400' },
   compactTripHeader: { minHeight: 98, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 7, paddingRight: 11, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 22, shadowColor: colors.text, shadowOpacity: .035, shadowRadius: 12, shadowOffset: { width: 0, height: 5 } },
   compactTripImage: { width: 48, height: 72, borderRadius: 13, backgroundColor: colors.blueSoft },
   compactTripContent: { flex: 1, alignSelf: 'stretch', justifyContent: 'center', minWidth: 0 },
-  compactTripEyebrow: { color: colors.blue, fontSize: 10, fontWeight: '700', letterSpacing: .55, textTransform: 'uppercase', marginBottom: 3 },
-  compactTripTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 18, fontWeight: '700', letterSpacing: -.2, marginBottom: 7 },
+  compactTripEyebrow: { color: colors.muted, fontSize: 16, fontWeight: '500', marginBottom: 3, lineHeight: 20},
+  compactTripTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 20, fontWeight: '700', marginBottom: 0, lineHeight: 26},
   compactTripMeta: { flexDirection: 'row', alignItems: 'center', gap: 5, minHeight: 17 },
-  compactTripMetaText: { flex: 1, color: colors.muted, fontSize: 10, lineHeight: 14 },
+  compactTripMetaText: { flex: 1, color: colors.muted, fontSize: 14, lineHeight: 20},
   compactTripAction: { width: 34, height: 34, borderRadius: 14, backgroundColor: colors.blueSoft, alignItems: 'center', justifyContent: 'center' },
   tabs: { gap: 8, paddingVertical: 20 },
   compactTabs: { paddingBottom: 2 },
@@ -819,23 +819,23 @@ Object.assign(s, StyleSheet.create({
   activeTab: { backgroundColor: colors.blueSoft, borderColor: '#C8E3FF' },
   tabText: { color: colors.muted, fontWeight: '500', fontSize: 13 },
   activeText: { color: colors.blue, fontWeight: '600' },
-  itemTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 16, fontWeight: '700', letterSpacing: -.15 },
-  packGroupTitle: { color: colors.purple, fontSize: 12, fontWeight: '700', letterSpacing: .2, paddingHorizontal: 4, marginTop: 5 },
+  itemTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 20, fontWeight: '700', letterSpacing: -.15, lineHeight: 27},
+  packGroupTitle: { color: colors.text, fontSize: 17, fontWeight: '700', letterSpacing: .2, paddingHorizontal: 4, marginTop: 5, lineHeight: 24},
   pack: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 14, backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, paddingHorizontal: 15, paddingVertical: 13, shadowOpacity: 0, elevation: 0 },
-  weatherCard: { backgroundColor: '#FBFDFF', borderColor: '#D9EAFF', marginTop: 2, padding: 17 }, weatherHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }, weatherCurrent: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 11 }, weatherIcon: { width: 42, height: 42, borderRadius: 15, backgroundColor: colors.blueSoft, alignItems: 'center', justifyContent: 'center' }, forecastStrip: { gap: 7, paddingTop: 17, paddingRight: 4 }, forecastDay: { width: 58, minHeight: 88, alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 15, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, paddingVertical: 8 }, forecastLabel: { color: colors.muted, fontSize: 10, fontWeight: '600' }, forecastTemp: { color: colors.text, fontSize: 13, fontWeight: '700' }, forecastLow: { color: colors.muted, fontSize: 11 }, weatherNote: { color: colors.muted, fontSize: 13, lineHeight: 19, marginTop: 13 }, weatherTip: { color: colors.navy, fontSize: 13, lineHeight: 19, fontWeight: '800', marginTop: 11 },
+  weatherCard: { backgroundColor: '#FBFDFF', borderColor: '#D9EAFF', marginTop: 2, padding: 17 }, weatherHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }, weatherCurrent: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 11 }, weatherIcon: { width: 42, height: 42, borderRadius: 15, backgroundColor: colors.blueSoft, alignItems: 'center', justifyContent: 'center' }, forecastStrip: { gap: 7, paddingTop: 17, paddingRight: 4 }, forecastDay: { width: 76, minHeight: 110, alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 15, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, paddingVertical: 8 }, forecastLabel: { color: colors.muted, fontSize: 16, fontWeight: '600', lineHeight: 23}, forecastTemp: { color: colors.text, fontSize: 18, fontWeight: '700', lineHeight: 25}, forecastLow: { color: colors.muted, fontSize: 16, lineHeight: 23}, weatherNote: { color: colors.muted, fontSize: 17, lineHeight: 24, marginTop: 13 }, weatherTip: { color: colors.navy, fontSize: 17, lineHeight: 24, fontWeight: '800', marginTop: 11 },
   weatherTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 16, fontWeight: '700' },
   temperatureValue: { color: colors.blue, fontSize: 32, fontWeight: '700', letterSpacing: -1.4 },
-  infoRow: { gap: 10, paddingRight: 8 }, infoCard: { width: 174, minHeight: 136, borderRadius: 18, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, padding: 14 }, infoIcon: { width: 34, height: 34, borderRadius: 12, backgroundColor: colors.blueSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 11 }, currencyIcon: { backgroundColor: colors.purpleSoft }, plugIcon: { backgroundColor: '#FFF1E8' }, infoLabel: { color: colors.muted, fontSize: 10, fontWeight: '700', letterSpacing: .7 }, infoValue: { color: colors.text, fontFamily: fonts.heading, fontSize: 14, lineHeight: 19, fontWeight: '700', marginTop: 5 }, infoCopy: { color: colors.muted, fontSize: 11, lineHeight: 16, marginTop: 4 },
-  plugCard: { width: 222, paddingTop: 12 }, plugPreview: { flexDirection: 'row', alignItems: 'flex-start', gap: 5, minHeight: 52, marginBottom: 8 }, plugPreviewIcon: { alignItems: 'center', width: 43 }, plugTypeMini: { color: colors.muted, fontSize: 8, fontWeight: '700', marginTop: -2 }, morePlugTypes: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFF1E8', marginTop: 3 }, morePlugTypesText: { color: colors.coral, fontSize: 11, fontWeight: '800' }, plugStatus: { marginTop: 8, borderRadius: 10, paddingHorizontal: 7, paddingVertical: 6, flexDirection: 'row', alignItems: 'center', gap: 4 }, worksStatus: { backgroundColor: '#EAF7F0' }, adapterStatus: { backgroundColor: '#FFF1E8' }, plugStatusText: { fontSize: 10, fontWeight: '700', flexShrink: 1 }, worksStatusText: { color: '#25885C' }, adapterStatusText: { color: '#B86521' },
-  plugSheetIntro: { color: colors.muted, fontSize: 14, marginBottom: 14 }, plugDetailList: { gap: 9 }, plugDetailRow: { minHeight: 68, borderRadius: 16, backgroundColor: '#F9F6F0', paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 12 }, plugDetailIcon: { width: 54, height: 54, borderRadius: 16, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' }, plugDetailTitle: { color: colors.text, fontSize: 15, fontWeight: '700' }, plugDetailCopy: { color: colors.muted, fontSize: 13, marginTop: 3 }, plugSheetTip: { flexDirection: 'row', gap: 10, borderRadius: 16, padding: 13, marginTop: 16 }, plugSheetTipTitle: { fontSize: 14, fontWeight: '800' }, plugSheetTipCopy: { color: colors.text, fontSize: 12, lineHeight: 17, marginTop: 3 }, groundingNote: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, borderRadius: 14, backgroundColor: '#FFF7E9', padding: 12, marginTop: 10 }, groundingNoteText: { color: '#8C4D19', flex: 1, fontSize: 13, lineHeight: 18, fontWeight: '600' }, voltageWarning: { flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 14, backgroundColor: '#FFF1E8', padding: 12, marginTop: 10 }, voltageWarningText: { color: '#8C4D19', flex: 1, fontSize: 13, lineHeight: 18, fontWeight: '600' }, plugSource: { color: colors.muted, fontSize: 11, lineHeight: 16, marginTop: 15, marginBottom: 6 },
+  infoRow: { gap: 10, paddingRight: 8 }, infoCard: { width: 252, minHeight: 136, borderRadius: 18, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, padding: 14 }, infoIcon: { width: 34, height: 34, borderRadius: 12, backgroundColor: colors.blueSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 11 }, currencyIcon: { backgroundColor: colors.purpleSoft }, plugIcon: { backgroundColor: '#FFF1E8' }, infoLabel: { color: colors.muted, fontSize: 16, fontWeight: '700', letterSpacing: 0, lineHeight: 23}, infoValue: { color: colors.text, fontFamily: fonts.heading, fontSize: 20, lineHeight: 27, fontWeight: '700', marginTop: 5 }, infoCopy: { color: colors.muted, fontSize: 17, lineHeight: 24, marginTop: 4 },
+  plugCard: { width: 264, paddingTop: 12 }, plugPreview: { flexDirection: 'row', alignItems: 'flex-start', gap: 5, minHeight: 52, marginBottom: 8 }, plugPreviewIcon: { alignItems: 'center', width: 43 }, plugTypeMini: { color: colors.muted, fontSize: 14, fontWeight: '700', marginTop: -2, lineHeight: 20}, morePlugTypes: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFF1E8', marginTop: 3 }, morePlugTypesText: { color: colors.coral, fontSize: 11, fontWeight: '800' }, plugStatus: { marginTop: 8, borderRadius: 10, paddingHorizontal: 7, paddingVertical: 6, flexDirection: 'row', alignItems: 'center', gap: 4 }, worksStatus: { backgroundColor: '#EAF7F0' }, adapterStatus: { backgroundColor: '#FFF1E8' }, plugStatusText: { fontSize: 16, fontWeight: '700', flexShrink: 1, lineHeight: 23}, worksStatusText: { color: '#25885C' }, adapterStatusText: { color: '#B86521' },
+  plugSheetIntro: { color: colors.muted, fontSize: 18, marginBottom: 14, lineHeight: 26}, plugDetailList: { gap: 9 }, plugDetailRow: { minHeight: 68, borderRadius: 16, backgroundColor: '#F9F6F0', paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 12 }, plugDetailIcon: { width: 54, height: 54, borderRadius: 16, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' }, plugDetailTitle: { color: colors.text, fontSize: 20, fontWeight: '700', lineHeight: 27}, plugDetailCopy: { color: colors.muted, fontSize: 17, marginTop: 3, lineHeight: 24}, plugSheetTip: { flexDirection: 'row', gap: 10, borderRadius: 16, padding: 13, marginTop: 16 }, plugSheetTipTitle: { fontSize: 18, fontWeight: '800', lineHeight: 25}, plugSheetTipCopy: { color: colors.text, fontSize: 17, lineHeight: 24, marginTop: 3 }, groundingNote: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, borderRadius: 14, backgroundColor: '#FFF7E9', padding: 12, marginTop: 10 }, groundingNoteText: { color: '#8C4D19', flex: 1, fontSize: 17, lineHeight: 24, fontWeight: '600' }, voltageWarning: { flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 14, backgroundColor: '#FFF1E8', padding: 12, marginTop: 10 }, voltageWarningText: { color: '#8C4D19', flex: 1, fontSize: 17, lineHeight: 24, fontWeight: '600' }, plugSource: { color: colors.muted, fontSize: 16, lineHeight: 23, marginTop: 15, marginBottom: 6 },
   inviteBlock: { marginTop: 28 },
   factText: { color: colors.text, fontSize: 16, fontWeight: '700', marginTop: 4 },
   countdown: { alignSelf: 'flex-start', backgroundColor: colors.purpleSoft, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 9 },
   countdownText: { color: colors.purple, fontSize: 13, fontWeight: '600' },
   summaryNumber: { color: colors.text, fontSize: 28, fontWeight: '700', marginTop: 5 },
-  memberName: { color: colors.text, fontSize: 12, fontWeight: '600' },
+  memberName: { color: colors.text, fontSize: 17, fontWeight: '600', lineHeight: 24},
   addFriendLink: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 7, marginBottom: 8, paddingHorizontal: 5 },
-  addFriendText: { color: colors.blue, fontSize: 14, fontWeight: '600', flex: 1 },
+  addFriendText: { color: colors.blue, fontSize: 18, fontWeight: '600', flex: 1, lineHeight: 25},
   friendOption: { minHeight: 62, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 18, paddingHorizontal: 12, marginTop: 9 },
   activityIdea: { minHeight: 78, flexDirection: 'row', alignItems: 'center', gap: 13, backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: 20, padding: 13 },
   activityIcon: { width: 46, height: 46, borderRadius: 16, backgroundColor: colors.blueSoft, alignItems: 'center', justifyContent: 'center' },
@@ -849,49 +849,50 @@ Object.assign(s, StyleSheet.create({
   nextActivityLabel: { color: colors.blue, fontSize: 10, fontWeight: '700', letterSpacing: .9, marginBottom: 4 },
   nextActivityDetails: { gap: 8, paddingTop: 13, borderTopWidth: 1, borderTopColor: colors.border },
   nextActivityDetail: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  nextActivityMeta: { flex: 1, color: colors.muted, fontSize: 13, lineHeight: 18 },
-  nextActivityNote: { color: colors.text, fontSize: 13, lineHeight: 19, backgroundColor: colors.surface, borderRadius: 13, paddingHorizontal: 12, paddingVertical: 10 },
+  nextActivityMeta: { flex: 1, color: colors.muted, fontSize: 17, lineHeight: 24},
+  nextActivityNote: { color: colors.text, fontSize: 17, lineHeight: 24, backgroundColor: colors.surface, borderRadius: 13, paddingHorizontal: 12, paddingVertical: 10 },
   reminderCard: { gap: 14, backgroundColor: '#FCFAFF', borderColor: '#E3D9FA', padding: 16 },
   reminderHeading: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   reminderIcon: { width: 42, height: 42, borderRadius: 15, backgroundColor: colors.purpleSoft, alignItems: 'center', justifyContent: 'center' },
   reminderList: { gap: 8, borderTopWidth: 1, borderTopColor: '#EBE4F7', paddingTop: 12 },
   reminderRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  reminderText: { flex: 1, color: colors.text, fontSize: 12, lineHeight: 17, fontWeight: '600' },
-  reminderEmpty: { color: colors.muted, fontSize: 12, lineHeight: 18, borderTopWidth: 1, borderTopColor: '#EBE4F7', paddingTop: 12 },
+  reminderText: { flex: 1, color: colors.text, fontSize: 17, lineHeight: 24, fontWeight: '600' },
+  reminderEmpty: { color: colors.muted, fontSize: 17, lineHeight: 24, borderTopWidth: 1, borderTopColor: '#EBE4F7', paddingTop: 12 },
   reminderButton: { minHeight: 44, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 7, borderRadius: 14, borderWidth: 1, borderColor: '#CFE4FF', backgroundColor: colors.surface },
-  reminderButtonText: { color: colors.blue, fontSize: 13, fontWeight: '700' },
+  reminderButtonText: { color: colors.blue, fontSize: 18, fontWeight: '700', lineHeight: 25},
   activityEmptyCard: { minHeight: 112, flexDirection: 'row', alignItems: 'center', gap: 13, padding: 17, backgroundColor: '#FBFCFE' },
   activityEmptyIcon: { width: 44, height: 44, borderRadius: 16, backgroundColor: colors.blueSoft, alignItems: 'center', justifyContent: 'center' },
   activityCompleteIcon: { backgroundColor: '#ECF8F1' },
-  activityEmptyTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 15, fontWeight: '700' },
-  activityEmptyCopy: { color: colors.muted, fontSize: 12, lineHeight: 18, marginTop: 4 },
+  activityEmptyTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 22, fontWeight: '700', lineHeight: 29},
+  activityEmptyCopy: { color: colors.muted, fontSize: 18, lineHeight: 26, marginTop: 4 },
   activityEmptyAction: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   planTimeline: { gap: 25 },
   planDay: { gap: 12 },
   planDayHeader: { minHeight: 43, flexDirection: 'row', alignItems: 'center', gap: 11, paddingHorizontal: 3 },
   planDayMarker: { width: 18, height: 43, alignItems: 'center', justifyContent: 'center' },
   planDayDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.blue, borderWidth: 3, borderColor: '#DCEBFF' },
-  planDayHeading: { color: colors.text, fontSize: 13, fontWeight: '700', letterSpacing: .65 },
-  planDayDate: { color: colors.muted, fontSize: 12, marginTop: 3 },
+  planDayHeading: { color: colors.text, fontSize: 17, fontWeight: '700', letterSpacing: 0, lineHeight: 24},
+  planDayDate: { color: colors.muted, fontSize: 16, marginTop: 3, lineHeight: 23},
   planDayCount: { minWidth: 29, height: 29, borderRadius: 15, backgroundColor: colors.blueSoft, alignItems: 'center', justifyContent: 'center' },
-  planDayCountText: { color: colors.blue, fontSize: 12, fontWeight: '700' },
+  planDayCountText: { color: colors.blue, fontSize: 15, lineHeight: 22, fontWeight: '700' },
   planDayAdd: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44, marginLeft: 32, paddingHorizontal: 13, paddingVertical: 10, borderRadius: 14, backgroundColor: colors.blueSoft },
-  planDayAddText: { color: colors.blue, fontSize: 15, lineHeight: 22, fontWeight: '600' },
+  planDayAddText: { color: colors.blue, fontSize: 18, lineHeight: 25, fontWeight: '600' },
   activityDateContext: { flexDirection: 'row', alignItems: 'center', gap: 9, padding: 13, marginBottom: 18, borderRadius: 15, backgroundColor: colors.blueSoft },
   activityDateText: { flex: 1, minWidth: 0, color: colors.text, fontSize: 16, lineHeight: 23, fontWeight: '600' },
-  activityDateChange: { color: colors.blue, fontSize: 14, lineHeight: 21, fontWeight: '600' },
+  activityDateChange: { color: colors.blue, fontSize: 17, lineHeight: 24, fontWeight: '600' },
   discardDraft: { alignSelf: 'center', minHeight: 44, paddingHorizontal: 16, paddingVertical: 11, marginTop: 4, marginBottom: 4, justifyContent: 'center' },
-  discardDraftText: { color: colors.muted, fontSize: 15, lineHeight: 22, fontWeight: '500' },
+  discardDraftText: { color: colors.muted, fontSize: 17, lineHeight: 24, fontWeight: '500' },
   planDayActivities: { gap: 9, marginLeft: 9, paddingLeft: 19, borderLeftWidth: 1, borderLeftColor: '#DCEBFF' },
-  planActivityCard: { minHeight: 91, flexDirection: 'row', alignItems: 'flex-start', gap: 13, padding: 14, borderRadius: 19, shadowOpacity: .02 },
-  planTimeBlock: { width: 48, minHeight: 57, borderRadius: 14, backgroundColor: colors.blueSoft, alignItems: 'center', justifyContent: 'center', paddingVertical: 8 },
-  planStartTime: { color: colors.blue, fontSize: 13, fontWeight: '700' },
-  planEndTime: { color: colors.muted, fontSize: 10, marginTop: 3 },
+  planCardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  planActivityCard: { minHeight: 91, gap: 12, padding: 14, borderRadius: 19, shadowOpacity: .02 },
+  planTimeBlock: { flexDirection: 'row', gap: 8, paddingHorizontal: 10, minHeight: 40, borderRadius: 14, backgroundColor: colors.blueSoft, alignItems: 'center', justifyContent: 'center', paddingVertical: 8 },
+  planStartTime: { color: colors.blue, fontSize: 17, fontWeight: '700', lineHeight: 24},
+  planEndTime: { color: colors.muted, fontSize: 17, lineHeight: 24 },
   planActivityContent: { flex: 1, minHeight: 57, justifyContent: 'center', paddingVertical: 2 },
   planMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 7 },
-  planMetaText: { flex: 1, color: colors.muted, fontSize: 12, lineHeight: 17 },
-  planNote: { color: colors.muted, fontSize: 12, lineHeight: 17, marginTop: 6 },
-  planRemove: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginTop: -2, marginRight: -3 },
+  planMetaText: { flex: 1, color: colors.muted, fontSize: 16, lineHeight: 23},
+  planNote: { color: colors.muted, fontSize: 16, lineHeight: 23, marginTop: 6 },
+  planRemove: { width: 44, height: 44, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginTop: -2, marginRight: -3 },
   planEmptyCard: { backgroundColor: '#FBFDFF', borderColor: '#DCEBFF' },
   planAddButton: { marginTop: 4 },
   packingStart: { gap: 14 },
@@ -919,15 +920,15 @@ Object.assign(s, StyleSheet.create({
   weatherSuggestDisabled: { opacity: .63 },
   weatherSuggestIcon: { width: 38, height: 38, borderRadius: 14, backgroundColor: colors.blueSoft, alignItems: 'center', justifyContent: 'center' },
   weatherSuggestTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 17, lineHeight: 24, fontWeight: '700' },
-  weatherSuggestCopy: { color: colors.muted, fontSize: 11, lineHeight: 16, marginTop: 3 },
+  weatherSuggestCopy: { color: colors.muted, fontSize: 16, lineHeight: 23, marginTop: 3 },
   weatherSuggestionPanel: { gap: 12, backgroundColor: '#F7FBFF', borderBottomLeftRadius: 18, borderBottomRightRadius: 18, borderWidth: 1, borderTopWidth: 0, borderColor: '#CBE4FF', marginTop: -3, padding: 13, paddingTop: 15 },
-  weatherSuggestionIntro: { color: colors.muted, fontSize: 12, lineHeight: 18 },
+  weatherSuggestionIntro: { color: colors.muted, fontSize: 16, lineHeight: 23},
   weatherChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
   weatherChip: { backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: '#DCEBFF', paddingHorizontal: 9, paddingVertical: 7 },
-  weatherChipText: { color: colors.text, fontSize: 12, fontWeight: '600' },
+  weatherChipText: { color: colors.text, fontSize: 17, fontWeight: '600', lineHeight: 24},
   weatherChipCategory: { color: colors.muted, fontSize: 9, marginTop: 2 },
   weatherAddButton: { minHeight: 43, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: '#CBE4FF' },
-  weatherAddText: { color: colors.blue, fontSize: 13, fontWeight: '700' },
+  weatherAddText: { color: colors.blue, fontSize: 18, fontWeight: '700', lineHeight: 25},
   categoryPicker: { gap: 9, marginTop: 2 },
   categoryPickerLabel: { color: colors.text, fontFamily: fonts.heading, fontSize: 18, lineHeight: 25, fontWeight: '700' },
   categoryOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
@@ -937,10 +938,10 @@ Object.assign(s, StyleSheet.create({
   categoryOptionTextSelected: { color: colors.blue },
   wishCard: { gap: 12 },
   wishHeading: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  reactionRow: { flexDirection: 'row', gap: 7 },
-  reactionButton: { flex: 1, minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingHorizontal: 5, borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.background },
-  reactionLabel: { color: colors.muted, fontSize: 11, fontWeight: '600' },
-  reactionCount: { color: colors.muted, fontSize: 10, fontWeight: '700' },
-  voterNames: { color: colors.muted, fontSize: 11, lineHeight: 17 },
-  syncHint: { color: '#9B711F', backgroundColor: '#FFF6E3', fontSize: 12, lineHeight: 18, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 14, marginTop: 6, marginBottom: 12 },
+  reactionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  reactionButton: { flexGrow: 1, flexBasis: '45%', minWidth: 110, minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingHorizontal: 5, borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.background },
+  reactionLabel: { flexShrink: 1, color: colors.muted, fontSize: 16, fontWeight: '600', lineHeight: 23},
+  reactionCount: { color: colors.muted, fontSize: 16, fontWeight: '700', lineHeight: 23},
+  voterNames: { color: colors.muted, fontSize: 16, lineHeight: 23},
+  syncHint: { color: '#9B711F', backgroundColor: '#FFF6E3', fontSize: 16, lineHeight: 23, paddingHorizontal: 12, paddingVertical: 9, borderRadius: 14, marginTop: 6, marginBottom: 12 },
 }));

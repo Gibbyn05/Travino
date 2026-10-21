@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { tripDate, isoTripDate, validTripDates, planningTrip, tripDateLabel } from '../src/trip-planning.ts';
+import { daysTrip, tripDayStatus, tripDate, isoTripDate, validTripDates, planningTrip, tripDateLabel } from '../src/trip-planning.ts';
 import { invitePayload, readInvite } from '../src/invites.ts';
 
 const now = new Date(2026, 9, 18, 12);
@@ -52,4 +52,25 @@ test('trip invites accept undecided dates and still reject malformed invites', (
   assert.equal(received?.startDate, '');
   assert.equal(received?.endDate, '');
   assert.equal(readInvite(JSON.stringify({ version: 1, title: 'Broken', city: 'Barcelona', country: 'Spain' })), null);
+});
+
+
+test('Days keeps an active journey ahead of a later departure and ignores finished trips', () => {
+  const active = trip('active', '2026-10-16', '2026-10-20');
+  const later = trip('later', '2026-10-23', '2026-10-25');
+  const tomorrow = trip('tomorrow', '2026-10-19', '2026-10-20');
+  assert.equal(daysTrip([later, active], 'later', now)?.id, 'active');
+  assert.equal(daysTrip([later, tomorrow], undefined, now)?.id, 'tomorrow');
+  assert.equal(daysTrip([{ ...active, completionState: 'completed' }, later], undefined, now)?.id, 'later');
+  assert.equal(daysTrip([trip('past', '2026-10-01', '2026-10-02'), trip('undated')], undefined, now), undefined);
+  assert.equal(daysTrip([trip('reversed', '2026-10-22', '2026-10-20')], undefined, now), undefined);
+});
+
+test('Days status explains departure, countdown, and the current day without a zero', () => {
+  assert.equal(tripDayStatus(trip('today', '2026-10-18', '2026-10-20'), now), 'You leave today');
+  assert.equal(tripDayStatus(trip('tomorrow', '2026-10-19', '2026-10-20'), now), '1 day to go');
+  assert.equal(tripDayStatus(trip('later', '2026-10-21', '2026-10-23'), now), '3 days to go');
+  assert.equal(tripDayStatus(trip('active', '2026-10-16', '2026-10-20'), now), 'Day 3 of 5');
+  assert.equal(tripDayStatus(trip('past', '2026-10-01', '2026-10-02'), now), 'Trip complete');
+  assert.equal(tripDayStatus(trip('undated'), now), 'Dates not set');
 });

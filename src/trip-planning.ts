@@ -1,4 +1,33 @@
 type DatedTrip = { id: string; startDate: string; endDate: string };
+type CountdownTrip = DatedTrip & { completionState?: string };
+
+/** Keep the current journey in view before counting down to a later one. */
+export function daysTrip<T extends CountdownTrip>(trips: T[], selectedId?: string, now = new Date()): T | undefined {
+  const today = new Date(now); today.setHours(0, 0, 0, 0);
+  const available = trips.filter(trip => !['completed', 'cancelled', 'canceled'].includes(trip.completionState ?? ''));
+  const active = available.filter(trip => {
+    const start = tripDate(trip.startDate), end = tripDate(trip.endDate);
+    return start && end && start <= today && end >= today;
+  });
+  return active.find(trip => trip.id === selectedId) ?? active[0] ?? available.filter(trip => {
+    const start = tripDate(trip.startDate), end = tripDate(trip.endDate);
+    return start && start >= today && (!end || end >= start);
+  }).sort((a, b) => tripDate(a.startDate)!.getTime() - tripDate(b.startDate)!.getTime())[0];
+}
+
+export function tripDayStatus(trip: Pick<DatedTrip, 'startDate' | 'endDate'>, now = new Date()): string {
+  const start = tripDate(trip.startDate), end = tripDate(trip.endDate);
+  const today = new Date(now); today.setHours(0, 0, 0, 0);
+  if (!start) return 'Dates not set';
+  const days = Math.round((start.getTime() - today.getTime()) / 86_400_000);
+  if (days > 0) return days === 1 ? '1 day to go' : `${days} days to go`;
+  if (days === 0) return 'You leave today';
+  if (!end || end < start) return 'Trip in progress';
+  if (end < today) return 'Trip complete';
+  const day = Math.round((today.getTime() - start.getTime()) / 86_400_000) + 1;
+  const total = Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1;
+  return `Day ${day} of ${total}`;
+}
 
 /** Read stored dates as local calendar days, including older display formats. */
 export function tripDate(value: string): Date | null {
