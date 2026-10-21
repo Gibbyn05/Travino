@@ -119,33 +119,30 @@ export default function Onboarding() {
   } : undefined;
   const keyboardIllustrationStyle = isQuestion ? { transform: [{ translateY: keyboardProgress.interpolate({ inputRange: [0, 1], outputRange: [0, -20] }) }, { scale: keyboardProgress.interpolate({ inputRange: [0, 1], outputRange: [1, 0.7] }) }] } : undefined;
 
-  return <SafeAreaView style={[s.safe, dark && s.safeDark]} edges={['left', 'right', 'bottom']}>
+  return <SafeAreaView style={s.safe} edges={['left', 'right', 'bottom']}>
     <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={s.flex}>
         <View style={[s.topBar, { paddingTop: Math.max(insets.top, 12) + 4 }]}>
-          <Text accessibilityRole="header" style={[s.brand, dark && s.textOnDark]}>Travino</Text>
           {step < 3 ? <Pressable accessibilityRole="button" accessibilityLabel="Skip introduction" onPress={() => transitionTo(3)} hitSlop={10} style={s.skipButton}><Text style={s.skip}>Skip</Text></Pressable> : <View style={s.skipSpace}/>}
         </View>
-        {preview ? <View style={[s.previewNotice, dark && s.previewNoticeDark]}><Ionicons name="eye-outline" size={16} color={colors.blue}/><Text style={s.previewText}>Preview from Settings. Nothing you enter here will be saved.</Text></View> : null}
+        {preview ? <View style={s.previewNotice}><Ionicons name="eye-outline" size={14} color={colors.blue}/><Text style={s.previewText}>Preview only. Nothing here will be saved.</Text></View> : null}
         <ScrollView ref={scroll} style={s.flex} contentContainerStyle={[s.scrollContent, { paddingBottom: Math.max(insets.bottom, 16) + 12 }]} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" automaticallyAdjustKeyboardInsets showsVerticalScrollIndicator={false}>
           <Animated.View style={[s.copyBlock, transition ? { opacity: transitionProgress } : undefined]}>
-            <Text accessibilityRole="header" style={[s.title, dark && s.textOnDark]}>{content.title}</Text>
-            <Text style={[s.copy, dark && s.copyOnDark]}>{content.copy}</Text>
+            <Text accessibilityRole="header" style={[s.title, dark && s.textOnWhiteDarkMode]}>{content.title}</Text>
+            <Text style={[s.copy, dark && s.copyOnWhiteDarkMode]}>{content.copy}</Text>
           </Animated.View>
           <View style={[s.illustrationSpace, isQuestion && s.questionIllustrationSpace]}>
             {transition ? <Animated.View pointerEvents="none" style={[s.illustrationLayer, outgoingIllustrationStyle]}><MascotIllustration source={onboardingIllustrations[stepContent(transition.from, name).illustration]} reduceMotion={reduceMotion}/></Animated.View> : null}
             <Animated.View style={[s.illustrationLayer, incomingIllustrationStyle, keyboardIllustrationStyle]}><MascotIllustration source={onboardingIllustrations[content.illustration]} reduceMotion={reduceMotion}/></Animated.View>
           </View>
-          <View style={s.questionArea}>
-            {step === 3 ? <NameQuestion input={nameInput} value={name} onChange={setName} onSubmit={() => name.trim() && transitionTo(4)} dark={dark}/> : null}
-            {step === 4 ? <AgeQuestion value={age} onPick={chooseAge} dark={dark}/> : null}
-            {step === 5 ? <PlaceQuestion input={placeInput} query={placeQuery} onChange={(value) => { setPlaceQuery(value); setPlace(''); setPlaceCity(undefined); setPlaceCountry(undefined); }} onPick={choosePlace} onUseTyped={useTypedPlace} dark={dark}/> : null}
-            {step === 6 ? <Text style={[s.welcomeDetail, dark && s.copyOnDark]}>{[name.trim(), age, place].filter(Boolean).join(' · ')}</Text> : null}
+          <View style={[s.questionArea, isQuestion && s.questionAreaUnderPaw]}>
+            {step === 3 ? <NameQuestion input={nameInput} value={name} onChange={setName} onSubmit={() => name.trim() && transitionTo(4)}/> : null}
+            {step === 4 ? <AgeQuestion value={age} onPick={chooseAge}/> : null}
+            {step === 5 ? <PlaceQuestion input={placeInput} query={placeQuery} onChange={(value) => { setPlaceQuery(value); setPlace(''); setPlaceCity(undefined); setPlaceCountry(undefined); }} onPick={choosePlace} onUseTyped={useTypedPlace}/> : null}
           </View>
           <View style={s.footer}>
             {step > 0 ? <Pressable accessibilityRole="button" accessibilityLabel="Previous onboarding step" onPress={() => transitionTo(step - 1)} style={({ pressed }) => [s.backButton, pressed && s.pressed]}><Ionicons name="arrow-back" size={17} color={colors.blue}/><Text style={s.backText}>Back</Text></Pressable> : <View style={s.backSpace}/>}
-            <View accessibilityLabel={`Step ${step + 1} of ${TOTAL_STEPS}`} style={s.progressBlock}>
-              <Text style={[s.stepLabel, dark && s.copyOnDark]}>Step {step + 1} of {TOTAL_STEPS}</Text>
+            <View accessible accessibilityLabel={`Step ${step + 1} of ${TOTAL_STEPS}`} style={s.progressBlock}>
               <View style={s.dots}>{Array.from({ length: TOTAL_STEPS }, (_, index) => <ProgressDot key={index} active={index === step} complete={index < step} reduceMotion={reduceMotion}/>)}</View>
             </View>
             <Pressable accessibilityRole="button" accessibilityLabel={step === 6 ? (preview ? 'Back to profile' : 'Start Travino') : 'Next onboarding step'} disabled={!canAdvance || Boolean(transition)} onPress={next} style={({ pressed }) => [s.primaryButton, (!canAdvance || transition) && s.primaryButtonDisabled, pressed && canAdvance && s.pressed]}>
@@ -197,16 +194,16 @@ function ProgressDot({ active, complete, reduceMotion }: { active: boolean; comp
   return <Animated.View style={[s.dot, { width }, (active || complete) && s.dotDone]}/>;
 }
 
-function NameQuestion({ input, value, onChange, onSubmit, dark }: { input: React.RefObject<TextInput | null>; value: string; onChange: (value: string) => void; onSubmit: () => void; dark: boolean }) {
-  return <View style={s.questionCard}><Text style={[s.fieldLabel, dark && s.copyOnDark]}>YOUR NAME</Text><TextInput ref={input} autoCapitalize="words" autoCorrect={false} returnKeyType="next" accessibilityLabel="Your name" value={value} onChangeText={onChange} onSubmitEditing={onSubmit} placeholder="For example, Mia" placeholderTextColor="#9C978F" style={[s.answerInput, dark && s.answerInputDark]}/></View>;
+function NameQuestion({ input, value, onChange, onSubmit }: { input: React.RefObject<TextInput | null>; value: string; onChange: (value: string) => void; onSubmit: () => void }) {
+  return <View style={s.questionCard}><TextInput ref={input} autoCapitalize="words" autoCorrect={false} returnKeyType="next" accessibilityLabel="Your name" value={value} onChangeText={onChange} onSubmitEditing={onSubmit} placeholder="Your name" placeholderTextColor="#9C978F" style={s.answerInput}/></View>;
 }
 
-function AgeQuestion({ value, onPick, dark }: { value: number | null; onPick: (age: number) => void; dark: boolean }) {
+function AgeQuestion({ value, onPick }: { value: number | null; onPick: (age: number) => void }) {
   const ages = [16, 18, 21, 25, 30, 40, 50, 60];
-  return <View style={s.questionCard}><Text style={[s.fieldLabel, dark && s.copyOnDark]}>PICK AN AGE</Text><View style={s.ageGrid}>{ages.map((age) => <Pressable key={age} accessibilityRole="button" accessibilityLabel={`Choose age ${age}${age === 60 ? ' or older' : ''}`} onPress={() => onPick(age)} style={({ pressed }) => [s.ageOption, value === age && s.ageOptionSelected, pressed && s.pressed]}><Text style={[s.ageText, value === age && s.ageTextSelected]}>{age === 60 ? '60+' : age}</Text></Pressable>)}</View></View>;
+  return <View style={s.questionCard}><View style={s.ageGrid}>{ages.map((age) => <Pressable key={age} accessibilityRole="button" accessibilityLabel={`Choose age ${age}${age === 60 ? ' or older' : ''}`} onPress={() => onPick(age)} style={({ pressed }) => [s.ageOption, value === age && s.ageOptionSelected, pressed && s.pressed]}><Text style={[s.ageText, value === age && s.ageTextSelected]}>{age === 60 ? '60+' : age}</Text></Pressable>)}</View></View>;
 }
 
-function PlaceQuestion({ input, query, onChange, onPick, onUseTyped, dark }: { input: React.RefObject<TextInput | null>; query: string; onChange: (value: string) => void; onPick: (suggestion: PlaceSearchResult) => void; onUseTyped: (value?: string) => void; dark: boolean }) {
+function PlaceQuestion({ input, query, onChange, onPick, onUseTyped }: { input: React.RefObject<TextInput | null>; query: string; onChange: (value: string) => void; onPick: (suggestion: PlaceSearchResult) => void; onUseTyped: (value?: string) => void }) {
   const [matches, setMatches] = useState<PlaceSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [waitingToSearch, setWaitingToSearch] = useState(false);
@@ -227,28 +224,24 @@ function PlaceQuestion({ input, query, onChange, onPick, onUseTyped, dark }: { i
   const showMatches = resultIsCurrent && matches.length > 0;
   const showFallback = typed.length >= 2 && resultIsCurrent && !waitingToSearch && !searching && matches.length === 0;
   return <View style={s.questionCard}>
-    <Text style={[s.fieldLabel, dark && s.copyOnDark]}>CITY OR COUNTRY</Text>
-    <View style={[s.placeInput, dark && s.answerInputDark]}><Ionicons name="search-outline" size={19} color={colors.muted}/><TextInput ref={input} autoCorrect={false} returnKeyType="search" accessibilityLabel="Search for your city or country" value={query} onChangeText={onChange} onSubmitEditing={() => typed && onUseTyped(typed)} placeholder="Search for a city or country" placeholderTextColor="#9C978F" style={[s.placeTextInput, dark && s.textOnDark]}/></View>
-    {searching ? <View style={s.placeSearchStatus}><ActivityIndicator size="small" color={colors.blue}/><Text style={[s.placeSearchStatusText, dark && s.copyOnDark]}>Looking for places...</Text></View> : null}
-    {showMatches ? <View style={[s.suggestions, dark && s.suggestionsDark]}>{matches.map((suggestion) => <Pressable key={suggestion.id} accessibilityRole="button" accessibilityLabel={`Choose ${suggestion.label}`} onPress={() => onPick(suggestion)} style={({ pressed }) => [s.suggestion, pressed && s.pressed]}><View style={s.suggestionIcon}><Ionicons name="location-outline" size={17} color={colors.blue}/></View><Text style={[s.suggestionTitle, dark && s.textOnDark]}>{suggestion.label}</Text><Ionicons name="arrow-forward" size={16} color={colors.blue}/></Pressable>)}</View> : null}
-    {showFallback ? <View style={s.noPlaceResult}><Text style={[s.noPlaceCopy, dark && s.copyOnDark]}>No exact place found yet.</Text><Pressable accessibilityRole="button" accessibilityLabel={`Use ${typed} as your place`} onPress={() => onUseTyped(typed)} style={({ pressed }) => [s.useTypedButton, pressed && s.pressed]}><Text style={s.useTypedText}>Use &quot;{typed}&quot;</Text><Ionicons name="arrow-forward" size={15} color={colors.blue}/></Pressable></View> : null}
+    <View style={s.placeInput}><Ionicons name="search-outline" size={19} color={colors.muted}/><TextInput ref={input} autoCorrect={false} returnKeyType="search" accessibilityLabel="Search for your city or country" value={query} onChangeText={onChange} onSubmitEditing={() => typed && onUseTyped(typed)} placeholder="Town or city" placeholderTextColor="#9C978F" style={s.placeTextInput}/></View>
+    {searching ? <View style={s.placeSearchStatus}><ActivityIndicator size="small" color={colors.blue}/><Text style={s.placeSearchStatusText}>Searching...</Text></View> : null}
+    {showMatches ? <View style={s.suggestions}>{matches.map((suggestion) => <Pressable key={suggestion.id} accessibilityRole="button" accessibilityLabel={`Choose ${suggestion.label}`} onPress={() => onPick(suggestion)} style={({ pressed }) => [s.suggestion, pressed && s.pressed]}><View style={s.suggestionIcon}><Ionicons name="location-outline" size={17} color={colors.blue}/></View><Text style={s.suggestionTitle}>{suggestion.label}</Text><Ionicons name="arrow-forward" size={16} color={colors.blue}/></Pressable>)}</View> : null}
+    {showFallback ? <Pressable accessibilityRole="button" accessibilityLabel={`Use ${typed} as your place`} onPress={() => onUseTyped(typed)} style={({ pressed }) => [s.useTypedButton, pressed && s.pressed]}><Text style={s.useTypedText}>Use &quot;{typed}&quot;</Text><Ionicons name="arrow-forward" size={15} color={colors.blue}/></Pressable> : null}
   </View>;
 }
 
 const s = StyleSheet.create({
   flex: { flex: 1 },
   safe: { flex: 1, backgroundColor: '#FFFFFF' },
-  safeDark: { backgroundColor: colors.darkBackground },
-  topBar: { minHeight: 54, paddingHorizontal: 24, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  brand: { color: colors.text, fontFamily: fonts.heading, fontSize: 21, fontWeight: '700' },
-  textOnDark: { color: '#FFFEFB' },
-  copyOnDark: { color: '#D2CDD2' },
+  topBar: { minHeight: 54, paddingHorizontal: 24, flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center' },
+  textOnWhiteDarkMode: { color: colors.text },
+  copyOnWhiteDarkMode: { color: colors.muted },
   skipButton: { minHeight: 44, minWidth: 44, alignItems: 'flex-end', justifyContent: 'center' },
   skip: { color: colors.blue, fontSize: 15, fontWeight: '700' },
   skipSpace: { width: 44 },
-  previewNotice: { marginHorizontal: 24, marginTop: 8, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 14, flexDirection: 'row', gap: 8, alignItems: 'center', backgroundColor: colors.blueSoft },
-  previewNoticeDark: { backgroundColor: '#17263A' },
-  previewText: { flex: 1, color: colors.blue, fontSize: 12, fontWeight: '700', lineHeight: 17 },
+  previewNotice: { alignSelf: 'center', marginHorizontal: 24, marginTop: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12, flexDirection: 'row', gap: 6, alignItems: 'center', backgroundColor: '#F4F8FD' },
+  previewText: { color: '#58708B', fontSize: 11, fontWeight: '600', lineHeight: 15 },
   scrollContent: { flexGrow: 1, width: '100%', maxWidth: 500, alignSelf: 'center', paddingHorizontal: 24 },
   copyBlock: { alignItems: 'center', paddingTop: 12 },
   title: { maxWidth: 365, color: colors.text, fontFamily: fonts.heading, fontSize: 34, lineHeight: 40, letterSpacing: -0.6, textAlign: 'center' },
@@ -259,39 +252,33 @@ const s = StyleSheet.create({
   illustrationBob: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' },
   illustration: { width: '100%', height: '100%' },
   questionArea: { minHeight: 16, alignItems: 'center' },
+  questionAreaUnderPaw: { marginTop: -64 },
   questionCard: { width: '100%', maxWidth: 350 },
-  fieldLabel: { color: colors.muted, fontSize: 11, fontWeight: '800', letterSpacing: 0.75, marginBottom: 8 },
-  answerInput: { minHeight: 60, borderRadius: 18, paddingHorizontal: 17, backgroundColor: '#F5F1EB', color: colors.text, fontSize: 19, fontWeight: '600' },
-  answerInputDark: { backgroundColor: colors.darkSurface, color: '#FFFEFB' },
+  answerInput: { minHeight: 58, borderRadius: 18, paddingHorizontal: 17, borderWidth: 1, borderColor: '#DEDAD3', backgroundColor: '#FFFFFF', color: colors.text, fontSize: 19, fontWeight: '600' },
   ageGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 9 },
-  ageOption: { width: '22%', minHeight: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F5F1EB' },
+  ageOption: { width: '22%', minHeight: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DEDAD3', backgroundColor: '#FFFFFF' },
   ageOptionSelected: { backgroundColor: colors.blue },
   ageText: { color: colors.text, fontSize: 16, fontWeight: '700' },
   ageTextSelected: { color: '#fff' },
-  placeInput: { minHeight: 60, borderRadius: 18, paddingHorizontal: 17, alignItems: 'center', flexDirection: 'row', gap: 10, backgroundColor: '#F5F1EB' },
+  placeInput: { minHeight: 58, borderRadius: 18, paddingHorizontal: 17, alignItems: 'center', flexDirection: 'row', gap: 10, borderWidth: 1, borderColor: '#DEDAD3', backgroundColor: '#FFFFFF' },
   placeTextInput: { flex: 1, minHeight: 60, color: colors.text, fontSize: 16, fontWeight: '600' },
   placeSearchStatus: { minHeight: 34, paddingHorizontal: 3, flexDirection: 'row', alignItems: 'center', gap: 8 },
   placeSearchStatusText: { color: colors.muted, fontSize: 12, fontWeight: '600' },
   suggestions: { marginTop: 8, borderRadius: 18, overflow: 'hidden', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  suggestionsDark: { backgroundColor: colors.darkSurface, borderColor: '#384659' },
   suggestion: { minHeight: 54, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: 1, borderBottomColor: '#F1ECE5' },
   suggestionIcon: { width: 30, height: 30, borderRadius: 11, backgroundColor: colors.blueSoft, alignItems: 'center', justifyContent: 'center' },
   suggestionTitle: { flex: 1, color: colors.text, fontSize: 14, fontWeight: '700' },
-  noPlaceResult: { marginTop: 10, gap: 8, alignItems: 'flex-start' },
-  noPlaceCopy: { color: colors.muted, fontSize: 12, fontWeight: '600' },
-  useTypedButton: { minHeight: 40, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, borderRadius: 13, backgroundColor: colors.blueSoft },
+  useTypedButton: { alignSelf: 'flex-start', minHeight: 40, marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, borderRadius: 13, backgroundColor: colors.blueSoft },
   useTypedText: { color: colors.blue, fontSize: 13, fontWeight: '800' },
-  welcomeDetail: { color: colors.muted, fontSize: 14, fontWeight: '600', textAlign: 'center' },
   footer: { width: '100%', marginTop: 'auto', paddingTop: 14 },
-  progressBlock: { alignItems: 'center', marginBottom: 13 },
-  stepLabel: { color: colors.muted, fontSize: 12, fontWeight: '700', marginBottom: 9 },
+  progressBlock: { alignItems: 'center', marginBottom: 16 },
   dots: { flexDirection: 'row', gap: 6, height: 7 },
   dot: { height: 7, borderRadius: 5, backgroundColor: '#DDD8D0' },
   dotDone: { backgroundColor: colors.blue },
   backButton: { alignSelf: 'center', minHeight: 36, paddingHorizontal: 6, flexDirection: 'row', gap: 4, alignItems: 'center', justifyContent: 'center', marginBottom: 7 },
   backText: { color: colors.blue, fontSize: 13, fontWeight: '700' },
   backSpace: { height: 43 },
-  primaryButton: { minHeight: 58, borderRadius: 19, paddingHorizontal: 20, backgroundColor: colors.blue, flexDirection: 'row', gap: 8, justifyContent: 'center', alignItems: 'center', shadowColor: '#16385E', shadowOpacity: 0.16, shadowOffset: { width: 0, height: 8 }, shadowRadius: 14, elevation: 3 },
+  primaryButton: { minHeight: 58, borderRadius: 19, paddingHorizontal: 20, backgroundColor: colors.blue, flexDirection: 'row', gap: 8, justifyContent: 'center', alignItems: 'center' },
   primaryButtonDisabled: { opacity: 0.42 },
   primaryButtonText: { color: '#fff', fontSize: 17, fontWeight: '800' },
   pressed: { transform: [{ scale: 0.97 }], opacity: 0.9 },
