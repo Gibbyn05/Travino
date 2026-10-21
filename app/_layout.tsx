@@ -6,11 +6,12 @@ import { Nunito_800ExtraBold } from '@expo-google-fonts/nunito';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { TravelProvider, useTravel } from '@/src/store';
 import { colors } from '@/src/theme';
+import { ActivityDraftProvider } from '@/src/activity-draft-provider';
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({ Nunito_800ExtraBold });
   if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: colors.background }}/>;
-  return <SafeAreaProvider><TravelProvider><StatusBar style="auto"/><AppNavigator/></TravelProvider></SafeAreaProvider>;
+  return <SafeAreaProvider><TravelProvider><ActivityDraftProvider><StatusBar style="auto"/><AppNavigator/></ActivityDraftProvider></TravelProvider></SafeAreaProvider>;
 }
 
 function AppNavigator() {

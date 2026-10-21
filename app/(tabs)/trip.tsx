@@ -23,6 +23,8 @@ import { isoTripDate, tripDate } from '@/src/trip-planning';
 import { UndoNotice, useTripUndo } from '@/src/trip-undo';
 import { extraTripTabs, primaryTripTabs, primaryTripTab, tripSection, type TripSection } from '@/src/trip-navigation';
 import { useTripSections } from '@/src/use-trip-sections';
+import { activityDraftFor, emptyActivityDraft, type ActivityDraft } from '@/src/activity-drafts';
+import { useActivityDrafts } from '@/src/activity-draft-provider';
 export default function TripScreen() {
   const router = useRouter();
   const { selectedTrip } = useTravel();
@@ -389,18 +391,28 @@ function TripStatus() {
 }
 function Plan({ initiallyOpen = false, onOpened, onRemove, onOpenPacking, onFirstSaved }: { initiallyOpen?: boolean; onOpened?: () => void; onRemove: (id: string) => void; onOpenPacking: () => void; onFirstSaved: () => void }) {
   const { selectedTrip, addActivity, updateActivity } = useTravel();
+  const { drafts, saveDraft, discardDraft } = useActivityDrafts();
+  const tripId = selectedTrip?.id ?? '';
   const [open, setOpen] = useState(initiallyOpen);
-  useEffect(() => { if (initiallyOpen) { setOpen(true); onOpened?.(); } }, [initiallyOpen]);
-  const [title, setTitle] = useState('');
-  const [date, setDate] = useState('');
-  const [start, setStart] = useState('');
-  const [end, setEnd] = useState('');
-  const [location, setLocation] = useState('');
-  const [note, setNote] = useState('');
+  const [form, setForm] = useState<ActivityDraft>(() => activityDraftFor(drafts, tripId) ?? emptyActivityDraft());
   const [editingId, setEditingId] = useState<string>();
-  const [details, setDetails] = useState(false);
   const [error, setError] = useState('');
   const [firstSaved, setFirstSaved] = useState(false);
+  const { title, date, startTime: start, endTime: end, location, note, details } = form;
+  const pendingNew = activityDraftFor(drafts, tripId);
+  const pendingCurrent = activityDraftFor(drafts, tripId, editingId);
+  const newActivityLabel = pendingNew ? 'Continue activity' : selectedTrip?.activities.length ? 'Add another activity' : 'Add first activity';
+  const openNew = useCallback((day?: string) => {
+    const next = { ...(activityDraftFor(drafts, tripId) ?? emptyActivityDraft()), ...(day ? { date: day } : {}) };
+    setForm(next); setEditingId(undefined); setError(''); setOpen(true);
+    if (day) saveDraft(tripId, next);
+  }, [drafts, tripId, saveDraft]);
+  useEffect(() => { if (initiallyOpen) { openNew(); onOpened?.(); } }, [initiallyOpen, openNew, onOpened]);
+  const changeForm = (patch: Partial<ActivityDraft>) => {
+    const next = { ...form, ...patch };
+    setForm(next); saveDraft(tripId, next, editingId);
+  };
+  const close = () => { setOpen(false); setError(''); };
   if (!selectedTrip) return null;
   const needsPacking = selectedTrip.activities.length > 0 && !selectedTrip.packing.length && tripState(selectedTrip).label !== 'Completed' && selectedTrip.completionState !== 'completed';
   const ideas = activitySuggestionsForDestination(selectedTrip.city, selectedTrip.country);
@@ -432,10 +444,15 @@ function Plan({ initiallyOpen = false, onOpened, onRemove, onOpenPacking, onFirs
     group.items.push(activity);
     return groups;
   }, []);
-  const clear = () => { setTitle(''); setDate(''); setStart(''); setEnd(''); setLocation(''); setNote(''); setEditingId(undefined); setDetails(false); setError(''); };
-  const addOnDay = (day: string) => { clear(); setDate(day); setOpen(true); };
+  const clear = () => { setForm(emptyActivityDraft()); setEditingId(undefined); setError(''); };
+  const fromActivity = (item: typeof selectedTrip.activities[number]): ActivityDraft => ({ title: item.title, date: item.date, startTime: item.startTime, endTime: item.endTime || '', location: item.location || '', note: item.note || '', details: true });
   const edit = (item: typeof selectedTrip.activities[number]) => {
-    setEditingId(item.id); setTitle(item.title); setDate(item.date); setStart(item.startTime); setEnd(item.endTime || ''); setLocation(item.location || ''); setNote(item.note || ''); setDetails(true); setError(''); setOpen(true);
+    setEditingId(item.id); setForm(activityDraftFor(drafts, tripId, item.id) ?? fromActivity(item)); setError(''); setOpen(true);
+  };
+  const discard = () => {
+    discardDraft(tripId, editingId);
+    const original = selectedTrip.activities.find(item => item.id === editingId);
+    setForm(original ? fromActivity(original) : emptyActivityDraft()); setError('');
   };
   const save = () => {
     if (!title.trim()) return;
@@ -447,6 +464,7 @@ function Plan({ initiallyOpen = false, onOpened, onRemove, onOpenPacking, onFirs
     const firstActivity = !editingId && selectedTrip.activities.length === 0;
     if (editingId) updateActivity(selectedTrip.id, editingId, item);
     else addActivity(selectedTrip.id, item);
+    discardDraft(tripId, editingId);
     setFirstSaved(firstActivity);
     setOpen(false); clear();
     if (firstActivity && !selectedTrip.packing.length) onFirstSaved();
@@ -454,7 +472,7 @@ function Plan({ initiallyOpen = false, onOpened, onRemove, onOpenPacking, onFirs
   return <Section title="Plan">
     {needsPacking && <Card style={s.handoffCard}>
       <Text accessibilityRole="header" accessibilityLiveRegion="polite" style={s.handoffTitle}>{firstSaved ? 'Activity added!' : 'Ready to pack?'}</Text>
-      <View><PrimaryButton title="Create packing list" icon="bag-handle-outline" onPress={onOpenPacking}/><Pressable accessibilityRole="button" accessibilityLabel="Add another activity" onPress={() => { clear(); setOpen(true); }} style={({ pressed }) => [s.handoffSecondary, pressed && s.pressed]}><Ionicons name="add" size={19} color={colors.blue}/><Text style={s.overviewLinkText}>Add another activity</Text></Pressable></View>
+      <View><PrimaryButton title="Create packing list" icon="bag-handle-outline" onPress={onOpenPacking}/><Pressable accessibilityRole="button" accessibilityLabel={newActivityLabel} onPress={() => openNew()} style={({ pressed }) => [s.handoffSecondary, pressed && s.pressed]}><Ionicons name={pendingNew ? 'arrow-forward' : 'add'} size={19} color={colors.blue}/><Text style={s.overviewLinkText}>{newActivityLabel}</Text></Pressable></View>
     </Card>}
     {dayGroups.length ? <View style={s.planTimeline}>{dayGroups.map((group) => <View key={group.key} style={s.planDay}>
       <View style={s.planDayHeader}>
@@ -462,7 +480,7 @@ function Plan({ initiallyOpen = false, onOpened, onRemove, onOpenPacking, onFirs
         <View style={{ flex: 1, minWidth: 0 }}><Text style={s.planDayHeading}>{group.heading}</Text><Text style={s.planDayDate}>{group.date}</Text></View>
         <View style={s.planDayCount}><Text style={s.planDayCountText}>{group.items.length}</Text></View>
       </View>
-      {Boolean(group.activityDate) && <Pressable accessibilityRole="button" accessibilityLabel={`Add activity on ${group.date}`} onPress={() => addOnDay(group.activityDate)} style={({ pressed }) => [s.planDayAdd, pressed && s.pressed]}><Ionicons name="add" size={18} color={colors.blue}/><Text style={s.planDayAddText}>Add activity</Text></Pressable>}
+      {Boolean(group.activityDate) && <Pressable accessibilityRole="button" accessibilityLabel={`Add activity on ${group.date}`} onPress={() => openNew(group.activityDate)} style={({ pressed }) => [s.planDayAdd, pressed && s.pressed]}><Ionicons name="add" size={18} color={colors.blue}/><Text style={s.planDayAddText}>Add activity</Text></Pressable>}
       <View style={s.planDayActivities}>{group.items.map((item) => <Card key={item.id} style={s.planActivityCard}>
         <View style={s.planTimeBlock}><Text style={s.planStartTime}>{item.startTime || '—'}</Text>{Boolean(item.endTime) && <Text style={s.planEndTime}>{item.endTime}</Text>}</View>
         <Pressable accessibilityRole="button" accessibilityLabel={`Edit ${item.title}`} onPress={() => edit(item)} style={s.planActivityContent}>
@@ -474,19 +492,20 @@ function Plan({ initiallyOpen = false, onOpened, onRemove, onOpenPacking, onFirs
         <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${item.title}`} hitSlop={10} onPress={() => onRemove(item.id)} style={({ pressed }) => [s.planRemove, pressed && s.pressed]}><Ionicons name="trash-outline" size={17} color={colors.muted}/></Pressable>
       </Card>)}</View>
     </View>)}</View> : null}
-    {!needsPacking && <View style={s.planAddButton}><PrimaryButton title={dayGroups.length ? 'Add another activity' : 'Add first activity'} onPress={() => { clear(); setOpen(true); }}/></View>}
-    <Sheet visible={open} title={editingId ? 'Edit activity' : selectedTrip.activities.length ? 'New activity' : 'First activity'} onClose={() => { setOpen(false); clear(); }}>
-      {Boolean(date) && !details && <Pressable accessibilityRole="button" accessibilityLabel={`Change activity date, ${formatDate(date)}`} onPress={() => setDetails(true)} style={s.activityDateContext}><Ionicons name="calendar-outline" size={19} color={colors.blue}/><Text style={s.activityDateText}>{formatDate(date)}</Text><Text style={s.activityDateChange}>Change</Text></Pressable>}
-      <AutocompleteField value={title} onChangeText={setTitle} placeholder="Activity" suggestions={ideas} hideLabel showSuggestionsOnFocus/>
-      <Pressable accessibilityRole="button" accessibilityState={{ expanded: details }} onPress={() => setDetails(!details)} style={s.editDates}><Ionicons name={details ? 'chevron-up' : 'add'} color={colors.blue} size={18}/><Text style={s.editDatesText}>{details ? 'Hide details' : 'Add details'}</Text></Pressable>
+    {!needsPacking && <View style={s.planAddButton}><PrimaryButton title={newActivityLabel} onPress={() => openNew()}/></View>}
+    <Sheet visible={open} title={editingId ? 'Edit activity' : selectedTrip.activities.length ? 'New activity' : 'First activity'} onClose={close}>
+      {Boolean(date) && !details && <Pressable accessibilityRole="button" accessibilityLabel={`Change activity date, ${formatDate(date)}`} onPress={() => changeForm({ details: true })} style={s.activityDateContext}><Ionicons name="calendar-outline" size={19} color={colors.blue}/><Text style={s.activityDateText}>{formatDate(date)}</Text><Text style={s.activityDateChange}>Change</Text></Pressable>}
+      <AutocompleteField value={title} onChangeText={(title) => changeForm({ title })} placeholder="Activity" suggestions={ideas} hideLabel showSuggestionsOnFocus/>
+      <Pressable accessibilityRole="button" accessibilityState={{ expanded: details }} onPress={() => changeForm({ details: !details })} style={s.editDates}><Ionicons name={details ? 'chevron-up' : 'add'} color={colors.blue} size={18}/><Text style={s.editDatesText}>{details ? 'Hide details' : 'Add details'}</Text></Pressable>
       {details && <>
-        <DateField value={date} onChangeText={setDate} placeholder="Date (optional)"/>
-        <Field value={start} onChangeText={setStart} placeholder="Start time (optional)"/>
-        <Field value={end} onChangeText={setEnd} placeholder="End time (optional)"/>
-        <Field value={location} onChangeText={setLocation} placeholder="Location (optional)"/>
-        <Field value={note} onChangeText={setNote} placeholder="Note (optional)" multiline/>
+        <DateField value={date} onChangeText={(date) => changeForm({ date })} placeholder="Date (optional)"/>
+        <Field value={start} onChangeText={(startTime) => changeForm({ startTime })} placeholder="Start time (optional)"/>
+        <Field value={end} onChangeText={(endTime) => changeForm({ endTime })} placeholder="End time (optional)"/>
+        <Field value={location} onChangeText={(location) => changeForm({ location })} placeholder="Location (optional)"/>
+        <Field value={note} onChangeText={(note) => changeForm({ note })} placeholder="Note (optional)" multiline/>
       </>}
       {error ? <Text accessibilityRole="alert" style={{ color: '#B42318', marginVertical: 12 }}>{error}</Text> : null}
+      {pendingCurrent && <Pressable accessibilityRole="button" accessibilityLabel="Discard draft" onPress={discard} style={({ pressed }) => [s.discardDraft, pressed && s.pressed]}><Text style={s.discardDraftText}>Discard draft</Text></Pressable>}
       <PrimaryButton title={editingId ? 'Save changes' : 'Add activity'} icon="checkmark" disabled={!title.trim()} onPress={save}/>
     </Sheet>
   </Section>;
@@ -861,6 +880,8 @@ Object.assign(s, StyleSheet.create({
   activityDateContext: { flexDirection: 'row', alignItems: 'center', gap: 9, padding: 13, marginBottom: 18, borderRadius: 15, backgroundColor: colors.blueSoft },
   activityDateText: { flex: 1, minWidth: 0, color: colors.text, fontSize: 16, lineHeight: 23, fontWeight: '600' },
   activityDateChange: { color: colors.blue, fontSize: 14, lineHeight: 21, fontWeight: '600' },
+  discardDraft: { alignSelf: 'center', minHeight: 44, paddingHorizontal: 16, paddingVertical: 11, marginTop: 4, marginBottom: 4, justifyContent: 'center' },
+  discardDraftText: { color: colors.muted, fontSize: 15, lineHeight: 22, fontWeight: '500' },
   planDayActivities: { gap: 9, marginLeft: 9, paddingLeft: 19, borderLeftWidth: 1, borderLeftColor: '#DCEBFF' },
   planActivityCard: { minHeight: 91, flexDirection: 'row', alignItems: 'flex-start', gap: 13, padding: 14, borderRadius: 19, shadowOpacity: .02 },
   planTimeBlock: { width: 48, minHeight: 57, borderRadius: 14, backgroundColor: colors.blueSoft, alignItems: 'center', justifyContent: 'center', paddingVertical: 8 },
