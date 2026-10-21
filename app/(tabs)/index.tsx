@@ -66,7 +66,7 @@ export default function HomeScreen() {
     </View>
     {hasTrips && <>
       <View style={s.sectionHead}><AccentText text="Your trips" style={s.sectionTitle}/><Pressable accessibilityRole="button" accessibilityLabel="Start a new trip" onPress={openNewTrip} style={s.newTripButton}><Ionicons name="add" size={22} color="#FFFFFF"/></Pressable></View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.list}>{trips.map(trip => <Ticket key={trip.id} trip={trip} onOpen={() => { setSelectedTripId(trip.id); router.push({ pathname: '/trip', params: { tab: 'Overview' } }); }}/>)}</ScrollView>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.list}>{trips.map(trip => <Ticket key={trip.id} trip={trip} onOpen={() => { setSelectedTripId(trip.id); router.push({ pathname: '/trip', params: { tab: '', activityIntent: '' } }); }}/>)}</ScrollView>
     </>}
   </ScrollView>;
 }
