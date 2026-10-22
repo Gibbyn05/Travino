@@ -26,7 +26,7 @@ export function journalPalette(index: number) { return coverPalette[index % cove
 export function JournalBook({ trip, index, isPublic, onPress, onChangeVisibility, readOnly = false }: { trip: Trip; index: number; isPublic: boolean; onPress: () => void; onChangeVisibility?: () => void; readOnly?: boolean }) {
   const palette = journalPalette(index);
   const destination = [trip.city, trip.country].filter(Boolean).join(', ');
-  return <Pressable accessibilityRole="button" accessibilityLabel={`Open ${trip.title}, ${destination}`} onPress={onPress} style={({ pressed }) => [bookStyles.pressable, pressed && bookStyles.pressed]}>
+  return <View style={bookStyles.pressable}><Pressable accessibilityRole="button" accessibilityLabel={`Open ${trip.title}, ${destination}`} onPress={onPress} style={({ pressed }) => [pressed && bookStyles.pressed]}>
     <View style={[bookStyles.cover, { backgroundColor: palette.cover }]}>
       <View style={[bookStyles.spine, { backgroundColor: palette.shade }]}/>
       <View style={bookStyles.spineHighlight}/>
@@ -35,13 +35,14 @@ export function JournalBook({ trip, index, isPublic, onPress, onChangeVisibility
       <Text numberOfLines={2} style={[bookStyles.coverDestination, { color: palette.ink }]}>{destination || 'A new place'}</Text>
       <View style={bookStyles.pageBlock}/>
       <View style={bookStyles.bookmark}/>
-      {readOnly || !onChangeVisibility
-        ? <View accessibilityLabel={isPublic ? 'Public memory book' : 'Private memory book'} style={bookStyles.visibilityBadge}><Ionicons name={isPublic ? 'globe-outline' : 'lock-closed'} size={13} color={palette.cover}/></View>
-        : <Pressable accessibilityRole="button" accessibilityLabel={`${isPublic ? 'Public' : 'Private'} memory book. Change sharing.`} onPress={(event) => { event.stopPropagation(); onChangeVisibility(); }} hitSlop={8} style={bookStyles.visibilityBadge}><Ionicons name={isPublic ? 'globe-outline' : 'lock-closed'} size={13} color={palette.cover}/></Pressable>}
     </View>
     <Text numberOfLines={1} style={bookStyles.title}>{trip.title}</Text>
     <Text numberOfLines={1} style={bookStyles.destination}>{destination}</Text>
-  </Pressable>;
+  </Pressable>
+    {readOnly || !onChangeVisibility
+      ? <View accessibilityLabel={isPublic ? 'Public memory book' : 'Private memory book'} style={bookStyles.visibilityBadge}><Ionicons name={isPublic ? 'globe-outline' : 'lock-closed'} size={13} color={palette.cover}/></View>
+      : <Pressable accessibilityRole="button" accessibilityLabel={`${isPublic ? 'Public' : 'Private'} memory book. Change sharing.`} onPress={onChangeVisibility} hitSlop={8} style={bookStyles.visibilityBadge}><Ionicons name={isPublic ? 'globe-outline' : 'lock-closed'} size={13} color={palette.cover}/></Pressable>}
+  </View>;
 }
 
 export function MemoryJournal({ trip, coverIndex, isPublic, onAddMemory, onSaveCaption, onSaveLayout, onRemoveMemory, onChangeVisibility, readOnly = false }: { trip: Trip; coverIndex: number; isPublic: boolean; onAddMemory?: (page?: number) => void; onSaveCaption?: (memoryId: string, caption: string) => void; onSaveLayout?: (memoryId: string, layout: MemoryLayout) => void; onRemoveMemory?: (memoryId: string) => void; onChangeVisibility?: () => void; readOnly?: boolean }) {
