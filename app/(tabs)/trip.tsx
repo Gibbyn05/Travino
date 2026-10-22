@@ -79,8 +79,9 @@ export default function TripScreen() {
         </View>
       </Pressable><InviteButton onPress={invite}/></View>}
     {isOverview && <><TripStatus/><TripCompanions onInvite={invite}/></>}
-    <View accessibilityRole="tablist" accessibilityLabel="Trip sections" style={s.tripTabs}>{primaryTripTabs.map(item => <Pressable key={item} accessibilityRole="tab" accessibilityLabel={item} accessibilityState={{ selected: primaryTripTab(tab) === item }} aria-selected={primaryTripTab(tab) === item} onPress={() => openTab(item)} style={({ pressed }) => [s.tripTab, { flex: item === 'Overview' ? 1.3 : item === 'Packing' ? 1.15 : .9 }, primaryTripTab(tab) === item && s.activeTab, pressed && s.pressed]}><Text style={[s.tripTabText, primaryTripTab(tab) === item && s.activeText]}>{item}</Text></Pressable>)}</View>
+    <View accessibilityRole="tablist" accessibilityLabel="Trip sections" style={s.tripTabs}>{primaryTripTabs.map(item => <Pressable key={item} accessibilityRole="tab" accessibilityLabel={item} accessibilityState={{ selected: primaryTripTab(tab) === item }} aria-selected={primaryTripTab(tab) === item} onPress={() => openTab(item)} style={({ pressed }) => [s.tripTab, { flex: item === 'Overview' ? 1.3 : item === 'Packing' ? 1.15 : .9 }, primaryTripTab(tab) === item && s.tripTabActive, pressed && s.pressed]}><Text style={[s.tripTabText, primaryTripTab(tab) === item && s.tripTabTextActive]}>{item}</Text></Pressable>)}</View>
     {extraTripTabs.includes(tab) && <Pressable accessibilityRole="button" accessibilityLabel="Back to More" onPress={() => openTab('More')} style={s.moreBack}><Ionicons name="chevron-back" size={20} color={colors.blue}/><Text style={s.overviewLinkText}>Back to More</Text></Pressable>}
+    {!extraTripTabs.includes(tab) && <Text accessibilityRole="header" style={s.tripSectionTitle}>{tab}</Text>}
     {tab === 'More' && <More onOpen={openTab}/>}
     {tab === 'Overview' && <Overview key={`overview-${selectedTrip.id}`} onNext={(target) => openTab(target === 'add-activity' ? 'Plan' : target, target === 'add-activity')} onOpenPlan={() => openTab('Plan')} onEditDates={() => setDatesOpen(true)} onEditDetails={() => setDetailsOpen(true)} onInvite={invite} onOpenAddFriend={() => setAddFriendOpen(true)}/>}{tab === 'Plan' && <Plan key={`plan-${selectedTrip.id}`} onRemove={removeActivity} onOpenPacking={() => openTab('Packing')} onFirstSaved={revealNextStep} initiallyOpen={startActivity} onOpened={() => setStartActivity(false)}/>}{tab === 'Activities' && <ThingsToDo onOpen={(activity) => { router.push({ pathname: '/activity-browser', params: { activity, city: selectedTrip.city, country: selectedTrip.country } }); }} />}{tab === 'Packing' && <Packing onRemove={removePacking} onOpenPlan={() => openTab('Plan')} onComplete={revealNextStep}/>}{tab === 'Wishlist' && <Wishes/>}{tab === 'Memories' && <Memories/>}
     {detailsOpen && <TripDetailsSheet key={`details-${selectedTrip.id}`} trip={selectedTrip} onClose={() => setDetailsOpen(false)}/>}
@@ -113,10 +114,10 @@ function More({ onOpen }: { onOpen: (section: string) => void }) {
     { section: 'Wishlist', label: 'Wishlist', icon: 'heart-outline', color: colors.purple, background: colors.purpleSoft },
     { section: 'Memories', label: 'Memories', icon: 'images-outline', color: colors.coral, background: '#FFF0E8' },
   ];
-  return <Section title="More"><View style={s.moreChoices}>{choices.map(choice => <Pressable key={choice.section} accessibilityRole="button" accessibilityLabel={`Open ${choice.label.toLowerCase()}`} onPress={() => onOpen(choice.section)} style={({ pressed }) => [s.moreChoice, pressed && s.pressed]}>
+  return <View style={s.moreChoices}>{choices.map(choice => <Pressable key={choice.section} accessibilityRole="button" accessibilityLabel={`Open ${choice.label.toLowerCase()}`} onPress={() => onOpen(choice.section)} style={({ pressed }) => [s.moreChoice, pressed && s.pressed]}>
     <View style={[s.moreIcon, { backgroundColor: choice.background }]}><Ionicons name={choice.icon as any} size={25} color={choice.color}/></View>
     <Text style={s.moreChoiceTitle}>{choice.label}</Text><Ionicons name="chevron-forward" size={21} color={colors.muted}/>
-  </Pressable>)}</View></Section>;
+  </Pressable>)}</View>;
 }
 
 function AddTripFriendSheet({ visible, onClose, tripId, tripTitle, existingNames }: { visible: boolean; onClose: () => void; tripId: string; tripTitle: string; existingNames: string[] }) {
@@ -468,7 +469,7 @@ function Plan({ initiallyOpen = false, onOpened, onRemove, onOpenPacking, onFirs
     setOpen(false); clear();
     if (firstActivity && !selectedTrip.packing.length) onFirstSaved();
   };
-  return <Section title="Plan">
+  return <View style={s.tripSectionContent}>
     {needsPacking && <Card style={s.handoffCard}>
       <Text accessibilityRole="header" accessibilityLiveRegion="polite" style={s.handoffTitle}>{firstSaved ? 'Activity added!' : 'Ready to pack?'}</Text>
       <View><PrimaryButton title="Create packing list" icon="bag-handle-outline" onPress={onOpenPacking}/><Pressable accessibilityRole="button" accessibilityLabel={newActivityLabel} onPress={() => openNew()} style={({ pressed }) => [s.handoffSecondary, pressed && s.pressed]}><Ionicons name={pendingNew ? 'arrow-forward' : 'add'} size={19} color={colors.blue}/><Text style={s.overviewLinkText}>{newActivityLabel}</Text></Pressable></View>
@@ -508,7 +509,7 @@ function Plan({ initiallyOpen = false, onOpened, onRemove, onOpenPacking, onFirs
       {pendingCurrent && <Pressable accessibilityRole="button" accessibilityLabel="Discard draft" onPress={discard} style={({ pressed }) => [s.discardDraft, pressed && s.pressed]}><Text style={s.discardDraftText}>Discard draft</Text></Pressable>}
       <PrimaryButton title={editingId ? 'Save changes' : 'Add activity'} icon="checkmark" disabled={!title.trim()} onPress={save}/>
     </Sheet>
-  </Section>;
+  </View>;
 }
 function ThingsToDo({ onOpen }: { onOpen: (activity: string) => void }) {
   const { selectedTrip } = useTravel();
@@ -598,7 +599,7 @@ function Packing({ onRemove, onOpenPlan, onComplete }: { onRemove: (id: string) 
     if (!fresh.length) return;
     updateTrip(selectedTrip.id, { packing: [...selectedTrip.packing, ...fresh.map(([item, itemCategory], index) => ({ id: `packing-${Date.now()}-${index}`, title: item, category: itemCategory, done: false }))] });
   };
-  return <Section title={total ? 'Packing list' : 'What kind of trip?'}>
+  return <View style={s.tripSectionContent}>
     {!total ? <View style={s.packingStart}>
       <View style={s.templateGrid}>{packingTemplates.map((template) => <Pressable key={template.name} accessibilityRole="button" accessibilityLabel={`Create ${template.name.toLowerCase()} packing list`} onPress={() => addItems(template.items as [string, string][])} style={({ pressed }) => [s.templateCard, pressed && s.pressed]}>
         <View style={[s.templateIcon, { backgroundColor: template.tint }]}><Ionicons name={template.icon as any} size={27} color={template.color}/></View>
@@ -637,7 +638,7 @@ function Packing({ onRemove, onOpenPlan, onComplete }: { onRemove: (id: string) 
       </View>}
       <PrimaryButton title="Add item" icon="checkmark" onPress={save} disabled={!title.trim()}/>
     </Sheet>
-  </Section>;
+  </View>;
 }
 const reactionChoices: { value: WishReaction; label: string; icon: string; color: string; tint: string }[] = [
   { value: 'like', label: 'Like', icon: 'thumbs-up-outline', color: '#25885C', tint: '#EAF7F0' },
@@ -747,7 +748,7 @@ function Wishes() {
 }
 function Memories() { const { selectedTrip, addPhoto } = useTravel(); if (!selectedTrip) return null; return <Section title="Memories"><View style={s.gallery}>{selectedTrip.memories.map((item) => <View key={item.id} style={s.memory}><Image source={{ uri: item.image }} style={s.image}/><Text style={s.copy}>{formatJournalDate(item.date)}</Text></View>)}</View>{!selectedTrip.memories.length ? <EmptyMoment compact title="Save the good bits" copy="Choose a photo when there is a moment worth keeping." actionTitle="Choose first photo" icon="image-outline" onPress={() => addPhoto(selectedTrip.id)}/> : <PrimaryButton title="Choose another photo" icon="image-outline" onPress={() => addPhoto(selectedTrip.id)}/>}</Section>; }
 const s = StyleSheet.create({
-  tripTabs: { flexDirection: 'row', gap: 6, paddingTop: 20, paddingBottom: 18 },
+  tripTabs: { flexDirection: 'row', gap: 6, paddingTop: 20, paddingBottom: 16 },
   compactOverviewLink: { flex: 1, minWidth: 0, minHeight: 82, flexDirection: 'row', alignItems: 'center', gap: 10 },
   tripCompanions: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 8, marginBottom: 2 },
   companionSummary: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -761,7 +762,11 @@ const s = StyleSheet.create({
   handoffTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 28, lineHeight: 36 },
   handoffSecondary: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 8, marginTop: 4 },
   tripTab: { flex: 1, minWidth: 0, minHeight: 52, paddingHorizontal: 3, paddingVertical: 12, alignItems: 'center', justifyContent: 'center', borderRadius: 18, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  tripTabText: { color: colors.muted, fontSize: 16, lineHeight: 22, fontWeight: '600', textAlign: 'center' },
+  tripTabText: { color: colors.text, fontSize: 16, lineHeight: 22, fontWeight: '700', textAlign: 'center' },
+  tripTabActive: { backgroundColor: colors.blue, borderColor: colors.blue },
+  tripTabTextActive: { color: '#FFFFFF' },
+  tripSectionTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 28, lineHeight: 36, marginBottom: 18 },
+  tripSectionContent: { gap: 14 },
   moreChoices: { gap: 12 },
   moreChoice: { minHeight: 80, flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14, borderRadius: 22, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   moreIcon: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
