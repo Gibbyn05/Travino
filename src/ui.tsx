@@ -54,10 +54,10 @@ export function DestinationCover({ country, uri, style, imageStyle, children }: 
     : <LinearGradient colors={['#1670EF', '#9363EF', '#F53D88']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={style}>{children}</LinearGradient>;
 }
 export function Chip({ label, warm = false }: { label: string; warm?: boolean }) { return <View style={[styles.chip, warm && styles.warmChip]}><Text style={[styles.chipText, warm && { color: colors.navy }]}>{label}</Text></View>; }
-export function EmptyMoment({ title, copy, actionTitle, onPress, icon = 'arrow-forward', compact = false, mascot = 'travel', style }: { title: string; copy: string; actionTitle?: string; onPress?: () => void; icon?: keyof typeof Ionicons.glyphMap; compact?: boolean; mascot?: CapybaraVariant; style?: object }) {
+export function EmptyMoment({ title, copy, actionTitle, onPress, icon = 'arrow-forward', compact = false, mascot = 'travel', style }: { title: string; copy: string; actionTitle?: string; onPress?: () => void; icon?: keyof typeof Ionicons.glyphMap; compact?: boolean; mascot?: CapybaraVariant | null; style?: object }) {
   return <View style={[styles.emptyMoment, compact && styles.emptyMomentCompact, style]}>
     <View style={[styles.emptyMomentHeading, compact && styles.emptyMomentHeadingCompact]}>
-      <CapybaraMoment size={compact ? 88 : 144} variant={mascot}/>
+      {mascot && <CapybaraMoment size={compact ? 88 : 144} variant={mascot}/>}
       <Text accessibilityRole="header" style={[styles.emptyMomentTitle, compact && styles.emptyMomentTitleCompact]}>{title}</Text>
     </View>
     <Text style={[styles.emptyMomentCopy, compact && styles.emptyMomentCopyCompact]}>{copy}</Text>

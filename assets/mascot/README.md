@@ -1,6 +1,6 @@
 # Travino in-app capybaras
 
-Four transparent PNG illustrations prepared with the built-in image generation
+Six transparent PNG illustrations prepared with the built-in image generation
 tool on 2026-10-24 from the user's supplied travel capybara reference sheets.
 The selected outputs were downscaled to 512 × 512 for bundled app use; alpha is
 preserved. No network request is needed to display the mascots.
@@ -11,9 +11,12 @@ preserved. No network request is needed to display the mascots.
 | `capybara-packing.png` | Choosing a packing list, map retry |
 | `capybara-celebrate.png` | First activity saved, all packed, trip planner confirmation |
 | `capybara-memories.png` | Empty memories, blank journal page |
+| `capybara-profile.png` | Profile page heading, separate from the user's avatar |
+| `capybara-friends.png` | Friends page heading, with or without existing friends |
 
-`src/capybara.tsx` gives each image two subtle greetings on screen focus, then
-rests. Motion stops on blur/background and is disabled for Reduce Motion. These
+`src/capybara.tsx` waits until its image has loaded, allows 300 ms for the screen
+transition, then gives two subtle greetings and rests. Motion stops on
+blur/background and is disabled for Reduce Motion. These
 are illustrated cutouts animated by React Native, not frame-by-frame character
 animations. The wrapper reserves all layout space and ignores touches and
 screen-reader focus.
@@ -59,3 +62,18 @@ Common suffix:
 > 6% clear margin, no text, no extra characters, no grid, no background shape, no
 > rectangular cream patch. Preserve the original illustration style very closely.
 > This will be displayed about 120px wide in a travel app.
+
+## Profile and friends additions
+
+These two cutouts were prepared from the same twelve-character reference sheet,
+with the built-in tool and `transparent_background: true`. The Friends heading
+shows one mascot in both empty and populated states; its empty card omits the
+extra mascot to avoid duplication.
+
+### Profile prompt
+
+> Use case: background-extraction. Asset type: one friendly app mascot cutout. Edit target: the attached reference sheet. Extract ONLY the second-row first-column smiling capybara with green backpack, holding its blue passport and white/orange boarding pass. Preserve its friendly closed-eye smile, pink cheek, exact character, warm orange shading, proportions, pose and thick dark brown outline. Keep the two small yellow accent marks. Remove all other characters and the cream background. Output ONE standalone character centered on a genuinely transparent alpha background, square canvas, full body and accessories visible with about 6% clear margin. Preserve the original illustration style very closely. No text, no grid, no other figures, no cream rectangle or background shape. This asset will be shown at about 96px wide in a travel app.
+
+### Friends prompt
+
+> Use case: background-extraction. Asset type: one friendly app mascot cutout. Edit target: the attached reference sheet. Extract ONLY the bottom-row second-column smiling capybara in a cream sweater with green pattern, hugging the large coral-red heart. Preserve its friendly closed-eye smile, pink cheeks, exact character, proportions, seated pose, warm orange shading and thick dark brown outline. Keep the three small floating hearts. Remove all other characters and the cream background. Output ONE standalone character centered on a genuinely transparent alpha background, square canvas, full body and accessories visible with about 6% clear margin. Preserve the original illustration style very closely. No text, no grid, no other figures, no cream rectangle or background shape. This asset will be shown at about 96px wide in a travel app.

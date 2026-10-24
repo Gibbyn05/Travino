@@ -6,7 +6,7 @@ import { router } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AccessibilityInfo, ActionSheetIOS, Alert, Animated, Image, Linking, Modal, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, useColorScheme, useWindowDimensions, View } from 'react-native';
 import { Field, Sheet } from '@/src/forms';
-import { Card, PrimaryButton } from '@/src/ui';
+import { CapybaraMoment, Card, PrimaryButton } from '@/src/ui';
 import { colors, fonts } from '@/src/theme';
 import { useTravel } from '@/src/store';
 import { ensureGuestIdentity, supabase } from '@/src/lib/supabase';
@@ -294,7 +294,10 @@ export default function ProfileScreen() {
     : 'Max level reached';
 
   return <ScrollView style={s.page} contentContainerStyle={[s.content, { paddingTop: Math.max(insets.top, 48) + 16 }]} showsVerticalScrollIndicator={false}>
-    <Text accessibilityRole="header" style={s.headerTitle}>Profile</Text>
+    <View style={s.pageHeading}>
+      <Text accessibilityRole="header" style={s.headerTitle}>Profile</Text>
+      <CapybaraMoment size={96} variant="profile"/>
+    </View>
     <View style={s.profileHero}>
       <View style={s.identity}>
         <LevelAvatar name={profileName} photoUri={displayedProfilePhoto} level={travelLevel.level} frame={selectedFrame} accessoryIcon={selectedAccessory?.icon as keyof typeof Ionicons.glyphMap | undefined} reduceMotion={reduceMotion} onPress={openLevels}/>
@@ -404,7 +407,8 @@ function levelProgressWidth(completedTrips: number, level: number) {
 const s = StyleSheet.create({
   page: { flex: 1, backgroundColor: colors.background },
   content: { paddingHorizontal: 16, paddingBottom: 44 },
-  headerTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 42, lineHeight: 50, marginBottom: 24 },
+  pageHeading: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 20 },
+  headerTitle: { flex: 1, minWidth: 0, color: colors.text, fontFamily: fonts.heading, fontSize: 42, lineHeight: 50 },
   profileHero: { gap: 18 },
   identity: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   rowBody: { flex: 1, minWidth: 0 },
