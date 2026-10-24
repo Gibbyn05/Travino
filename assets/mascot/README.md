@@ -1,18 +1,20 @@
 # Travino in-app capybaras
 
-Six transparent PNG illustrations prepared with the built-in image generation
+Eight transparent PNG illustrations prepared with the built-in image generation
 tool on 2026-10-24 from the user's supplied travel capybara reference sheets.
 The selected outputs were downscaled to 512 × 512 for bundled app use; alpha is
 preserved. No network request is needed to display the mascots.
 
 | File | Context |
 | --- | --- |
-| `capybara-travel.png` | New trip setup, empty Days/Trip/Map, friends |
+| `capybara-travel.png` | New trip setup, empty Days/Trip/Map |
 | `capybara-packing.png` | Choosing a packing list, map retry |
 | `capybara-celebrate.png` | First activity saved, all packed, trip planner confirmation |
 | `capybara-memories.png` | Empty memories, blank journal page |
 | `capybara-profile.png` | Profile page heading, separate from the user's avatar |
 | `capybara-friends.png` | Friends page heading, with or without existing friends |
+| `capybara-invite.png` | Confirmed friend request, after the RPC succeeds |
+| `capybara-completed.png` | Trip marked completed, with a direct action to its memory book |
 
 `src/capybara.tsx` waits until its image has loaded, allows 300 ms for the screen
 transition, then gives two subtle greetings and rests. Motion stops on
@@ -77,3 +79,20 @@ extra mascot to avoid duplication.
 ### Friends prompt
 
 > Use case: background-extraction. Asset type: one friendly app mascot cutout. Edit target: the attached reference sheet. Extract ONLY the bottom-row second-column smiling capybara in a cream sweater with green pattern, hugging the large coral-red heart. Preserve its friendly closed-eye smile, pink cheeks, exact character, proportions, seated pose, warm orange shading and thick dark brown outline. Keep the three small floating hearts. Remove all other characters and the cream background. Output ONE standalone character centered on a genuinely transparent alpha background, square canvas, full body and accessories visible with about 6% clear margin. Preserve the original illustration style very closely. No text, no grid, no other figures, no cream rectangle or background shape. This asset will be shown at about 96px wide in a travel app.
+
+## Invitation and completed-trip additions
+
+Both use the twelve-character reference sheet, the built-in image tool and
+`transparent_background: true`. The existing page-heading mascot is hidden while
+its success sheet is open. Opening or cancelling a system share sheet does not
+confirm an invitation; only a successful friend-request RPC does. Completion is
+shown once after the user's action, and its button carries the exact trip ID
+to the memory journal, including when several trips share a country.
+
+### Invitation prompt
+
+> Use case: background-extraction. Asset type: transparent illustration for a travel app confirmation. Extract and faithfully recreate ONLY the waving capybara in row 2 column 2 of the reference sheet. Friendly smiling brown capybara in aviator goggles, brown pilot cap and yellow scarf, waving one paw with a small rolling suitcase. Preserve its warm rounded cartoon style, colors, proportions and dark brown outlines. One complete character, centered in a square with small even margins; preserve all suitcase wheels and scarf. Actual transparent alpha background, no cream rectangle, no other characters, no text, no border, no watermark.
+
+### Completed-trip prompt
+
+> Use case: background-extraction. Asset type: transparent illustration for a travel app completed-trip confirmation. Extract and faithfully recreate ONLY the relaxed capybara in row 3 column 4 of the reference sheet. Friendly peaceful brown capybara with red sunglasses on its head, blue floral Hawaiian shirt, seated comfortably on a small brown suitcase while holding a green coconut drink with a straw and flower. Preserve its warm rounded cartoon style, colors, proportions and dark brown outlines. One complete character, centered in a square with small even margins. Actual transparent alpha background, no cream rectangle, no other characters, no text, no border, no watermark.

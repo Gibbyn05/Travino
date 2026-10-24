@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Linking from 'expo-linking';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Keyboard, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { Field, Sheet } from '@/src/forms';
 import { AccentText, CapybaraMoment, Card, EmptyMoment, PrimaryButton } from '@/src/ui';
 import { colors, fonts } from '@/src/theme';
@@ -30,6 +30,7 @@ export default function FriendsTab() {
   const [profile, setProfile] = useState<{ username: string; friend_code: string } | null>(null);
   const [inputIdentifier, setInputIdentifier] = useState('');
   const [open, setOpen] = useState(false);
+  const [inviteSent, setInviteSent] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState('');
   const [relationships, setRelationships] = useState<SocialProfile[]>([]);
@@ -54,9 +55,12 @@ export default function FriendsTab() {
   useEffect(() => { refresh(); }, [refresh]);
   useEffect(() => {
     if (!invite) return;
+    setInviteSent(false);
     setInputIdentifier(invite.replace(/^@/, ''));
     setOpen(true);
   }, [invite]);
+
+  const openAddFriend = () => { setInviteSent(false); setOpen(true); };
 
   const shareInvite = async () => {
     if (!profile?.username) return;
@@ -65,13 +69,16 @@ export default function FriendsTab() {
   };
 
   const addFriend = async () => {
+    if (busyId === 'add' || !inputIdentifier.trim()) return;
     if (!supabase) { Alert.alert('Friends are taking a moment', 'Try again a little later.'); return; }
     setBusyId('add');
     try {
       const { error } = await supabase.rpc('add_friend_by_identifier', { p_identifier: inputIdentifier.trim() });
       if (error) throw error;
-      setOpen(false); setInputIdentifier(''); await refresh();
-      Alert.alert('Friend request sent', 'They will appear here after they accept.');
+      Keyboard.dismiss();
+      setInputIdentifier('');
+      setInviteSent(true);
+      await refresh();
     } catch (error: any) {
       Alert.alert('Could not send request', error?.message || 'Check the username and try again.');
     } finally { setBusyId(''); }
@@ -103,20 +110,28 @@ export default function FriendsTab() {
   return <ScrollView style={s.page} contentContainerStyle={s.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
     <View style={s.pageHeading}>
       <View style={s.headingCopy}><Text style={s.eyebrow}>The people you travel with</Text><Text accessibilityRole="header" style={s.pageTitle}>Friends</Text></View>
-      <CapybaraMoment size={96} variant="friends"/>
+      {!(open && inviteSent) && <CapybaraMoment size={96} variant="friends"/>}
     </View>
     <Card style={s.inviteCard}>
       <View style={s.inviteTop}><View style={s.inviteIcon}><Ionicons name="person-add-outline" size={22} color={colors.blue}/></View><View style={{ flex: 1 }}><Text style={s.cardTitle}>Your Travino username</Text><Text style={s.cardCopy}>Share a link or let a friend add you by username.</Text></View></View>
       <View style={s.handleRow}><Text selectable style={s.handle}>{profile?.username ? `@${profile.username}` : 'Setting up…'}</Text><Pressable accessibilityRole="button" accessibilityLabel="Share your friend invite" disabled={!profile?.username} onPress={shareInvite} style={({ pressed }) => [s.shareButton, (pressed || !profile?.username) && s.pressed]}><Ionicons name="share-outline" size={19} color={colors.blue}/></Pressable></View>
-      <PrimaryButton title="Add a friend" icon="person-add-outline" onPress={() => setOpen(true)}/>
+      <PrimaryButton title="Add a friend" icon="person-add-outline" onPress={openAddFriend}/>
     </Card>
 
     {loading && <ActivityIndicator color={colors.blue} style={{ marginTop: 24 }}/>}
     {!loading && incoming.length > 0 && <View style={s.section}><AccentText text="Friend requests" style={s.sectionTitle}/>{incoming.map((friend) => <RequestRow key={friend.friendship_id} friend={friend} busy={busyId === friend.friendship_id} onAccept={() => respond(friend.friendship_id, true)} onReject={() => respond(friend.friendship_id, false)}/>)}</View>}
     {!loading && outgoing.length > 0 && <View style={s.section}><AccentText text="Sent requests" style={s.sectionTitle}/>{outgoing.map((friend) => <View key={friend.friendship_id} style={s.pendingRow}><FriendAvatar name={friend.display_name} uri={friend.avatar_url}/><View style={{ flex: 1 }}><Text style={s.friendName}>{friend.display_name}</Text><Text style={s.friendDetail}>Waiting for a reply</Text></View><Ionicons name="time-outline" size={19} color={colors.muted}/></View>)}</View>}
-    {!loading && <View style={s.section}><AccentText text="Your friends" style={s.sectionTitle}/>{accepted.length ? accepted.map((friend) => <FriendRow key={friend.friendship_id} friend={friend} onChat={() => router.push({ pathname: '/friends/chat/[userId]', params: { userId: friend.profile_id, friendshipId: friend.friendship_id, name: friend.display_name } } as never)} onOpenBooks={() => router.push({ pathname: '/friends/[userId]', params: { userId: friend.profile_id, name: friend.display_name } } as never)} onRemove={() => removeFriend(friend)}/>) : <EmptyMoment compact mascot={null} style={s.empty} title="Your travel circle starts here" copy="Add someone you trust when you want to share memories and messages." actionTitle="Add a friend" icon="person-add-outline" onPress={() => setOpen(true)}/>}</View>}
+    {!loading && <View style={s.section}><AccentText text="Your friends" style={s.sectionTitle}/>{accepted.length ? accepted.map((friend) => <FriendRow key={friend.friendship_id} friend={friend} onChat={() => router.push({ pathname: '/friends/chat/[userId]', params: { userId: friend.profile_id, friendshipId: friend.friendship_id, name: friend.display_name } } as never)} onOpenBooks={() => router.push({ pathname: '/friends/[userId]', params: { userId: friend.profile_id, name: friend.display_name } } as never)} onRemove={() => removeFriend(friend)}/>) : <EmptyMoment compact mascot={null} style={s.empty} title="Your travel circle starts here" copy="Add someone you trust when you want to share memories and messages." actionTitle="Add a friend" icon="person-add-outline" onPress={openAddFriend}/>}</View>}
     <Text style={s.privacyNote}><Ionicons name="lock-closed-outline" size={13} color={colors.muted}/> Requests need acceptance. Only public books from accepted friends can be opened.</Text>
-    <Sheet visible={open} title="Add a friend" onClose={() => setOpen(false)}><Text style={s.sheetCopy}>Enter their Travino username, with or without @. Friend codes still work too.</Text><Field value={inputIdentifier} onChangeText={setInputIdentifier} placeholder="Username or friend code"/><PrimaryButton title={busyId === 'add' ? 'Sending…' : 'Send request'} icon="paper-plane-outline" onPress={addFriend} disabled={!inputIdentifier.trim() || busyId === 'add'}/></Sheet>
+    <Sheet visible={open} title={inviteSent ? 'Invite sent!' : 'Add a friend'} onClose={() => setOpen(false)}>
+      {inviteSent ? <View style={s.confirmation}>
+        <CapybaraMoment size={152} variant="invite"/>
+        <Text accessibilityLiveRegion="polite" style={s.confirmationCopy}>They'll appear here when they accept.</Text>
+      </View> : <View><Text style={s.sheetCopy}>Enter their Travino username, with or without @. Friend codes still work too.</Text><Field value={inputIdentifier} onChangeText={setInputIdentifier} placeholder="Username or friend code"/></View>}
+      {inviteSent
+        ? <PrimaryButton title="Back to friends" icon="people-outline" onPress={() => setOpen(false)}/>
+        : <PrimaryButton title={busyId === 'add' ? 'Sending…' : 'Send request'} icon="paper-plane-outline" onPress={addFriend} disabled={!inputIdentifier.trim() || busyId === 'add'}/>}
+    </Sheet>
   </ScrollView>;
 }
 
@@ -137,5 +152,6 @@ const s = StyleSheet.create({
   pageHeading: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 24 }, headingCopy: { flex: 1, minWidth: 0, gap: 5 }, eyebrow: { color: colors.muted, fontSize: 18, lineHeight: 26 }, pageTitle: { color: colors.blue, fontFamily: fonts.heading, fontSize: 42, lineHeight: 50 },
   inviteCard: { padding: 20, backgroundColor: colors.blueSoft, borderColor: '#D9EAFF' }, inviteTop: { flexDirection: 'row', gap: 12, alignItems: 'center' }, inviteIcon: { width: 48, height: 48, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' }, cardTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 17, fontWeight: '700' }, cardCopy: { color: colors.muted, fontSize: 13, lineHeight: 19, marginTop: 3 }, handleRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 16, paddingLeft: 2 }, handle: { flex: 1, color: colors.text, fontSize: 18, fontWeight: '800', letterSpacing: .2 }, shareButton: { width: 42, height: 42, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' },
   section: { marginTop: 28, gap: 10 }, sectionTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 19, fontWeight: '700', letterSpacing: -.2, marginBottom: 2 }, friendRow: { minHeight: 72, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 19, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, flexDirection: 'row', alignItems: 'center', gap: 9 }, pendingRow: { minHeight: 68, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 19, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, flexDirection: 'row', alignItems: 'center', gap: 11 }, avatar: { height: 43, width: 43, borderRadius: 15, overflow: 'hidden', backgroundColor: colors.purpleSoft, alignItems: 'center', justifyContent: 'center' }, avatarImage: { width: '100%', height: '100%' }, avatarText: { color: colors.purple, fontSize: 17, fontWeight: '700' }, friendNameRow: { flexDirection: 'row', alignItems: 'center', gap: 4 }, friendName: { color: colors.text, fontSize: 14, fontWeight: '700', flexShrink: 1 }, friendDetail: { color: colors.muted, fontSize: 11, marginTop: 3 }, chatButton: { width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.blue }, bookButton: { width: 36, height: 36, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.blueSoft }, moreButton: { width: 24, height: 36, alignItems: 'center', justifyContent: 'center' }, requestActions: { flexDirection: 'row', gap: 6, alignItems: 'center' }, accept: { borderRadius: 13, paddingHorizontal: 12, paddingVertical: 9, backgroundColor: colors.blue }, acceptText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' }, reject: { borderRadius: 13, paddingHorizontal: 10, paddingVertical: 9, backgroundColor: '#F3F4F7' }, rejectText: { color: colors.muted, fontSize: 12, fontWeight: '600' },
+  confirmation: { alignItems: 'center', gap: 14, paddingBottom: 12 }, confirmationCopy: { color: colors.text, fontSize: 20, lineHeight: 28, textAlign: 'center' },
   empty: { alignItems: 'stretch', backgroundColor: colors.purpleSoft, borderColor: '#E8DFFF' }, privacyNote: { color: colors.muted, fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: 24 }, sheetCopy: { color: colors.muted, fontSize: 14, lineHeight: 21, marginTop: -9, marginBottom: 15 }, pressed: { opacity: .72, transform: [{ scale: .98 }] },
 });

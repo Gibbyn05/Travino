@@ -165,6 +165,7 @@ export default function ProfileScreen() {
   const [rulesOpen, setRulesOpen] = useState(false);
   const [perksOpen, setPerksOpen] = useState(false);
   const [manageTripOpen, setManageTripOpen] = useState(false);
+  const [completedTripId, setCompletedTripId] = useState<string | null>(null);
   const [levelUp, setLevelUp] = useState<string | null>(null);
   const [reduceMotion, setReduceMotion] = useState(false);
   const [name, setName] = useState(profileName);
@@ -181,6 +182,17 @@ export default function ProfileScreen() {
   const hasGoldAccents = travelLevel.level >= 9;
   const savedTrips = trips.filter(trip => trip.id !== 'spain-2026');
   const manageableTrip = selectedTrip?.id !== 'spain-2026' ? selectedTrip : undefined;
+  const justCompletedTrip = trips.find(trip => trip.id === completedTripId);
+  const completeTrip = () => {
+    if (!manageableTrip || manageableTrip.completionState === 'completed') return;
+    setTripCompletionState(manageableTrip.id, 'completed');
+    setCompletedTripId(manageableTrip.id);
+  };
+  const openCompletedMemories = () => {
+    if (!justCompletedTrip) return;
+    setCompletedTripId(null);
+    router.push({ pathname: '/memory-book/[country]', params: { country: justCompletedTrip.country || justCompletedTrip.city, tripId: justCompletedTrip.id } } as never);
+  };
   const openLevels = () => { setLevelTab('Levels'); setLevelsOpen(true); };
   const { countriesVisited, daysAway } = useMemo(() => {
     const localToday = new Date();
@@ -296,7 +308,7 @@ export default function ProfileScreen() {
   return <ScrollView style={s.page} contentContainerStyle={[s.content, { paddingTop: Math.max(insets.top, 48) + 16 }]} showsVerticalScrollIndicator={false}>
     <View style={s.pageHeading}>
       <Text accessibilityRole="header" style={s.headerTitle}>Profile</Text>
-      <CapybaraMoment size={96} variant="profile"/>
+      {!justCompletedTrip && <CapybaraMoment size={96} variant="profile"/>}
     </View>
     <View style={s.profileHero}>
       <View style={s.identity}>
@@ -342,7 +354,7 @@ export default function ProfileScreen() {
       <Card style={s.groupCard}>
         <ListRow icon="airplane-outline" title={savedTrips.length ? `${savedTrips.length} saved ${savedTrips.length === 1 ? 'trip' : 'trips'}` : 'Plan a trip'} onPress={() => router.push(savedTrips.length ? '/' : '/new-trip' as any)}/>
         {manageableTrip && <><View style={s.rowDivider}/><ProfileDisclosure title="Manage trip" copy={manageableTrip.title} expanded={manageTripOpen} onPress={() => setManageTripOpen(value => !value)}>
-          {manageableTrip.completionState !== 'completed' ? <Pressable accessibilityRole="button" accessibilityLabel="Mark trip completed" onPress={() => setTripCompletionState(manageableTrip.id, 'completed')} style={({ pressed }) => [s.manageAction, pressed && s.pressed]}><Ionicons name="checkmark-circle-outline" size={24} color={colors.blue}/><Text style={s.manageActionText}>Mark completed</Text></Pressable> : <Text accessibilityLiveRegion="polite" style={s.rowCopy}>Completed</Text>}
+          {manageableTrip.completionState !== 'completed' ? <Pressable accessibilityRole="button" accessibilityLabel="Mark trip completed" onPress={completeTrip} style={({ pressed }) => [s.manageAction, pressed && s.pressed]}><Ionicons name="checkmark-circle-outline" size={24} color={colors.blue}/><Text style={s.manageActionText}>Mark completed</Text></Pressable> : <Text accessibilityLiveRegion="polite" style={s.rowCopy}>Completed</Text>}
           <Pressable accessibilityRole="button" accessibilityLabel="Delete trip" onPress={() => deleteTrip(manageableTrip.id)} style={({ pressed }) => [s.manageAction, pressed && s.pressed]}><Ionicons name="trash-outline" size={24} color="#BA294B"/><Text style={[s.manageActionText, s.deleteText]}>Delete trip</Text></Pressable>
         </ProfileDisclosure></>}
       </Card>
@@ -363,6 +375,13 @@ export default function ProfileScreen() {
       </Card>
     </View>
 
+    <Sheet visible={Boolean(justCompletedTrip)} title="Trip completed!" onClose={() => setCompletedTripId(null)}>
+      <View style={s.confirmation}>
+        <CapybaraMoment size={152} variant="completed"/>
+        <Text accessibilityLiveRegion="polite" style={s.confirmationCopy}>Keep the best moments from your trip.</Text>
+      </View>
+      <PrimaryButton title="Save your memories" icon="book-outline" onPress={openCompletedMemories}/>
+    </Sheet>
     <Sheet visible={open} title="Edit profile" onClose={() => setOpen(false)}>
       <View style={s.editAvatarSection}>
         <View style={[s.editAvatarFrame, { borderColor: selectedFrame.colors[0] }]}><View style={[s.editAvatarFrameInner, { borderColor: selectedFrame.colors[1] }]}>{displayedProfilePhoto ? <Image key={displayedProfilePhoto} accessibilityLabel={`${profileName || 'Your'} profile photo`} source={{ uri: displayedProfilePhoto }} style={s.editAvatarPhoto}/> : <View style={s.editAvatarInitialSurface}><Text style={s.editAvatarInitial}>{(profileName || '?').slice(0, 1).toUpperCase()}</Text></View>}</View></View>
@@ -441,6 +460,8 @@ const s = StyleSheet.create({
   levelTrackGold: { backgroundColor: '#F7E5B0' },
   levelFill: { height: '100%', borderRadius: 4, backgroundColor: colors.blue },
   levelFillGold: { backgroundColor: '#B8832E' },
+  confirmation: { alignItems: 'center', gap: 14, paddingBottom: 12 },
+  confirmationCopy: { color: colors.text, fontSize: 20, lineHeight: 28, textAlign: 'center' },
   levelUp: { paddingLeft: 12, paddingVertical: 6, borderRadius: 15, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#FFF6DD', borderWidth: 1, borderColor: '#F3DEAA' },
   levelUpText: { flex: 1, minWidth: 0, color: colors.text, fontFamily: fonts.heading, fontSize: 20, lineHeight: 27 },
   dismissLevel: { minHeight: 44, width: 44, alignItems: 'center', justifyContent: 'center' },

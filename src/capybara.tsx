@@ -9,6 +9,8 @@ const illustrations = {
   memories: require('../assets/mascot/capybara-memories.png'),
   profile: require('../assets/mascot/capybara-profile.png'),
   friends: require('../assets/mascot/capybara-friends.png'),
+  invite: require('../assets/mascot/capybara-invite.png'),
+  completed: require('../assets/mascot/capybara-completed.png'),
 };
 
 export type CapybaraVariant = keyof typeof illustrations;
