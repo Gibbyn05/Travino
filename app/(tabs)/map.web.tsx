@@ -41,7 +41,7 @@ export default function WebMapScreen() {
       <View style={[s.land, s.landOne]}/><View style={[s.land, s.landTwo]}/><View style={[s.land, s.landThree]}/>
       <View style={s.route}/>
       {trips.slice(0, markerPositions.length).map((trip, index) => <View key={trip.id} style={[s.marker, markerPositions[index], isCompleted(trip) ? s.completedMarker : s.futureMarker]}><Ionicons name={isCompleted(trip) ? 'bookmark' : 'airplane'} size={17} color="#FFFFFF"/></View>)}
-      {!trips.length ? <View style={s.noTrips}><CapybaraMoment size={62}/><Text style={s.noTripsTitle}>Your map is waiting.</Text><Text style={s.noTripsCopy}>Plan a trip and its destination will appear here.</Text></View> : null}
+      {!trips.length ? <View style={s.noTrips}><CapybaraMoment size={104}/></View> : null}
     </View>
     <View style={s.bottomArea}>
       {upcoming ? <Pressable accessibilityRole="button" onPress={openTrip} style={({ pressed }) => [s.tripSheet, pressed && s.pressed]}>

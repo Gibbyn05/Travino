@@ -17,7 +17,7 @@ export default function MemoryBookIndex() {
     {journals.length ? (
       <View style={s.shelf}>{journals.map((trip, index) => <JournalBook key={trip.id} trip={trip} index={index} isPublic={memoryBookIsPublic(trip, memoryBooksPublicByDefault)} onChangeVisibility={() => chooseVisibility(trip.id, trip.memoryBookVisibility)} onPress={() => router.push({ pathname: '/memory-book/[country]', params: { country: trip.country || trip.city, tripId: trip.id } } as never)}/>)}</View>
     ) : (
-      <EmptyMoment style={s.empty} title="Your shelf is ready" copy="Add a destination to a trip and its journal will appear here." actionTitle="Plan a trip" icon="airplane-outline" onPress={() => router.push('/')}/>
+      <EmptyMoment mascot="memories" style={s.empty} title="Your shelf is ready" copy="Add a destination to a trip and its journal will appear here." actionTitle="Plan a trip" icon="airplane-outline" onPress={() => router.push('/')}/>
     )}
   </ScrollView>;
 

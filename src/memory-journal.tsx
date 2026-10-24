@@ -238,7 +238,7 @@ function ScrapPage({ side, page, onSaveCaption, onSaveLayout, onRemoveMemory, on
   const [size, setSize] = useState({ width: 0, height: 0 });
   return <View style={[journalStyles.paper, side === 'left' ? journalStyles.leftPaper : journalStyles.rightPaper]}>
     <View onLayout={(event) => setSize(event.nativeEvent.layout)} style={journalStyles.collageCanvas}>
-      {page?.memory ? <MemoryPhoto memory={page.memory} canvas={size} onSaveCaption={onSaveCaption} onSaveLayout={onSaveLayout} onRemoveMemory={onRemoveMemory} onCaptionFocus={onCaptionFocus} onCaptionEditingChange={onCaptionEditingChange} layoutEditing={layoutEditing} readOnly={readOnly}/> : <View style={journalStyles.blankPage}><CapybaraMoment size={48}/><Text style={journalStyles.blankCopy}>The next memory will start a fresh page.</Text></View>}
+      {page?.memory ? <MemoryPhoto memory={page.memory} canvas={size} onSaveCaption={onSaveCaption} onSaveLayout={onSaveLayout} onRemoveMemory={onRemoveMemory} onCaptionFocus={onCaptionFocus} onCaptionEditingChange={onCaptionEditingChange} layoutEditing={layoutEditing} readOnly={readOnly}/> : <View style={journalStyles.blankPage}><CapybaraMoment size={76} variant="memories"/><Text style={journalStyles.blankCopy}>The next memory will start a fresh page.</Text></View>}
     </View>
   </View>;
 }

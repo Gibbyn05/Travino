@@ -26,7 +26,7 @@ export default function CountdownScreen() {
   if (!ready) return <View style={s.loading}><CapybaraMoment size={66}/><Text style={s.body}>Opening your trip…</Text></View>;
   if (!trip) return <ScrollView style={s.page} contentContainerStyle={s.emptyContent}>
     <Text accessibilityRole="header" style={s.pageTitle}>Days</Text>
-    <EmptyMoment title={undated ? 'When are you going?' : 'Where next?'} copy={undated ? undated.title : 'Start with a destination.'} actionTitle={undated ? 'Add travel dates' : 'Plan a trip'} icon={undated ? 'calendar-outline' : 'add'} onPress={() => undated ? setDatesOpen(true) : router.push('/new-trip' as never)}/>
+    <EmptyMoment mascot="travel" title={undated ? 'When are you going?' : 'Where next?'} copy={undated ? undated.title : 'Start with a destination.'} actionTitle={undated ? 'Add travel dates' : 'Plan a trip'} icon={undated ? 'calendar-outline' : 'add'} onPress={() => undated ? setDatesOpen(true) : router.push('/new-trip' as never)}/>
     {datesOpen && undated && <TripDatesSheet key={undated.id} trip={undated} onClose={() => setDatesOpen(false)}/>}
   </ScrollView>;
 
@@ -72,7 +72,7 @@ export default function CountdownScreen() {
 
 const s = StyleSheet.create({
   page: { flex: 1, backgroundColor: colors.background }, content: { paddingHorizontal: 16, paddingTop: 64, paddingBottom: 40 },
-  emptyContent: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 16, paddingTop: 64, paddingBottom: 40 }, loading: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 14, backgroundColor: colors.background },
+  emptyContent: { flexGrow: 1, paddingHorizontal: 16, paddingTop: 64, paddingBottom: 40 }, loading: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 14, backgroundColor: colors.background },
   pageTitle: { fontFamily: fonts.heading, fontSize: 34, lineHeight: 42, color: colors.text, marginBottom: 16 },
   heroFrame: { borderRadius: 24, overflow: 'hidden', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   hero: { height: 150, backgroundColor: colors.blueSoft }, heroImage: { borderTopLeftRadius: 23, borderTopRightRadius: 23 }, heroShade: { flex: 1, padding: 16, justifyContent: 'flex-end' },
