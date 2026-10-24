@@ -471,7 +471,10 @@ function Plan({ initiallyOpen = false, onOpened, onRemove, onOpenPacking, onFirs
   };
   return <View style={s.tripSectionContent}>
     {needsPacking && <Card style={s.handoffCard}>
-      <Text accessibilityRole="header" accessibilityLiveRegion="polite" style={s.handoffTitle}>{firstSaved ? 'Activity added!' : 'Ready to pack?'}</Text>
+      <View style={s.handoffHeading}>
+        {firstSaved && <CapybaraMoment size={64} variant="celebrate"/>}
+        <Text accessibilityRole="header" accessibilityLiveRegion="polite" style={s.handoffTitle}>{firstSaved ? 'Activity added!' : 'Ready to pack?'}</Text>
+      </View>
       <View><PrimaryButton title="Create packing list" icon="bag-handle-outline" onPress={onOpenPacking}/><Pressable accessibilityRole="button" accessibilityLabel={newActivityLabel} onPress={() => openNew()} style={({ pressed }) => [s.handoffSecondary, pressed && s.pressed]}><Ionicons name={pendingNew ? 'arrow-forward' : 'add'} size={19} color={colors.blue}/><Text style={s.overviewLinkText}>{newActivityLabel}</Text></Pressable></View>
     </Card>}
     {dayGroups.length ? <View style={s.planTimeline}>{dayGroups.map((group) => <View key={group.key} style={s.planDay}>
@@ -760,7 +763,8 @@ const s = StyleSheet.create({
   inviteShortcut: { minHeight: 44, paddingHorizontal: 10, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 14, borderWidth: 1, borderColor: '#C8E3FF', backgroundColor: '#F7FBFF' },
   inviteShortcutText: { color: colors.blue, fontSize: 16, lineHeight: 22, fontWeight: '600' },
   handoffCard: { gap: 16, padding: 20, marginBottom: 22, borderColor: '#D7E8FF', backgroundColor: colors.blueSoft },
-  handoffTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 28, lineHeight: 36 },
+  handoffHeading: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  handoffTitle: { flex: 1, minWidth: 0, color: colors.text, fontFamily: fonts.heading, fontSize: 28, lineHeight: 36 },
   handoffSecondary: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 8, marginTop: 4 },
   tripTab: { flex: 1, minWidth: 0, minHeight: 52, paddingHorizontal: 3, paddingVertical: 12, alignItems: 'center', justifyContent: 'center', borderRadius: 18, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   tripTabText: { color: colors.text, fontSize: 16, lineHeight: 22, fontWeight: '700', textAlign: 'center' },

@@ -7,9 +7,9 @@ preserved. No network request is needed to display the mascots.
 
 | File | Context |
 | --- | --- |
-| `capybara-travel.png` | Getting started, empty Days/Trip/Map, friends |
+| `capybara-travel.png` | New trip setup, empty Days/Trip/Map, friends |
 | `capybara-packing.png` | Choosing a packing list, map retry |
-| `capybara-celebrate.png` | All packed, trip planner confirmation |
+| `capybara-celebrate.png` | First activity saved, all packed, trip planner confirmation |
 | `capybara-memories.png` | Empty memories, blank journal page |
 
 `src/capybara.tsx` gives each image two subtle greetings on screen focus, then
