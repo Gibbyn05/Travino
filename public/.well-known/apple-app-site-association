@@ -1,0 +1,12 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["XJ6MS5VTYY.no.travino.app"],
+        "components": [
+          { "/": "/invite/*", "comment": "Default Travino invitation links" }
+        ]
+      }
+    ]
+  }
+}

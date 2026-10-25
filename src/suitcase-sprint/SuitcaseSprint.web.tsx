@@ -29,7 +29,7 @@ type Game = {
   particles: Particle[]; popup: { text: string; at: number } | null; bounceUntil: number; suitcaseTaken: boolean; message: string;
 };
 
-const W = 1200; const H = 675; const FLOOR = 608; const GRAVITY = 1850; const JUMP = 1322; const SPEED = 285; const AIR_SPEED = 360; const PLAYER_W = 76;
+const W = 1200; const H = 675; const FLOOR = 608; const GRAVITY = 1850; const JUMP = 1040; const SPEED = 285; const AIR_SPEED = 330; const PLAYER_W = 76;
 const PLAYER_SPRITE_SIZE = 128; const PLAYER_FEET_OFFSET = 114;
 const SUITCASE = { x: 930, y: 563, r: 96 }; const DOOR = { x: 1130, y: 486, r: 74 };
 const BEST = 'travino-suitcase-sprint-best'; const MUTED = 'travino-suitcase-sprint-muted';
@@ -113,7 +113,12 @@ export function SuitcaseSprint({ onJoinWaitlist }: { onJoinWaitlist: () => void 
     const text = (value: string, x: number, y: number, size: number, color: string, align: CanvasTextAlign = 'left', weight = 800) => { context.fillStyle = color; context.textAlign = align; context.textBaseline = 'middle'; context.font = `${weight} ${size}px Nunito, ui-rounded, system-ui, sans-serif`; context.fillText(value, x, y); };
     const box = (x: number, y: number, w: number, h: number, radius: number, fill: string, stroke = '#263445', line = 3) => { context.beginPath(); context.roundRect(x, y, w, h, radius); context.fillStyle = fill; context.fill(); if (stroke) { context.strokeStyle = stroke; context.lineWidth = line; context.stroke(); } };
     const sprite = (name: Sprite, x: number, y: number, w: number, h: number, flip = false) => { const image = sprites.current[name]; if (!image) return; context.save(); context.globalAlpha = 1; context.globalCompositeOperation = 'source-over'; context.translate(x, y); if (flip) context.scale(-1, 1); context.drawImage(image, -w / 2, -h / 2, w, h); context.restore(); };
-    const room = () => sprite('room-background', W / 2, H / 2, W, H);
+    const room = () => {
+      // Always paint a base so the game remains readable while the room image loads.
+      context.fillStyle = '#FFF8EC';
+      context.fillRect(0, 0, W, H);
+      sprite('room-background', W / 2, H / 2, W, H);
+    };
     const particles = (game: Game, now: number) => { game.particles = game.particles.filter((particle) => now - particle.at < particle.life); game.particles.forEach((particle) => { const age = (now - particle.at) / particle.life; context.save(); context.globalAlpha = 1 - age; context.fillStyle = particle.color; context.translate(particle.x + particle.vx * age, particle.y + particle.vy * age + 95 * age * age); if (particle.confetti) { context.rotate(age * 6); context.fillRect(-4, -4, 8, 8); } else text('✦', 0, 0, 18, particle.color, 'center'); context.restore(); }); };
     const playerBox = (player: Game['player']): Rect => ({ x: player.x - 28, y: player.y - 80, w: 56, h: 78 });
     const dogBox = (dog: Game['dog']): Rect => ({ x: dog.x - 43, y: FLOOR - 76, w: 86, h: 47 });
@@ -186,9 +191,13 @@ export function SuitcaseSprint({ onJoinWaitlist }: { onJoinWaitlist: () => void 
 
       const dog = game.dog;
       if (!dog.wakeAt) dog.wakeAt = now + 3500 + Math.random() * 4200;
-      const nearDog = Math.abs(player.x - dog.x) < 200;
+      const nearDog = Math.abs(player.x - dog.x) < 155;
       if (!dog.awake && (now > dog.wakeAt || nearDog)) { dog.awake = true; dog.wakeAt = now + 3500 + Math.random() * 4800; }
-      if (dog.awake) { dog.x = clamp(dog.x + Math.sign((nearDog ? player.x : 420) - dog.x) * 70 * dt, 90, 510); if (!nearDog && now > dog.wakeAt - 1800) dog.awake = false; }
+      if (dog.awake) {
+        const target = nearDog ? player.x + Math.sin(now / 540) * 72 : 420;
+        dog.x = clamp(dog.x + Math.sign(target - dog.x) * 44 * dt, 90, 510);
+        if (!nearDog && now > dog.wakeAt - 1800) dog.awake = false;
+      }
 
       const robot = game.robot;
       if (now > robot.turnAt) { robot.vx = (Math.random() > .5 ? 1 : -1) * (48 + Math.random() * 38); robot.turnAt = now + 1100 + Math.random() * 1700; }
@@ -221,7 +230,20 @@ export function SuitcaseSprint({ onJoinWaitlist }: { onJoinWaitlist: () => void 
       const state = `${Math.ceil(game.seconds)}-${game.score}-${game.packed.length}-${Math.round(player.x / 20)}-${game.phase}`;
       if (state !== lastHud) { lastHud = state; sync(game); }
     };
-    const render = (now: number) => { resize(); const ratio = canvas.width / Math.max(1, cssWidth); context.setTransform(ratio * cssWidth / W, 0, 0, ratio * cssHeight / H, 0, 0); const game = gameRef.current; if (game.phase === 'start') startScreen(); else if (game.phase === 'end') endScreen(now); else if (game.phase === 'paused') paused(now); else { update(game, now); drawPlay(game, now); } frame = requestAnimationFrame(render); };
+    const render = (now: number) => {
+      resize();
+      // Labels are painted onto the canvas, not mounted DOM nodes. Clear every frame
+      // so a missing or late-loading background can never leave ghost labels behind.
+      context.save();
+      context.setTransform(1, 0, 0, 1, 0, 0);
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      context.restore();
+      const ratio = canvas.width / Math.max(1, cssWidth);
+      context.setTransform(ratio * cssWidth / W, 0, 0, ratio * cssHeight / H, 0, 0);
+      const game = gameRef.current;
+      if (game.phase === 'start') startScreen(); else if (game.phase === 'end') endScreen(now); else if (game.phase === 'paused') paused(now); else { update(game, now); drawPlay(game, now); }
+      frame = requestAnimationFrame(render);
+    };
     const pointer = (event: PointerEvent) => { const rect = canvas.getBoundingClientRect(); return { x: (event.clientX - rect.left) / rect.width * W, y: (event.clientY - rect.top) / rect.height * H }; };
     const down = (event: PointerEvent) => { const game = gameRef.current; if (game.phase !== 'play') return; const point = pointer(event); if (distance(point, game.player) < 78) { jump(); return; } if (touchTimer.current) clearTimeout(touchTimer.current); touchMove.current = point.x < W / 2 ? -1 : 1; if (event.pointerType === 'touch') touchTimer.current = setTimeout(() => { touchMove.current = 0; }, 430); canvas.setPointerCapture?.(event.pointerId); };
     const up = (event: PointerEvent) => { if (event.pointerType !== 'touch') touchMove.current = 0; canvas.releasePointerCapture?.(event.pointerId); };
@@ -231,7 +253,7 @@ export function SuitcaseSprint({ onJoinWaitlist }: { onJoinWaitlist: () => void 
   }, [best, end, jump, pack, pause, sync, tone, vibrate]);
 
   const standard = hud.mode === 'standard'; const ring = standard ? clamp(hud.seconds / 60 * 100, 0, 100) : 100; const showPack = phase === 'play' && hud.nearSuitcase && (hud.packed < 8 || hud.ready);
-  return <Div ref={shellRef} style={styles.shell}>
+  return <Div ref={shellRef} style={{ ...styles.shell, alignSelf: 'center' }}>
     <Div style={styles.top}><Div><Div style={styles.eyebrow}>TRAVINO MINI GAME</Div><Div style={styles.title}>Suitcase Sprint</Div></Div><Div style={styles.note}>{phase === 'play' ? (standard ? '60 second sprint' : 'Chill mode') : 'A cozy platform packer'}</Div></Div>
     {phase === 'play' || phase === 'paused' ? <Div style={styles.hud}><Div style={styles.score}><span style={styles.label}>SCORE</span><strong>{hud.score}</strong></Div><Div style={styles.packed}>{hud.packed}/8 packed</Div><Div style={styles.timer}><Div style={{ ...styles.ring, background: `conic-gradient(#F19A50 ${ring}%, #F8E7D1 0)` }}><Div style={styles.ringInner}>{standard ? `${hud.seconds}s` : '∞'}</Div></Div><span style={styles.label}>{standard ? 'TIME' : 'CHILL'}</span></Div><Button type="button" onClick={pause} style={styles.utility}>{phase === 'paused' ? 'Resume' : 'Pause'}</Button><Button type="button" onClick={() => setMuted((value) => !value)} style={styles.utility}>{muted ? 'Sound off' : 'Sound on'}</Button></Div> : <Div style={styles.hud}><Button type="button" onClick={() => setMuted((value) => !value)} style={{ ...styles.utility, marginLeft: 'auto' }}>{muted ? 'Sound off' : 'Sound on'}</Button></Div>}
     <Div style={styles.canvasWrap}><Canvas ref={canvasRef} style={styles.canvas} aria-label="Suitcase Sprint platform game. Use arrow keys or A and D to walk, space to jump and E to pack." /></Div>
