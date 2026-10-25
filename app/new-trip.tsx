@@ -47,8 +47,8 @@ export default function NewTripScreen() {
       </View>
       <View style={s.progress} accessibilityLabel={`Step ${step + 1} of 2`}><View style={s.progressDone}/><View style={[s.progressPart, step === 1 && s.progressDone]}/></View>
       <View style={s.heading}>
-        <Text accessibilityRole="header" style={s.title}>{step === 0 ? 'Where to?' : 'When?'}</Text>
-        <CapybaraMoment size={compact ? 80 : 96}/>
+        <CapybaraMoment key={step} size={compact ? 112 : 144} variant={step === 0 ? 'travel' : 'profile'}/>
+        <Text accessibilityRole="header" style={s.title}>{step === 0 ? 'Where are we going?' : 'When are we going?'}</Text>
       </View>
       {step === 0 ? <View style={s.fields}>
         <AutocompleteField value={query} onChangeText={(value) => { setQuery(value); setDestination(null); }} placeholder="City or destination" suggestions={destinationSuggestions} hideLabel showSuggestionsOnFocus onPick={(suggestion) => { setDestination(suggestion); Keyboard.dismiss(); }}/>
@@ -69,10 +69,10 @@ export default function NewTripScreen() {
 const s = StyleSheet.create({
   page: { flex: 1, backgroundColor: colors.background }, content: { flexGrow: 1, paddingHorizontal: 24, maxWidth: 520, width: '100%', alignSelf: 'center' },
   navigation: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, back: { width: 48, minHeight: 48, justifyContent: 'center' }, close: { minHeight: 48, justifyContent: 'center', paddingLeft: 10 }, step: { color: colors.muted, fontSize: 16, fontWeight: '700' },
-  progress: { flexDirection: 'row', gap: 8, marginTop: 12, marginBottom: 32 }, progressDone: { flex: 1, height: 5, backgroundColor: colors.blue, borderRadius: 5 }, progressPart: { flex: 1, height: 5, backgroundColor: colors.border, borderRadius: 5 },
-  heading: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  title: { flex: 1, minWidth: 0, fontFamily: fonts.heading, color: colors.text, fontSize: 46, lineHeight: 55 },
-  fields: { marginTop: 30 },
+  progress: { flexDirection: 'row', gap: 8, marginTop: 12, marginBottom: 20 }, progressDone: { flex: 1, height: 5, backgroundColor: colors.blue, borderRadius: 5 }, progressPart: { flex: 1, height: 5, backgroundColor: colors.border, borderRadius: 5 },
+  heading: { alignItems: 'center', gap: 10 },
+  title: { width: '100%', fontFamily: fonts.heading, color: colors.text, fontSize: 40, lineHeight: 48, textAlign: 'center' },
+  fields: { marginTop: 24 },
   selection: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingTop: 4, paddingHorizontal: 4 }, country: { color: colors.muted, fontSize: 19, lineHeight: 27, flexShrink: 1 },
-  footer: { marginTop: 'auto', paddingTop: 32 }, later: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 56, marginTop: 10 }, link: { color: colors.blue, fontSize: 18, fontWeight: '600' }, error: { color: '#B42318', fontSize: 17, lineHeight: 25, marginTop: 12 },
+  footer: { paddingTop: 24 }, later: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 56, marginTop: 10 }, link: { color: colors.blue, fontSize: 18, fontWeight: '600' }, error: { color: '#B42318', fontSize: 17, lineHeight: 25, marginTop: 12 },
 });

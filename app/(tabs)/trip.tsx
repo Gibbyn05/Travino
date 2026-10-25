@@ -262,6 +262,13 @@ function Overview({ onNext, onOpenPlan, onEditDates, onEditDetails, onInvite, on
   useEffect(() => { const timer = setInterval(() => setNow(new Date()), 60_000); return () => clearInterval(timer); }, []);
   if (!selectedTrip) return null;
   const step = tripNextStep(selectedTrip, tripState(selectedTrip).label === 'Completed');
+  const guide = step.target === 'Memories'
+    ? { line: "Let's keep the memories.", variant: 'memories' }
+    : step.target === 'add-activity'
+      ? { line: "Let's plan your first day.", variant: 'travel' }
+      : step.target === 'Packing'
+        ? { line: selectedTrip.packing.length ? "Let's finish packing." : "Let's pack for your trip.", variant: 'packing' }
+        : { line: "You're ready to go!", variant: 'celebrate' };
   const nextEntry = selectedTrip.activities
     .map((activity) => ({ activity, status: activityStatus(activity, now) }))
     .filter((entry) => entry.status !== null)
@@ -271,7 +278,10 @@ function Overview({ onNext, onOpenPlan, onEditDates, onEditDetails, onInvite, on
   const hasUnscheduled = selectedTrip.activities.some(activity => !activityMoment(activity.date, activity.startTime));
   return <>
     <Card style={s.guidanceCard}>
-      <Text accessibilityRole="header" style={s.guidanceTitle}>{step.title}</Text>
+      <View style={s.guidanceIntro}>
+        <CapybaraMoment key={guide.variant} size={128} variant={guide.variant}/>
+        <Text accessibilityRole="header" style={s.guidanceTitle}>{guide.line}</Text>
+      </View>
       <PrimaryButton title={step.button} icon={step.icon} onPress={() => onNext(step.target)}/>
     </Card>
     {selectedTrip.activities.length > 0 && <Section title="Next activity">
@@ -780,6 +790,7 @@ const s = StyleSheet.create({
   overviewStatus: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: -6, marginBottom: 4 },
   overviewStatusText: { flex: 1, color: colors.muted, fontSize: 17, lineHeight: 24 },
   guidanceCard: { backgroundColor: colors.blueSoft, borderColor: '#D7E8FF', gap: 18, padding: 20 },
+  guidanceIntro: { alignItems: 'center', gap: 10 },
   overviewActivity: { gap: 12, padding: 20, borderRadius: 22, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
   overviewActivityTitle: { fontFamily: fonts.heading, color: colors.text, fontSize: 25, lineHeight: 33 },
   overviewActivityMeta: { color: colors.muted, fontSize: 17, lineHeight: 25, flexShrink: 1 },
@@ -797,7 +808,7 @@ const s = StyleSheet.create({
   overviewMembers: { gap: 12, paddingVertical: 8, marginBottom: 8 },
   overviewMember: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   guidanceIcon: { width: 48, height: 48, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' },
-  guidanceTitle: { fontFamily: fonts.heading, fontSize: 32, lineHeight: 40, color: colors.text },
+  guidanceTitle: { alignSelf: 'stretch', fontFamily: fonts.heading, fontSize: 32, lineHeight: 40, color: colors.text, textAlign: 'center' },
   guidanceCopy: { color: colors.muted, fontSize: 18, lineHeight: 26, marginBottom: 4 },
   editDates: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 12, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 8 },
   editDatesText: { color: colors.blue, fontSize: 18, fontWeight: '600' },
