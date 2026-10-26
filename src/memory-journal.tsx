@@ -2,7 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AccessibilityInfo, ActivityIndicator, Animated, Easing, Image, KeyboardAvoidingView, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
-import { CapybaraMoment } from '@/src/ui';
+import { CapybaraMoment, PrimaryButton } from '@/src/ui';
+import { CapybaraGuide } from '@/src/capybara-guide';
 import { colors, fonts } from '@/src/theme';
 import { Memory, MemoryLayout, Trip } from '@/src/store';
 import { formatJournalDate, parseTravelDate } from '@/src/dates';
@@ -47,7 +48,7 @@ export function JournalBook({ trip, index, isPublic, onPress, onChangeVisibility
 
 export function MemoryJournal({ trip, coverIndex, isPublic, onAddMemory, onSaveCaption, onSaveLayout, onRemoveMemory, onChangeVisibility, readOnly = false }: { trip: Trip; coverIndex: number; isPublic: boolean; onAddMemory?: (page?: number) => void; onSaveCaption?: (memoryId: string, caption: string) => void; onSaveLayout?: (memoryId: string, layout: MemoryLayout) => void; onRemoveMemory?: (memoryId: string) => void; onChangeVisibility?: () => void; readOnly?: boolean }) {
   const router = useRouter();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const spreadWidth = Math.min(width - 32, 520);
   const nativeDriver = Platform.OS !== 'web';
   const [reduceMotion, setReduceMotion] = useState(false);
@@ -205,6 +206,12 @@ export function MemoryJournal({ trip, coverIndex, isPublic, onAddMemory, onSaveC
       {readOnly ? <View accessibilityLabel="Read-only public memory book" style={journalStyles.headerSpacer}><Ionicons name="globe-outline" size={18} color="#FFF8EB"/></View> : <Pressable accessibilityRole="button" accessibilityLabel={`This book is ${isPublic ? 'public to friends' : 'private'}. Change sharing.`} onPress={() => onChangeVisibility?.()} style={journalStyles.headerButton}><Ionicons name={isPublic ? 'globe-outline' : 'lock-closed'} size={18} color="#FFF8EB"/></Pressable>}
     </View>
 
+    {!readOnly && !trip.memories.length ? <ScrollView style={journalStyles.stageScroll} contentContainerStyle={journalStyles.memoryStart}>
+      <View style={journalStyles.memoryStartCard}>
+        <CapybaraGuide variant="memories" size={height < 740 ? 96 : 128}>What was your favourite moment?</CapybaraGuide>
+        <PrimaryButton title="Choose first photo" icon="image-outline" onPress={() => onAddMemory?.()}/>
+      </View>
+    </ScrollView> : <>
     <ScrollView ref={stageScroll} style={journalStyles.stageScroll} contentContainerStyle={journalStyles.stageScrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} directionalLockEnabled scrollEnabled={captionEditorOpen}>
     <View style={journalStyles.stage}>
       <Animated.View style={[journalStyles.openBook, { width: spreadWidth, opacity: openProgress, transform: [{ scale: bookScale }] }]} accessibilityLabel={currentLabel} accessibilityRole="summary" {...responder.panHandlers}>
@@ -225,6 +232,7 @@ export function MemoryJournal({ trip, coverIndex, isPublic, onAddMemory, onSaveC
       <Pressable accessibilityRole="button" accessibilityLabel={layoutEditing ? 'Finish editing page' : 'Edit page layout'} onPress={() => setLayoutEditing((value) => !value)} style={[journalStyles.toolButton, layoutEditing && journalStyles.toolButtonActive]}><Ionicons name={layoutEditing ? 'checkmark' : 'pencil'} size={21} color={layoutEditing ? '#FFFFFF' : colors.blue}/></Pressable>
       <Pressable accessibilityRole="button" accessibilityLabel="Add a photo after this spread" onPress={() => onAddMemory?.(addAfterCurrent)} style={journalStyles.toolButton}><Ionicons name="add" size={26} color={colors.blue}/></Pressable>
     </View>}
+    </>}
   </KeyboardAvoidingView>;
 }
 
@@ -353,6 +361,8 @@ const bookStyles = StyleSheet.create({
 });
 
 const journalStyles = StyleSheet.create({
+  memoryStart: { flexGrow: 1, justifyContent: 'center', padding: 24 },
+  memoryStartCard: { gap: 24, padding: 16, borderRadius: 24, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border },
   page: { flex: 1, backgroundColor: '#20150E', paddingTop: 54, paddingBottom: 22 }, readerBackground: { ...StyleSheet.absoluteFill },
   header: { height: 48, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18 }, headerButton: { height: 44, width: 44, borderRadius: 22, borderWidth: 1, borderColor: 'rgba(255,248,235,.28)', alignItems: 'center', justifyContent: 'center', shadowColor: '#120B08', shadowOpacity: .24, shadowRadius: 7, shadowOffset: { width: 0, height: 3 }, elevation: 3 }, headerText: { flex: 1, alignItems: 'center', paddingHorizontal: 8 }, headerTitle: { color: '#FFF8EB', fontFamily: fonts.heading, fontSize: 17, maxWidth: 210 }, headerPlace: { color: '#E2CDB7', fontSize: 11, marginTop: 1 }, headerSpacer: { width: 44 },
   stageScroll: { flex: 1 }, stageScrollContent: { flexGrow: 1 }, stage: { flex: 1, minHeight: 360, justifyContent: 'center', alignItems: 'center', paddingVertical: 10 }, openBook: { aspectRatio: 1.37, maxHeight: 430, position: 'relative' }, viewport: { ...StyleSheet.absoluteFill, overflow: 'hidden', borderRadius: 11, backgroundColor: '#FBF2E2' }, spreadLayer: { ...StyleSheet.absoluteFill }, turnSnapshotLayer: { ...StyleSheet.absoluteFill, zIndex: 6, backgroundColor: '#FBF2E2' },

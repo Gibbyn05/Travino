@@ -25,6 +25,7 @@ import { extraTripTabs, primaryTripTabs, primaryTripTab, tripSection, type TripS
 import { useTripSections } from '@/src/use-trip-sections';
 import { activityDraftFor, emptyActivityDraft, type ActivityDraft } from '@/src/activity-drafts';
 import { useActivityDrafts } from '@/src/activity-draft-provider';
+import { CapybaraGuide } from '@/src/capybara-guide';
 export default function TripScreen() {
   const router = useRouter();
   const { selectedTrip } = useTravel();
@@ -480,11 +481,9 @@ function Plan({ initiallyOpen = false, onOpened, onRemove, onOpenPacking, onFirs
     if (firstActivity && !selectedTrip.packing.length) onFirstSaved();
   };
   return <View style={s.tripSectionContent}>
-    {needsPacking && <Card style={s.handoffCard}>
-      <View style={s.handoffHeading}>
-        {firstSaved && <CapybaraMoment size={64} variant="celebrate"/>}
-        <Text accessibilityRole="header" accessibilityLiveRegion="polite" style={s.handoffTitle}>{firstSaved ? 'Activity added!' : 'Ready to pack?'}</Text>
-      </View>
+    {needsPacking && !open && <Card style={s.handoffCard}>
+      {firstSaved ? <CapybaraGuide variant="celebrate" size={96} announce>Great start! Let's pack next.</CapybaraGuide>
+        : <Text accessibilityRole="header" style={s.handoffTitle}>Ready to pack?</Text>}
       <View><PrimaryButton title="Create packing list" icon="bag-handle-outline" onPress={onOpenPacking}/><Pressable accessibilityRole="button" accessibilityLabel={newActivityLabel} onPress={() => openNew()} style={({ pressed }) => [s.handoffSecondary, pressed && s.pressed]}><Ionicons name={pendingNew ? 'arrow-forward' : 'add'} size={19} color={colors.blue}/><Text style={s.overviewLinkText}>{newActivityLabel}</Text></Pressable></View>
     </Card>}
     {dayGroups.length ? <View style={s.planTimeline}>{dayGroups.map((group) => <View key={group.key} style={s.planDay}>
@@ -508,6 +507,7 @@ function Plan({ initiallyOpen = false, onOpened, onRemove, onOpenPacking, onFirs
     </View>)}</View> : null}
     {!needsPacking && <View style={s.planAddButton}><PrimaryButton title={newActivityLabel} onPress={() => openNew()}/></View>}
     <Sheet visible={open} title={editingId ? 'Edit activity' : selectedTrip.activities.length ? 'New activity' : 'First activity'} onClose={close}>
+      {!editingId && !selectedTrip.activities.length && <View style={s.activityGuide}><CapybaraGuide variant="travel" size={88}>What shall we do first?</CapybaraGuide></View>}
       {Boolean(date) && !details && <Pressable accessibilityRole="button" accessibilityLabel={`Change activity date, ${formatDate(date)}`} onPress={() => changeForm({ details: true })} style={s.activityDateContext}><Ionicons name="calendar-outline" size={19} color={colors.blue}/><Text style={s.activityDateText}>{formatDate(date)}</Text><Text style={s.activityDateChange}>Change</Text></Pressable>}
       <AutocompleteField value={title} onChangeText={(title) => changeForm({ title })} placeholder="Activity" suggestions={ideas} hideLabel showSuggestionsOnFocus/>
       <Pressable accessibilityRole="button" accessibilityState={{ expanded: details }} onPress={() => changeForm({ details: !details })} style={s.editDates}><Ionicons name={details ? 'chevron-up' : 'add'} color={colors.blue} size={18}/><Text style={s.editDatesText}>{details ? 'Hide details' : 'Add details'}</Text></Pressable>
@@ -614,13 +614,7 @@ function Packing({ onRemove, onOpenPlan, onComplete }: { onRemove: (id: string) 
   };
   return <View style={s.tripSectionContent}>
     {!total ? <View style={s.packingStart}>
-      <View style={s.packingMascot}>
-        <CapybaraMoment size={144} variant="packing"/>
-        <View style={s.packingSpeechBubble}>
-          <View pointerEvents="none" accessible={false} aria-hidden style={s.packingSpeechTail}/>
-          <Text accessibilityRole="header" style={s.packingQuestion}>What kind of trip?</Text>
-        </View>
-      </View>
+      <CapybaraGuide size={144} variant="packing" prominent>What kind of trip?</CapybaraGuide>
       <View style={s.templateGrid}>{packingTemplates.map((template) => <Pressable key={template.name} accessibilityRole="button" accessibilityLabel={`Create ${template.name.toLowerCase()} packing list`} onPress={() => addItems(template.items as [string, string][])} style={({ pressed }) => [s.templateCard, pressed && s.pressed]}>
         <View style={[s.templateIcon, { backgroundColor: template.tint }]}><Ionicons name={template.icon as any} size={27} color={template.color}/></View>
         <Text style={s.templateTitle}>{template.name}</Text>
@@ -629,7 +623,8 @@ function Packing({ onRemove, onOpenPlan, onComplete }: { onRemove: (id: string) 
       <Pressable accessibilityRole="button" onPress={openItem} style={({ pressed }) => [s.packingStartEmpty, pressed && s.pressed]}><Text style={s.packingLinkText}>Start my own list</Text></Pressable>
     </View> : <>
     <View style={[s.packingProgress, packed === total && s.packingComplete]}>
-      <View style={s.packingProgressHeading}>{allPacked && <CapybaraMoment size={72} variant="celebrate"/>}<Text accessibilityLiveRegion="polite" style={s.packingProgressText}>{allPacked ? 'All packed!' : `${packed} of ${total} packed`}</Text><Ionicons name={packed === total ? 'checkmark-circle' : 'bag-handle-outline'} size={26} color={colors.teal}/></View>
+      {allPacked ? <CapybaraGuide size={96} variant="celebrate" announce>All packed! Let's check the plan.</CapybaraGuide>
+        : <View style={s.packingProgressHeading}><Text accessibilityLiveRegion="polite" style={s.packingProgressText}>{`${packed} of ${total} packed`}</Text><Ionicons name="bag-handle-outline" size={26} color={colors.teal}/></View>}
       <View accessibilityRole="progressbar" accessibilityLabel="Packing progress" accessibilityValue={{ min: 0, max: total, now: packed, text: `${packed} of ${total} packed` }} aria-valuemin={0} aria-valuemax={total} aria-valuenow={packed} aria-valuetext={`${packed} of ${total} packed`} style={s.packingProgressTrack}><View style={[s.packingProgressFill, { width: `${progress}%` }]}/></View>
       {allPacked && <PrimaryButton title="View plan" icon="arrow-forward" onPress={onOpenPlan}/>}
     </View>
@@ -766,7 +761,19 @@ function Wishes() {
     <Sheet visible={open} title="New wish" onClose={() => setOpen(false)}><AutocompleteField value={name} onChangeText={setName} placeholder="Name" suggestions={wishSuggestions}/><Field value={category} onChangeText={setCategory} placeholder="Category, for example activity"/><Field value={location} onChangeText={setLocation} placeholder="Location (optional)"/><PrimaryButton title="Save wish" icon="checkmark" onPress={save} disabled={!name.trim()}/></Sheet>
   </Section>;
 }
-function Memories() { const { selectedTrip, addPhoto } = useTravel(); if (!selectedTrip) return null; return <Section title="Memories"><View style={s.gallery}>{selectedTrip.memories.map((item) => <View key={item.id} style={s.memory}><Image source={{ uri: item.image }} style={s.image}/><Text style={s.copy}>{formatJournalDate(item.date)}</Text></View>)}</View>{!selectedTrip.memories.length ? <EmptyMoment compact mascot="memories" title="Save the good bits" copy="Choose a photo when there is a moment worth keeping." actionTitle="Choose first photo" icon="image-outline" onPress={() => addPhoto(selectedTrip.id)}/> : <PrimaryButton title="Choose another photo" icon="image-outline" onPress={() => addPhoto(selectedTrip.id)}/>}</Section>; }
+function Memories() {
+  const { selectedTrip, addPhoto } = useTravel();
+  if (!selectedTrip) return null;
+  return <View style={s.tripSectionContent}>
+    {!selectedTrip.memories.length ? <Card style={s.memoryStart}>
+      <CapybaraGuide variant="memories" size={112}>What was your favourite moment?</CapybaraGuide>
+      <PrimaryButton title="Choose first photo" icon="image-outline" onPress={() => addPhoto(selectedTrip.id)}/>
+    </Card> : <>
+      <View style={s.gallery}>{selectedTrip.memories.map((item) => <View key={item.id} style={s.memory}><Image source={{ uri: item.image }} style={s.image}/><Text style={s.copy}>{formatJournalDate(item.date)}</Text></View>)}</View>
+      <PrimaryButton title="Choose another photo" icon="image-outline" onPress={() => addPhoto(selectedTrip.id)}/>
+    </>}
+  </View>;
+}
 const s = StyleSheet.create({
   tripTabs: { flexDirection: 'row', gap: 6, paddingTop: 20, paddingBottom: 16 },
   compactOverviewLink: { flex: 1, minWidth: 0, minHeight: 82, flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -779,8 +786,9 @@ const s = StyleSheet.create({
   inviteShortcut: { minHeight: 44, paddingHorizontal: 10, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 14, borderWidth: 1, borderColor: '#C8E3FF', backgroundColor: '#F7FBFF' },
   inviteShortcutText: { color: colors.blue, fontSize: 16, lineHeight: 22, fontWeight: '600' },
   handoffCard: { gap: 16, padding: 20, marginBottom: 22, borderColor: '#D7E8FF', backgroundColor: colors.blueSoft },
-  handoffHeading: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  handoffTitle: { flex: 1, minWidth: 0, color: colors.text, fontFamily: fonts.heading, fontSize: 28, lineHeight: 36 },
+  activityGuide: { marginBottom: 20 },
+  memoryStart: { gap: 24 },
+  handoffTitle: { color: colors.text, fontFamily: fonts.heading, fontSize: 28, lineHeight: 36 },
   handoffSecondary: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 8, marginTop: 4 },
   tripTab: { flex: 1, minWidth: 0, minHeight: 52, paddingHorizontal: 3, paddingVertical: 12, alignItems: 'center', justifyContent: 'center', borderRadius: 18, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   tripTabText: { color: colors.text, fontSize: 16, lineHeight: 22, fontWeight: '700', textAlign: 'center' },
@@ -930,10 +938,6 @@ Object.assign(s, StyleSheet.create({
   packingStartEmpty: { minHeight: 48, alignItems: 'center', justifyContent: 'center', padding: 8 },
   packingLinkText: { color: colors.blue, fontSize: 18, lineHeight: 25, fontWeight: '600', flexShrink: 1 },
   packingProgress: { gap: 16, borderRadius: 22, backgroundColor: colors.blueSoft, padding: 20, marginBottom: 24 },
-  packingMascot: { alignItems: 'center', gap: 4 },
-  packingSpeechBubble: { alignSelf: 'stretch', marginHorizontal: 8, backgroundColor: colors.paper, borderColor: colors.ink, borderWidth: 3, borderTopLeftRadius: 28, borderTopRightRadius: 25, borderBottomLeftRadius: 23, borderBottomRightRadius: 28, paddingHorizontal: 14, paddingVertical: 8, shadowColor: colors.ink, shadowOffset: { width: 0, height: 3 }, shadowOpacity: .12, shadowRadius: 2, elevation: 2 },
-  packingSpeechTail: { position: 'absolute', top: -12, left: '50%', marginLeft: -10, width: 20, height: 20, backgroundColor: colors.paper, borderTopWidth: 3, borderLeftWidth: 3, borderColor: colors.ink, transform: [{ rotate: '45deg' }] },
-  packingQuestion: { color: colors.text, fontFamily: 'Nunito_800ExtraBold_Italic', fontSize: 32, lineHeight: 40, textAlign: 'center' },
   packingComplete: { backgroundColor: '#E9F4EC' },
   packingProgressHeading: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   packingProgressText: { flex: 1, minWidth: 0, color: colors.text, fontFamily: fonts.heading, fontSize: 24, lineHeight: 32, fontWeight: '700' },

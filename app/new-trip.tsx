@@ -7,8 +7,9 @@ import { AutocompleteField, DateField } from '@/src/forms';
 import { Suggestion, destinationSuggestions } from '@/src/suggestions';
 import { useTravel } from '@/src/store';
 import { destinationTimeZoneFor } from '@/src/travel-info';
-import { colors, fonts } from '@/src/theme';
-import { CapybaraMoment, PrimaryButton } from '@/src/ui';
+import { colors } from '@/src/theme';
+import { PrimaryButton } from '@/src/ui';
+import { CapybaraGuide } from '@/src/capybara-guide';
 import { validTripDates } from '@/src/trip-planning';
 
 export default function NewTripScreen() {
@@ -46,10 +47,7 @@ export default function NewTripScreen() {
         <Pressable accessibilityRole="button" onPress={close} style={s.close}><Text style={s.link}>Close</Text></Pressable>
       </View>
       <View style={s.progress} accessibilityLabel={`Step ${step + 1} of 2`}><View style={s.progressDone}/><View style={[s.progressPart, step === 1 && s.progressDone]}/></View>
-      <View style={s.heading}>
-        <CapybaraMoment key={step} size={compact ? 112 : 144} variant={step === 0 ? 'travel' : 'profile'}/>
-        <Text accessibilityRole="header" style={s.title}>{step === 0 ? 'Where are we going?' : 'When are we going?'}</Text>
-      </View>
+      <CapybaraGuide key={step} size={compact ? 112 : 144} variant={step === 0 ? 'travel' : 'profile'} prominent>{step === 0 ? 'Where are we going?' : 'When are we going?'}</CapybaraGuide>
       {step === 0 ? <View style={s.fields}>
         <AutocompleteField value={query} onChangeText={(value) => { setQuery(value); setDestination(null); }} placeholder="City or destination" suggestions={destinationSuggestions} hideLabel showSuggestionsOnFocus onPick={(suggestion) => { setDestination(suggestion); Keyboard.dismiss(); }}/>
         {destination && <View style={s.selection}><Ionicons name="checkmark-circle" color={colors.blue} size={23}/><Text style={s.country}>{destination.detail}</Text></View>}
@@ -70,8 +68,6 @@ const s = StyleSheet.create({
   page: { flex: 1, backgroundColor: colors.background }, content: { flexGrow: 1, paddingHorizontal: 24, maxWidth: 520, width: '100%', alignSelf: 'center' },
   navigation: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, back: { width: 48, minHeight: 48, justifyContent: 'center' }, close: { minHeight: 48, justifyContent: 'center', paddingLeft: 10 }, step: { color: colors.muted, fontSize: 16, fontWeight: '700' },
   progress: { flexDirection: 'row', gap: 8, marginTop: 12, marginBottom: 20 }, progressDone: { flex: 1, height: 5, backgroundColor: colors.blue, borderRadius: 5 }, progressPart: { flex: 1, height: 5, backgroundColor: colors.border, borderRadius: 5 },
-  heading: { alignItems: 'center', gap: 10 },
-  title: { width: '100%', fontFamily: fonts.heading, color: colors.text, fontSize: 40, lineHeight: 48, textAlign: 'center' },
   fields: { marginTop: 24 },
   selection: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingTop: 4, paddingHorizontal: 4 }, country: { color: colors.muted, fontSize: 19, lineHeight: 27, flexShrink: 1 },
   footer: { paddingTop: 24 }, later: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 56, marginTop: 10 }, link: { color: colors.blue, fontSize: 18, fontWeight: '600' }, error: { color: '#B42318', fontSize: 17, lineHeight: 25, marginTop: 12 },
