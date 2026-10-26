@@ -616,7 +616,10 @@ function Packing({ onRemove, onOpenPlan, onComplete }: { onRemove: (id: string) 
     {!total ? <View style={s.packingStart}>
       <View style={s.packingMascot}>
         <CapybaraMoment size={144} variant="packing"/>
-        <Text accessibilityRole="header" style={s.packingQuestion}>What kind of trip?</Text>
+        <View style={s.packingSpeechBubble}>
+          <View pointerEvents="none" accessible={false} aria-hidden style={s.packingSpeechTail}/>
+          <Text accessibilityRole="header" style={s.packingQuestion}>What kind of trip?</Text>
+        </View>
       </View>
       <View style={s.templateGrid}>{packingTemplates.map((template) => <Pressable key={template.name} accessibilityRole="button" accessibilityLabel={`Create ${template.name.toLowerCase()} packing list`} onPress={() => addItems(template.items as [string, string][])} style={({ pressed }) => [s.templateCard, pressed && s.pressed]}>
         <View style={[s.templateIcon, { backgroundColor: template.tint }]}><Ionicons name={template.icon as any} size={27} color={template.color}/></View>
@@ -919,7 +922,7 @@ Object.assign(s, StyleSheet.create({
   planRemove: { width: 44, height: 44, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginTop: -2, marginRight: -3 },
   planEmptyCard: { backgroundColor: '#FBFDFF', borderColor: '#DCEBFF' },
   planAddButton: { marginTop: 4 },
-  packingStart: { gap: 14 },
+  packingStart: { gap: 12 },
   templateGrid: { gap: 12 },
   templateCard: { minHeight: 80, flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 22, padding: 14 },
   templateIcon: { width: 46, height: 46, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
@@ -927,8 +930,10 @@ Object.assign(s, StyleSheet.create({
   packingStartEmpty: { minHeight: 48, alignItems: 'center', justifyContent: 'center', padding: 8 },
   packingLinkText: { color: colors.blue, fontSize: 18, lineHeight: 25, fontWeight: '600', flexShrink: 1 },
   packingProgress: { gap: 16, borderRadius: 22, backgroundColor: colors.blueSoft, padding: 20, marginBottom: 24 },
-  packingMascot: { alignItems: 'center', gap: 8 },
-  packingQuestion: { alignSelf: 'stretch', color: colors.text, fontFamily: fonts.heading, fontSize: 32, lineHeight: 40, textAlign: 'center' },
+  packingMascot: { alignItems: 'center', gap: 4 },
+  packingSpeechBubble: { alignSelf: 'stretch', marginHorizontal: 8, backgroundColor: colors.paper, borderColor: colors.ink, borderWidth: 3, borderTopLeftRadius: 28, borderTopRightRadius: 25, borderBottomLeftRadius: 23, borderBottomRightRadius: 28, paddingHorizontal: 14, paddingVertical: 8, shadowColor: colors.ink, shadowOffset: { width: 0, height: 3 }, shadowOpacity: .12, shadowRadius: 2, elevation: 2 },
+  packingSpeechTail: { position: 'absolute', top: -12, left: '50%', marginLeft: -10, width: 20, height: 20, backgroundColor: colors.paper, borderTopWidth: 3, borderLeftWidth: 3, borderColor: colors.ink, transform: [{ rotate: '45deg' }] },
+  packingQuestion: { color: colors.text, fontFamily: 'Nunito_800ExtraBold_Italic', fontSize: 32, lineHeight: 40, textAlign: 'center' },
   packingComplete: { backgroundColor: '#E9F4EC' },
   packingProgressHeading: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   packingProgressText: { flex: 1, minWidth: 0, color: colors.text, fontFamily: fonts.heading, fontSize: 24, lineHeight: 32, fontWeight: '700' },

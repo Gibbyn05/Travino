@@ -2,14 +2,14 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Platform, View } from 'react-native';
 import { useFonts } from '@expo-google-fonts/nunito';
-import { Nunito_800ExtraBold } from '@expo-google-fonts/nunito';
+import { Nunito_800ExtraBold, Nunito_800ExtraBold_Italic } from '@expo-google-fonts/nunito';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { TravelProvider, useTravel } from '@/src/store';
 import { colors } from '@/src/theme';
 import { ActivityDraftProvider } from '@/src/activity-draft-provider';
 
 export default function RootLayout() {
-  const [fontsLoaded] = useFonts({ Nunito_800ExtraBold });
+  const [fontsLoaded] = useFonts({ Nunito_800ExtraBold, Nunito_800ExtraBold_Italic });
   if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: colors.background }}/>;
   return <SafeAreaProvider><TravelProvider><ActivityDraftProvider><StatusBar style="auto"/><AppNavigator/></ActivityDraftProvider></TravelProvider></SafeAreaProvider>;
 }
