@@ -81,7 +81,7 @@ export default function TripScreen() {
     {isOverview && <><TripStatus/><TripCompanions onInvite={invite}/></>}
     <View accessibilityRole="tablist" accessibilityLabel="Trip sections" style={s.tripTabs}>{primaryTripTabs.map(item => <Pressable key={item} accessibilityRole="tab" accessibilityLabel={item} accessibilityState={{ selected: primaryTripTab(tab) === item }} aria-selected={primaryTripTab(tab) === item} onPress={() => openTab(item)} style={({ pressed }) => [s.tripTab, { flex: item === 'Overview' ? 1.3 : item === 'Packing' ? 1.15 : .9 }, primaryTripTab(tab) === item && s.tripTabActive, pressed && s.pressed]}><Text style={[s.tripTabText, primaryTripTab(tab) === item && s.tripTabTextActive]}>{item}</Text></Pressable>)}</View>
     {extraTripTabs.includes(tab) && <Pressable accessibilityRole="button" accessibilityLabel="Back to More" onPress={() => openTab('More')} style={s.moreBack}><Ionicons name="chevron-back" size={20} color={colors.blue}/><Text style={s.overviewLinkText}>Back to More</Text></Pressable>}
-    {!extraTripTabs.includes(tab) && <Text accessibilityRole="header" style={s.tripSectionTitle}>{tab}</Text>}
+    {!extraTripTabs.includes(tab) && !(tab === 'Packing' && !selectedTrip.packing.length) && <Text accessibilityRole="header" style={s.tripSectionTitle}>{tab}</Text>}
     {tab === 'More' && <More onOpen={openTab}/>}
     {tab === 'Overview' && <Overview key={`overview-${selectedTrip.id}`} onNext={(target) => openTab(target === 'add-activity' ? 'Plan' : target, target === 'add-activity')} onOpenPlan={() => openTab('Plan')} onEditDates={() => setDatesOpen(true)} onEditDetails={() => setDetailsOpen(true)} onInvite={invite} onOpenAddFriend={() => setAddFriendOpen(true)}/>}{tab === 'Plan' && <Plan key={`plan-${selectedTrip.id}`} onRemove={removeActivity} onOpenPacking={() => openTab('Packing')} onFirstSaved={revealNextStep} initiallyOpen={startActivity} onOpened={() => setStartActivity(false)}/>}{tab === 'Activities' && <ThingsToDo onOpen={(activity) => { router.push({ pathname: '/activity-browser', params: { activity, city: selectedTrip.city, country: selectedTrip.country } }); }} />}{tab === 'Packing' && <Packing onRemove={removePacking} onOpenPlan={() => openTab('Plan')} onComplete={revealNextStep}/>}{tab === 'Wishlist' && <Wishes/>}{tab === 'Memories' && <Memories/>}
     {detailsOpen && <TripDetailsSheet key={`details-${selectedTrip.id}`} trip={selectedTrip} onClose={() => setDetailsOpen(false)}/>}
@@ -614,7 +614,10 @@ function Packing({ onRemove, onOpenPlan, onComplete }: { onRemove: (id: string) 
   };
   return <View style={s.tripSectionContent}>
     {!total ? <View style={s.packingStart}>
-      <View style={s.packingMascot}><CapybaraMoment size={112} variant="packing"/></View>
+      <View style={s.packingMascot}>
+        <CapybaraMoment size={144} variant="packing"/>
+        <Text accessibilityRole="header" style={s.packingQuestion}>What kind of trip?</Text>
+      </View>
       <View style={s.templateGrid}>{packingTemplates.map((template) => <Pressable key={template.name} accessibilityRole="button" accessibilityLabel={`Create ${template.name.toLowerCase()} packing list`} onPress={() => addItems(template.items as [string, string][])} style={({ pressed }) => [s.templateCard, pressed && s.pressed]}>
         <View style={[s.templateIcon, { backgroundColor: template.tint }]}><Ionicons name={template.icon as any} size={27} color={template.color}/></View>
         <Text style={s.templateTitle}>{template.name}</Text>
@@ -918,13 +921,14 @@ Object.assign(s, StyleSheet.create({
   planAddButton: { marginTop: 4 },
   packingStart: { gap: 14 },
   templateGrid: { gap: 12 },
-  templateCard: { minHeight: 88, flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 22, padding: 16 },
-  templateIcon: { width: 50, height: 50, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  templateCard: { minHeight: 80, flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 22, padding: 14 },
+  templateIcon: { width: 46, height: 46, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   templateTitle: { flex: 1, minWidth: 0, color: colors.text, fontFamily: fonts.heading, fontSize: 23, lineHeight: 30, fontWeight: '700' },
   packingStartEmpty: { minHeight: 48, alignItems: 'center', justifyContent: 'center', padding: 8 },
   packingLinkText: { color: colors.blue, fontSize: 18, lineHeight: 25, fontWeight: '600', flexShrink: 1 },
   packingProgress: { gap: 16, borderRadius: 22, backgroundColor: colors.blueSoft, padding: 20, marginBottom: 24 },
-  packingMascot: { alignItems: 'center' },
+  packingMascot: { alignItems: 'center', gap: 8 },
+  packingQuestion: { alignSelf: 'stretch', color: colors.text, fontFamily: fonts.heading, fontSize: 32, lineHeight: 40, textAlign: 'center' },
   packingComplete: { backgroundColor: '#E9F4EC' },
   packingProgressHeading: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   packingProgressText: { flex: 1, minWidth: 0, color: colors.text, fontFamily: fonts.heading, fontSize: 24, lineHeight: 32, fontWeight: '700' },
