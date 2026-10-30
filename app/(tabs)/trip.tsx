@@ -30,32 +30,55 @@ export default function TripScreen() {
   const router = useRouter();
   const { selectedTrip } = useTravel();
   const { notice, undo, removeActivity, removePacking } = useTripUndo();
-  const { tab: requestedTab, activityIntent } = useLocalSearchParams<{ tab?: string; activityIntent?: string }>();
+  const { tab: requestedTab, activityIntent, activityDate, planDate, planIntent } = useLocalSearchParams<{ tab?: string; activityIntent?: string; activityDate?: string; planDate?: string; planIntent?: string }>();
   const [tab, setTab] = useState<TripSection>('Overview');
   const { ready: sectionsReady, sectionFor, rememberSection } = useTripSections();
   const [addFriendOpen, setAddFriendOpen] = useState(false);
   const [datesOpen, setDatesOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [startActivity, setStartActivity] = useState(false);
+  const [startActivityDate, setStartActivityDate] = useState<string>();
+  const [planFocus, setPlanFocus] = useState<{ date: string; key: string }>();
   const scroll = useRef<ScrollView>(null);
+  const planOrigin = useRef<number | undefined>(undefined);
+  const planDestination = useRef<number | undefined>(undefined);
+  const pendingPlanFocus = useRef<string | undefined>(undefined);
+  const revealPlanDay = useCallback(() => {
+    if (!pendingPlanFocus.current || planOrigin.current === undefined || planDestination.current === undefined) return;
+    scroll.current?.scrollTo({ y: Math.max(0, planOrigin.current + planDestination.current - 16), animated: false });
+    pendingPlanFocus.current = undefined;
+  }, []);
   const revealNextStep = useCallback(() => scroll.current?.scrollTo({ y: 0, animated: true }), []);
   const handledActivityIntent = useRef<string | undefined>(undefined);
   const previousTrip = useRef<string | undefined>(undefined);
   const selectedId = selectedTrip?.id;
   useFocusEffect(useCallback(() => {
     if (!sectionsReady || !selectedId) return;
+    const enteringTrip = previousTrip.current !== selectedId;
     const nextTab = tripSection(requestedTab || sectionFor(selectedId));
     setTab(nextTab);
     rememberSection(selectedId, nextTab);
     const addActivity = requestedTab === 'Plan' && Boolean(activityIntent) && handledActivityIntent.current !== activityIntent;
     if (addActivity) handledActivityIntent.current = activityIntent;
-    if (requestedTab || previousTrip.current !== selectedId) setStartActivity(addActivity);
+    if (requestedTab || previousTrip.current !== selectedId) {
+      setStartActivity(addActivity);
+      setStartActivityDate(addActivity ? isoTripDate(activityDate || '') || undefined : undefined);
+    }
+    if (requestedTab === 'Plan' && isoTripDate(planDate || '')) {
+      const focus = { date: isoTripDate(planDate!), key: planIntent || `${Date.now()}` };
+      planOrigin.current = undefined; planDestination.current = undefined;
+      pendingPlanFocus.current = focus.key;
+      setPlanFocus(focus);
+    } else if (requestedTab || previousTrip.current !== selectedId) {
+      pendingPlanFocus.current = undefined;
+      setPlanFocus(undefined);
+    }
     previousTrip.current = selectedId;
     setDatesOpen(false); setDetailsOpen(false);
-    scroll.current?.scrollTo({ y: 0, animated: false });
+    if (requestedTab || enteringTrip) scroll.current?.scrollTo({ y: 0, animated: false });
     // Consume shortcuts once, so returning via the bottom menu resumes the trip.
-    if (requestedTab !== undefined || activityIntent !== undefined) router.setParams({ tab: undefined, activityIntent: undefined });
-  }, [selectedId, requestedTab, activityIntent, sectionsReady, sectionFor, rememberSection, router]));
+    if (requestedTab !== undefined || activityIntent !== undefined || activityDate !== undefined || planDate !== undefined || planIntent !== undefined) router.setParams({ tab: undefined, activityIntent: undefined, activityDate: undefined, planDate: undefined, planIntent: undefined });
+  }, [selectedId, requestedTab, activityIntent, activityDate, planDate, planIntent, sectionsReady, sectionFor, rememberSection, router]));
   if (!selectedTrip) return <Empty/>;
   if (!sectionsReady) return <View style={[s.page, { justifyContent: 'center' }]}><ActivityIndicator accessibilityLabel="Opening trip" color={colors.blue}/></View>;
   const invite = () => {
@@ -65,6 +88,7 @@ export default function TripScreen() {
   };
   const isOverview = tab === 'Overview';
   const openTab = (nextTab: TripSection, addActivity = false) => {
+    pendingPlanFocus.current = undefined; setPlanFocus(undefined); setStartActivityDate(undefined);
     setStartActivity(addActivity); setTab(nextTab);
     rememberSection(selectedTrip.id, nextTab);
     scroll.current?.scrollTo({ y: 0, animated: false });
@@ -84,7 +108,9 @@ export default function TripScreen() {
     {extraTripTabs.includes(tab) && <Pressable accessibilityRole="button" accessibilityLabel="Back to More" onPress={() => openTab('More')} style={s.moreBack}><Ionicons name="chevron-back" size={20} color={colors.blue}/><Text style={s.overviewLinkText}>Back to More</Text></Pressable>}
     {!extraTripTabs.includes(tab) && !(tab === 'Packing' && !selectedTrip.packing.length) && <Text accessibilityRole="header" style={s.tripSectionTitle}>{tab}</Text>}
     {tab === 'More' && <More onOpen={openTab}/>}
-    {tab === 'Overview' && <Overview key={`overview-${selectedTrip.id}`} onNext={(target) => openTab(target === 'add-activity' ? 'Plan' : target, target === 'add-activity')} onOpenPlan={() => openTab('Plan')} onEditDates={() => setDatesOpen(true)} onEditDetails={() => setDetailsOpen(true)} onInvite={invite} onOpenAddFriend={() => setAddFriendOpen(true)}/>}{tab === 'Plan' && <Plan key={`plan-${selectedTrip.id}`} onRemove={removeActivity} onOpenPacking={() => openTab('Packing')} onFirstSaved={revealNextStep} initiallyOpen={startActivity} onOpened={() => setStartActivity(false)}/>}{tab === 'Activities' && <ThingsToDo onOpen={(activity) => { router.push({ pathname: '/activity-browser', params: { activity, city: selectedTrip.city, country: selectedTrip.country } }); }} />}{tab === 'Packing' && <Packing onRemove={removePacking} onOpenPlan={() => openTab('Plan')} onComplete={revealNextStep}/>}{tab === 'Wishlist' && <Wishes/>}{tab === 'Memories' && <Memories/>}
+    {tab === 'Overview' && <Overview key={`overview-${selectedTrip.id}`} onNext={(target) => openTab(target === 'add-activity' ? 'Plan' : target, target === 'add-activity')} onOpenPlan={() => openTab('Plan')} onEditDates={() => setDatesOpen(true)} onEditDetails={() => setDetailsOpen(true)} onInvite={invite} onOpenAddFriend={() => setAddFriendOpen(true)}/>}{tab === 'Plan' && <View key={`plan-${selectedTrip.id}-${planFocus?.key || 'resume'}`} onLayout={event => { planOrigin.current = event.nativeEvent.layout.y; revealPlanDay(); }}>
+      <Plan onRemove={removeActivity} onOpenPacking={() => openTab('Packing')} onFirstSaved={revealNextStep} initiallyOpen={startActivity} initialDate={startActivityDate} focusDay={planFocus} onDayPosition={offset => { planDestination.current = offset; revealPlanDay(); }} onOpened={() => setStartActivity(false)}/>
+    </View>}{tab === 'Activities' && <ThingsToDo onOpen={(activity) => { router.push({ pathname: '/activity-browser', params: { activity, city: selectedTrip.city, country: selectedTrip.country } }); }} />}{tab === 'Packing' && <Packing onRemove={removePacking} onOpenPlan={() => openTab('Plan')} onComplete={revealNextStep}/>}{tab === 'Wishlist' && <Wishes/>}{tab === 'Memories' && <Memories/>}
     {detailsOpen && <TripDetailsSheet key={`details-${selectedTrip.id}`} trip={selectedTrip} onClose={() => setDetailsOpen(false)}/>}
     {datesOpen && <TripDatesSheet key={`dates-${selectedTrip.id}`} trip={selectedTrip} onClose={() => setDatesOpen(false)}/>}
     <AddTripFriendSheet visible={addFriendOpen} onClose={() => setAddFriendOpen(false)} tripId={selectedTrip.id} tripTitle={selectedTrip.title} existingNames={selectedTrip.members}/>
@@ -400,7 +426,7 @@ function TripStatus() {
   const state = tripState(selectedTrip);
   return <View style={s.overviewStatus}><Ionicons name={state.label === 'Completed' ? 'checkmark-circle-outline' : 'calendar-outline'} size={19} color={colors.blue}/><Text style={s.overviewStatusText}>{state.countdown}</Text></View>;
 }
-function Plan({ initiallyOpen = false, onOpened, onRemove, onOpenPacking, onFirstSaved }: { initiallyOpen?: boolean; onOpened?: () => void; onRemove: (id: string) => void; onOpenPacking: () => void; onFirstSaved: () => void }) {
+function Plan({ initiallyOpen = false, initialDate, focusDay, onDayPosition, onOpened, onRemove, onOpenPacking, onFirstSaved }: { initiallyOpen?: boolean; initialDate?: string; focusDay?: { date: string; key: string }; onDayPosition?: (offset: number) => void; onOpened?: () => void; onRemove: (id: string) => void; onOpenPacking: () => void; onFirstSaved: () => void }) {
   const { selectedTrip, addActivity, updateActivity } = useTravel();
   const { drafts, saveDraft, discardDraft } = useActivityDrafts();
   const tripId = selectedTrip?.id ?? '';
@@ -409,6 +435,11 @@ function Plan({ initiallyOpen = false, onOpened, onRemove, onOpenPacking, onFirs
   const [editingId, setEditingId] = useState<string>();
   const [error, setError] = useState('');
   const [firstSaved, setFirstSaved] = useState(false);
+  const timelineY = useRef<number | undefined>(undefined);
+  const focusedDayY = useRef<number | undefined>(undefined);
+  const reportDayPosition = () => {
+    if (focusDay && timelineY.current !== undefined && focusedDayY.current !== undefined) onDayPosition?.(timelineY.current + focusedDayY.current);
+  };
   const { title, date, startTime: start, endTime: end, location, note, details } = form;
   const pendingNew = activityDraftFor(drafts, tripId);
   const pendingCurrent = activityDraftFor(drafts, tripId, editingId);
@@ -418,7 +449,12 @@ function Plan({ initiallyOpen = false, onOpened, onRemove, onOpenPacking, onFirs
     setForm(next); setEditingId(undefined); setError(''); setOpen(true);
     if (day) saveDraft(tripId, next);
   }, [drafts, tripId, saveDraft]);
-  useEffect(() => { if (initiallyOpen) { openNew(); onOpened?.(); } }, [initiallyOpen, openNew, onOpened]);
+  useEffect(() => {
+    if (!initiallyOpen) return;
+    // A Home shortcut supplies a default date, without overwriting a saved draft's date.
+    openNew(activityDraftFor(drafts, tripId)?.date ? undefined : initialDate);
+    onOpened?.();
+  }, [initiallyOpen, initialDate, drafts, tripId, openNew, onOpened]);
   const changeForm = (patch: Partial<ActivityDraft>) => {
     const next = { ...form, ...patch };
     setForm(next); saveDraft(tripId, next, editingId);
@@ -437,8 +473,7 @@ function Plan({ initiallyOpen = false, onOpened, onRemove, onOpenPacking, onFirs
     const key = parsed ? `${parsed.getFullYear()}-${parsed.getMonth()}-${parsed.getDate()}` : 'unscheduled';
     let group = groups.find((item) => item.key === key);
     if (!group) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      const today = tripDate(destinationToday(selectedTrip.destinationTimeZone))!;
       const tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 1);
       const isToday = parsed?.getTime() === today.getTime();
@@ -486,7 +521,7 @@ function Plan({ initiallyOpen = false, onOpened, onRemove, onOpenPacking, onFirs
         : <Text accessibilityRole="header" style={s.handoffTitle}>Ready to pack?</Text>}
       <View><PrimaryButton title="Create packing list" icon="bag-handle-outline" onPress={onOpenPacking}/><Pressable accessibilityRole="button" accessibilityLabel={newActivityLabel} onPress={() => openNew()} style={({ pressed }) => [s.handoffSecondary, pressed && s.pressed]}><Ionicons name={pendingNew ? 'arrow-forward' : 'add'} size={19} color={colors.blue}/><Text style={s.overviewLinkText}>{newActivityLabel}</Text></Pressable></View>
     </Card>}
-    {dayGroups.length ? <View style={s.planTimeline}>{dayGroups.map((group) => <View key={group.key} style={s.planDay}>
+    {dayGroups.length ? <View style={s.planTimeline} onLayout={event => { timelineY.current = event.nativeEvent.layout.y; reportDayPosition(); }}>{dayGroups.map((group) => <View key={group.key} testID={`plan-day-${group.activityDate || 'unscheduled'}`} style={s.planDay} onLayout={event => { if (focusDay?.date === group.activityDate) { focusedDayY.current = event.nativeEvent.layout.y; reportDayPosition(); } }}>
       <View style={s.planDayHeader}>
         <View style={s.planDayMarker}><View style={s.planDayDot}/></View>
         <View style={{ flex: 1, minWidth: 0 }}><Text style={s.planDayHeading}>{group.heading}</Text><Text style={s.planDayDate}>{group.date}</Text></View>
